@@ -22,6 +22,10 @@ def create_app():
     from routes.Auth import auth
     app.register_blueprint(auth)
 
+    @app.route("/")
+    def home():
+        return "working now"
+
     return app
 
 

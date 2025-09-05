@@ -8,7 +8,7 @@ from werkzeug.datastructures import FileStorage
 load_dotenv()
 
 
-cred = credentials.Certificate("StorageApi/qrsence-firebase-adminsdk-7k5ew-8edd4b858d.json")
+cred = credentials.Certificate("FirebaseApi/qrsence-firebase-adminsdk-7k5ew-8edd4b858d.json")
 app2 = None
 try:
     app2 = firebase_admin.initialize_app(cred, {
