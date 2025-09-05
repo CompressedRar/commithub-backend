@@ -29,6 +29,7 @@ def upload_file(profile_picture):
     profile_image.make_public()
     file_url = profile_image.public_url
     print(file_url)
+    return file_url
 
 
 def test_upload(filepath):

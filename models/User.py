@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from models.Positions import Positions, Position
+from FirebaseApi.config import upload_file
 
 class User(db.Model):
     __tablename__ = "users"
@@ -13,7 +14,7 @@ class User(db.Model):
 
     email = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(50), nullable=False, default="12345678")
-    profile_picture_link = db.Column(db.String(50), nullable=True)
+    profile_picture_link = db.Column(db.String(200), nullable=True)
 
     department = db.Column(db.String(50), default="staff", nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
@@ -154,8 +155,11 @@ class Users():
 
 
 
-    def add_new_user(data):
+    def add_new_user(data, profile_picture):
+        print(profile_picture)
         try:
+            res = upload_file(profile_picture)
+
             new_user = User(
             first_name=data["first_name"],
             last_name=data["last_name"],
@@ -165,7 +169,7 @@ class Users():
             
             email=data["email"],
             password=data["password"],
-            profile_picture_link = ""
+            profile_picture_link = res
             
             )
 

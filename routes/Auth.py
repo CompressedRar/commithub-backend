@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify
+from flask import Blueprint, render_template, jsonify, request
 from app import db
 from models.User import Users
 from models.Positions import Position, Positions
@@ -9,13 +9,19 @@ auth = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 def authenticate_login():
     return "working login"
 
-@auth.route("/login")
+@auth.route("/register", methods=["POST"])
 def register_user():
-    return "working user"
-
+    data = request.form
+    profile_pic = request.files.get("profile_picture")
+    print(data)
+    if not data:
+        return jsonify({"error": "Missing field JSON"}), 400
+    return Users.add_new_user(data, profile_pic)
 
 @auth.route("/")
 def authenticate_test():
     return jsonify(message = "testingall", response = "test")
 
-
+@auth.route("/positions", methods=["GET"])
+def get_all_positions():
+    return Positions.get_all_positions()
