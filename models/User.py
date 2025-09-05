@@ -2,24 +2,29 @@ from app import db
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
+from models.Positions import Positions, Position
 
 class User(db.Model):
+    __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50), nullable=False)
-    middle_name = db.Column(db.String(50), default="", nullable = True)
+    middle_name = db.Column(db.String(50), default="", nullable=True)
     last_name = db.Column(db.String(50), nullable=False)
 
-    email = db.Column(db.String(50), unique= True, nullable=False)
-    password = db.Column(db.String(50), nullable=False, default = "12345678")
+    email = db.Column(db.String(50), unique=True, nullable=False)
+    password = db.Column(db.String(50), nullable=False, default="12345678")
     profile_picture_link = db.Column(db.String(50), nullable=True)
 
-    department = db.Column(db.String(50), default="staff", nullable = False)
-    position = db.Column(db.String(50), default="faculty", nullable = False)
-
+    department = db.Column(db.String(50), default="staff", nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
-    role = db.Column(db.Enum("faculty", "head", "administator"), default="faculty")
+    role = db.Column(db.Enum("faculty", "head", "administrator"), default="faculty")
 
-    active_status = db.Column(db.Boolean(50), default=True)
+    active_status = db.Column(db.Boolean, default=True)
+
+    # FK references table name "positions"
+    position_id = db.Column(db.Integer, db.ForeignKey("positions.id"), default=1)
+    position = db.relationship("Position", back_populates="users")
+
 
     def to_dict(self):
         return {
@@ -27,8 +32,6 @@ class User(db.Model):
             "first_name": self.first_name,
             "last_name": self.last_name,
             "middle_name": self.middle_name,
-
-            "position": self.position,
             "deparment": self.department,
 
             "role": self.role,
@@ -157,7 +160,7 @@ class Users():
             first_name=data["first_name"],
             last_name=data["last_name"],
             middle_name=data["middle_name"],
-            position=data["position"],
+            position_id = data["position"],
             department=data["department"],
             
             email=data["email"],
@@ -171,36 +174,41 @@ class Users():
 
             return jsonify(message="Account creation succeed"), 200
 
-        except IntegrityError:
+        except IntegrityError as e:
             db.session.rollback()
-            return jsonify(error="Username already exists"), 400
+            print(str(e))
+            return jsonify(error="Email already exists"), 400
         
-        except DataError:
+        except DataError as e:
             db.session.rollback()
+            print(str(e))
+            
             return jsonify(error="Invalid data format"), 400
 
-        except OperationalError:
+        except OperationalError as e:
             db.session.rollback()
+            print(str(e))
             return jsonify(error="Database connection error"), 500
 
         except Exception as e:  # fallback for unknown errors
             db.session.rollback()
+            print(str(e))
             return jsonify(error=str(e)), 500
 
 
 def test_create_user():
+    position = Position().query.get(1)
     user_data = {
         "first_name": "test_name",
         "middle_name": "test_name",
         "last_name": "test_name",
-        "position": "test_position",
+        "position": 1,
         "department": "test_department",
-        "email": "test_email2",
+        "email": "test_email1",
         "password": "test_password"
     }
 
     result = Users.add_new_user(data = user_data)
-
     return result
         
 

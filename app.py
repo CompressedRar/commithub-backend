@@ -22,6 +22,9 @@ def create_app():
     from routes.Auth import auth
     app.register_blueprint(auth)
 
+    from routes.Tests import test
+    app.register_blueprint(test)
+
     @app.route("/")
     def home():
         return "working now"
