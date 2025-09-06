@@ -4,6 +4,8 @@ from sqlalchemy.exc import IntegrityError, OperationalError, DataError, Programm
 from flask import jsonify
 from models.Positions import Positions, Position
 from FirebaseApi.config import upload_file
+from utils.Generate import generate_default_password
+from utils.Email import send_email
 
 class User(db.Model):
     __tablename__ = "users"
@@ -44,6 +46,10 @@ class User(db.Model):
 
 
 class Users():
+
+    
+
+
     def check_username_if_exists():
         all_users = User.query.all()
         print(all_users)
@@ -157,7 +163,13 @@ class Users():
 
     def add_new_user(data, profile_picture):
         print(profile_picture)
+
+
         try:
+            new_default_password = generate_default_password()
+            msg = "Hello!, Your default password is: " + new_default_password 
+            send_email(data["email"], msg)
+            
             res = upload_file(profile_picture)
 
             new_user = User(
@@ -168,7 +180,7 @@ class Users():
             department=data["department"],
             
             email=data["email"],
-            password=data["password"],
+            password= new_default_password,
             profile_picture_link = res
             
             )
@@ -176,7 +188,7 @@ class Users():
             db.session.add(new_user)
             db.session.commit()
 
-            return jsonify(message="Account creation succeed"), 200
+            return jsonify(message="Account creation is successful."), 200
 
         except IntegrityError as e:
             db.session.rollback()
