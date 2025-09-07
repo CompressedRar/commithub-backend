@@ -6,6 +6,7 @@ from models.Positions import Positions, Position
 from FirebaseApi.config import upload_file
 from utils.Generate import generate_default_password
 from utils.Email import send_email
+from argon2 import PasswordHasher
 
 class User(db.Model):
     __tablename__ = "users"
@@ -50,9 +51,22 @@ class Users():
     
 
 
-    def check_username_if_exists():
-        all_users = User.query.all()
-        print(all_users)
+    def check_email_if_exists(email):
+        try:
+            all_users = User.query.filter_by(email = email).all()
+            if all_users:
+                return jsonify(message = "Email was already taken."), 200
+            else:
+                return jsonify(message = "Available"), 200
+            
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
 
     def get_all_users():
         try:
@@ -168,6 +182,9 @@ class Users():
         try:
             new_default_password = generate_default_password()
             msg = "Hello!, Your default password is: " + new_default_password 
+
+            ph = PasswordHasher()
+            hashed_password = ph.hash(new_default_password)
             send_email(data["email"], msg)
             
             res = upload_file(profile_picture)
@@ -180,7 +197,7 @@ class Users():
             department=data["department"],
             
             email=data["email"],
-            password= new_default_password,
+            password= hashed_password,
             profile_picture_link = res
             
             )
