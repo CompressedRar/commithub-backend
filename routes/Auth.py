@@ -7,7 +7,9 @@ auth = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 
 @auth.route("/login", methods = ["POST"])
 def authenticate_user():
-    return "working login"
+    data = request.form
+    print("Data received: ", data.keys())
+    return Users.authenticate_user(data)
 
 @auth.route("/register", methods=["POST"])
 def register_user():

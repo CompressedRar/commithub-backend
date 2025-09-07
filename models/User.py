@@ -7,6 +7,7 @@ from FirebaseApi.config import upload_file
 from utils.Generate import generate_default_password
 from utils.Email import send_email
 from argon2 import PasswordHasher
+import jwt
 
 class User(db.Model):
     __tablename__ = "users"
@@ -16,7 +17,7 @@ class User(db.Model):
     last_name = db.Column(db.String(50), nullable=False)
 
     email = db.Column(db.String(50), unique=True, nullable=False)
-    password = db.Column(db.String(50), nullable=False, default="12345678")
+    password = db.Column(db.String(250), nullable=False, default="12345678")
     profile_picture_link = db.Column(db.String(200), nullable=True)
 
     department = db.Column(db.String(50), default="staff", nullable=False)
@@ -37,12 +38,14 @@ class User(db.Model):
             "last_name": self.last_name,
             "middle_name": self.middle_name,
             "deparment": self.department,
-
+            
             "role": self.role,
             "email": self.email,
+            "password": self.password,
+            "position":self.position_id,
             "profile_picture_link": self.profile_picture_link,
             "active-status": self.active_status,
-            "created_at": self.created_at
+            
         }
 
 
@@ -66,6 +69,25 @@ class Users():
         except Exception as e:
             #db.session.rollback()
             return jsonify(error=str(e)), 500
+        
+
+    def authenticate_if_email_exists(email):
+        try:
+            all_users = User.query.filter_by(email = email).all()
+            
+            if all_users:
+                return all_users[0].to_dict()
+            else:
+                return False
+            
+        except OperationalError as e:
+            print(e)
+            #db.session.rollback()
+            return False
+
+        except Exception as e:
+            #db.session.rollback()
+            return False
         
 
     def get_all_users():
@@ -177,11 +199,11 @@ class Users():
 
     def add_new_user(data, profile_picture):
         print(profile_picture)
-
-
         try:
             new_default_password = generate_default_password()
             msg = "Hello!, Your default password is: " + new_default_password 
+
+            print(msg)
 
             ph = PasswordHasher()
             hashed_password = ph.hash(new_default_password)
@@ -227,6 +249,55 @@ class Users():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+    
+    def generate_token(data):
+        token = jwt.encode(
+            data, "priscilla", algorithm="HS256"
+        )
+
+        return token
+
+
+    def authenticate_user(login_data):
+        print("entry pointof authentication")
+        try:
+            email = login_data["email"]
+            password = login_data["password"]
+
+            userCheck = Users.authenticate_if_email_exists(email)
+            print("User check: ", userCheck)
+            if userCheck:
+                
+                ph = PasswordHasher()
+                
+
+                result = ph.verify(hash=userCheck["password"], password = password)
+                
+                print(result)
+
+                if result:
+                    token = Users.generate_token(userCheck)
+                    return jsonify(message ="Authenticated.", token = token), 200
+                
+                else:
+                    return jsonify(message ="Invalid Credentials"), 200
+
+            else:
+                return jsonify(message = "Invalid Credentials"), 200
+            
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e),  "OPERATIONAL")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "EXCEPTION")
+            return jsonify(error=str(e)), 500
+            
+"JEX8iu1hAA"
+
+
 
 
 def test_create_user():
