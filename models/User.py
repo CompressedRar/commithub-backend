@@ -20,7 +20,7 @@ class User(db.Model):
     password = db.Column(db.String(250), nullable=False, default="12345678")
     profile_picture_link = db.Column(db.String(200), nullable=True)
 
-    department = db.Column(db.String(50), default="staff", nullable=False)
+    
     created_at = db.Column(db.DateTime, default=datetime.now)
     role = db.Column(db.Enum("faculty", "head", "administrator"), default="faculty")
 
@@ -31,21 +31,29 @@ class User(db.Model):
     position = db.relationship("Position", back_populates="users")
 
 
+    department_id = db.Column(db.Integer, db.ForeignKey("departments.id"), default=1)
+    department = db.relationship("Department", back_populates="users")
+
+    #multiple ipcrs for one user
+    ipcrs = db.relationship("IPCR", back_populates="user")
+
+
     def to_dict(self):
         return {
             "id": self.id,
             "first_name": self.first_name,
             "last_name": self.last_name,
             "middle_name": self.middle_name,
-            "deparment": self.department,
             
             "role": self.role,
             "email": self.email,
             "password": self.password,
-            "position":self.position_id,
             "profile_picture_link": self.profile_picture_link,
             "active-status": self.active_status,
-            
+
+            "position":self.position_id,
+            "department": self.department_id,
+            "ipcrs": [ipcr.to_dict() for ipcr in self.ipcrs]            
         }
 
 
@@ -256,6 +264,34 @@ class Users():
         )
 
         return token
+    
+    def count_users_by_depts():
+        all_users = User.query.all()
+        all_converted = [user.to_dict() for user in all_users]
+        ccs_count = 0
+        educ_count = 0
+        hm_count = 0
+        other_count = 0
+
+        for user in all_converted:
+            dept = user["department"] 
+            print(dept)
+            if dept == "computing_studies":
+                ccs_count += 1
+            elif dept == "education":
+                educ_count += 1
+            elif dept == "hospitality_management":
+                hm_count += 1
+            else:
+                other_count += 1
+        
+        return jsonify(message = {
+            "cs": ccs_count,
+            "educ" : educ_count,
+            "hm": hm_count,
+            "other": other_count,
+            "all": len(all_converted)
+        }), 200
 
 
     def authenticate_user(login_data):

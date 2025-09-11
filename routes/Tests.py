@@ -37,3 +37,11 @@ def test_delete_user_route():
 def test_getall_positions():
     
     return Positions.get_all_positions()
+
+@test.route("/get-all-user-count")
+def test_getall_count():
+    
+    return Users.count_users_by_depts()
+
+
+

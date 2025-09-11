@@ -1,7 +1,14 @@
 from flask import Blueprint, render_template, jsonify, request
 from app import db
+
 from models.User import Users
 from models.Positions import Position, Positions
+from models.Categories import Category
+from models.Tasks import Sub_Task, Main_Task
+from models.Logs import Logs
+from models.Departments import Department
+from models.PCR import IPCR, OPCR
+
 
 auth = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 
@@ -29,6 +36,12 @@ def authenticate_test():
 @auth.route("/positions", methods=["GET"])
 def get_all_positions():
     return Positions.get_all_positions()
+
+@auth.route("/user-count")
+def getall_count():
+    
+    return Users.count_users_by_depts()
+
 
 @auth.route("/check/<email>", methods=["GET"])
 def check_email(email):
