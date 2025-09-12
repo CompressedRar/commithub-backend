@@ -36,6 +36,9 @@ def create_app():
     from routes.Tests import test
     app.register_blueprint(test)
 
+    from routes.Department import department
+    app.register_blueprint(department)
+
     @app.route("/test-email")
     def test_email():
         res = send_email("qwertythanzip@gmail.com")

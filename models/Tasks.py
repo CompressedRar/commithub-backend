@@ -22,6 +22,9 @@ class Main_Task(db.Model):
     status = db.Column(db.Boolean, default=True)
 
     #one category and one department
+    department_id = db.Column(db.Integer, db.ForeignKey("departments.id"))
+    department = db.relationship("Department", back_populates = "main_tasks")
+
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"))
     category = db.relationship("Category", back_populates = "main_tasks")
 

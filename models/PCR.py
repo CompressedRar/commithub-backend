@@ -27,12 +27,15 @@ class IPCR(db.Model):
 
     sub_tasks = db.relationship("Sub_Task", back_populates = "ipcr", cascade = "all, delete")
 
+    def count_sub_tasks(self):
+        return len([main_task.to_dict() for main_task in self.sub_tasks])
 
     def to_dict(self):
         return {
             "id" : self.id,
             "user": self.user_id,
-            "sub_tasks": [main_task.to_dict() for main_task in self.sub_tasks]
+            "sub_tasks": [main_task.to_dict() for main_task in self.sub_tasks],
+            "sub_tasks_count": self.count_sub_tasks()
         }
     
 class OPCR(db.Model):
@@ -52,9 +55,14 @@ class OPCR(db.Model):
 
     ipcrs = db.relationship("IPCR", back_populates = "opcr", cascade = "all, delete")
 
+    def count_ipcr(self):
+        return len([ipcr.to_dict() for ipcr in self.ipcrs])
+    
+    
+    
     def to_dict(self):
         return {
             "id" : self.id,
             "user": self.user_id,
-            "sub_tasks": [main_task.to_dict() for main_task in self.sub_tasks]
+            "ipcr_count": self.count_ipcr()
         }
