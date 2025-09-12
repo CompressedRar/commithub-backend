@@ -30,12 +30,14 @@ class User(db.Model):
     position_id = db.Column(db.Integer, db.ForeignKey("positions.id"), default=1)
     position = db.relationship("Position", back_populates="users")
 
+    managed_dept_id = db.Column(db.Integer)
 
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id"), default=1)
     department = db.relationship("Department", back_populates="users")
 
     #multiple ipcrs for one user
     ipcrs = db.relationship("IPCR", back_populates="user")
+    notifications = db.relationship("Notification", back_populates="user", cascade = "all, delete")
 
 
     def to_dict(self):

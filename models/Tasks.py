@@ -25,8 +25,6 @@ class Main_Task(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"))
     category = db.relationship("Category", back_populates = "main_tasks")
 
-    department_id = db.Column(db.Integer, db.ForeignKey("departments.id"))
-    deparment = db.relationship("Department", back_populates = "main_tasks")
 
     sub_tasks = db.relationship("Sub_Task", back_populates = "main_task", cascade = "all, delete")
 
@@ -43,7 +41,6 @@ class Main_Task(db.Model):
             "created_at": self.created_at,
             "status": self.status,
             
-            "department": self.department_id,
             "category": self.category_id,
             "sub_tasks": [sub_task.to_dict() for sub_task in self.sub_tasks],
         }

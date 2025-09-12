@@ -8,6 +8,7 @@ from models.Tasks import Sub_Task, Main_Task
 from models.Logs import Logs
 from models.Departments import Department
 from models.PCR import IPCR, OPCR
+from models.Notifications import Notification
 
 
 auth = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
