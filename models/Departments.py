@@ -35,6 +35,12 @@ class Department(db.Model):
             count += ipcr_count
 
         return count
+    
+    def info(self):
+        return {
+            "id" : self.id,
+            "name": self.name,
+        }
 
 
     def to_dict(self):
@@ -59,7 +65,7 @@ class Department_Service():
             all_depts = Department.query.all()
             all_converted = [dept.to_dict() for dept in all_depts]
 
-            return jsonify(message = all_converted), 200
+            return jsonify(all_converted), 200
         except OperationalError:
             #db.session.rollback()
             return jsonify(error="Database connection error"), 500
@@ -75,7 +81,7 @@ class Department_Service():
             if all_depts:
                 dept = all_depts[0].to_dict()
                 print(dept)
-                return jsonify(message = dept), 200
+                return jsonify(dept), 200
             else:
                 return jsonify(message = "There is no department with that id"), 200
         except OperationalError:
@@ -88,9 +94,10 @@ class Department_Service():
         
     def get_members(dept_id, offset = 0, limit = 10):
         try:
+            print("finding members of dept id:", dept_id)
             users = User.query.filter_by(department_id = dept_id).order_by(User.id.asc()).offset(offset).limit(limit).all()
-            converted_user = [user.to_dict for user in users]
-            return jsonify(message = converted_user), 200
+            converted_user = [user.to_dict() for user in users]
+            return jsonify(converted_user), 200
         
         except OperationalError:
             #db.session.rollback()

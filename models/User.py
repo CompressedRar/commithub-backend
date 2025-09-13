@@ -53,8 +53,8 @@ class User(db.Model):
             "profile_picture_link": self.profile_picture_link,
             "active-status": self.active_status,
 
-            "position":self.position_id,
-            "department": self.department_id,
+            "position":self.position.info(),
+            "department": self.department.info(),
             "ipcrs": [ipcr.to_dict() for ipcr in self.ipcrs]            
         }
 
@@ -217,7 +217,7 @@ class Users():
 
             ph = PasswordHasher()
             hashed_password = ph.hash(new_default_password)
-            send_email(data["email"], msg)
+            
             
             res = upload_file(profile_picture)
 
@@ -226,13 +226,14 @@ class Users():
             last_name=data["last_name"],
             middle_name=data["middle_name"],
             position_id = data["position"],
-            department=data["department"],
+            department_id=data["department"],
             
             email=data["email"],
             password= hashed_password,
             profile_picture_link = res
             
             )
+            send_email(data["email"], msg)
 
             db.session.add(new_user)
             db.session.commit()

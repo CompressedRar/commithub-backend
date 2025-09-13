@@ -9,6 +9,12 @@ class Position(db.Model):
     name = db.Column(db.String(50), nullable=False)
 
     users = db.relationship("User", back_populates = "position")
+    
+    def info(self):
+        return {
+            "id" : self.id,
+            "name": self.name,
+        }
 
     def to_dict(self):
         return {
