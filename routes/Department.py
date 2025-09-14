@@ -29,3 +29,8 @@ def create_department():
 def update_department():
     data = request.form
     return Department_Service.update_department(data["id"],data)
+    
+
+@department.route("/<id>", methods = ["DELETE"])
+def archive_department(id):
+    return Department_Service.archive_department(id)

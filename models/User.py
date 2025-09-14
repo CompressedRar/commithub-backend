@@ -25,6 +25,7 @@ class User(db.Model):
     role = db.Column(db.Enum("faculty", "head", "administrator"), default="faculty")
 
     active_status = db.Column(db.Boolean, default=True)
+    account_status = db.Column(db.Integer, default = 1)
 
     # FK references table name "positions"
     position_id = db.Column(db.Integer, db.ForeignKey("positions.id"), default=1)
@@ -36,9 +37,11 @@ class User(db.Model):
     department = db.relationship("Department", back_populates="users")
 
     #multiple ipcrs for one user
+    outputs = db.relationship("Output", back_populates="user")
+
     ipcrs = db.relationship("IPCR", back_populates="user")
     notifications = db.relationship("Notification", back_populates="user", cascade = "all, delete")
-
+  
 
     def to_dict(self):
         return {
@@ -51,11 +54,13 @@ class User(db.Model):
             "email": self.email,
             "password": self.password,
             "profile_picture_link": self.profile_picture_link,
-            "active-status": self.active_status,
+            "active_status": self.active_status,
+            "account_status": self.account_status,
 
             "position":self.position.info(),
             "department": self.department.info(),
-            "ipcrs": [ipcr.to_dict() for ipcr in self.ipcrs]            
+            "ipcrs": [ipcr.to_dict() for ipcr in self.ipcrs],
+            "main_tasks_count": len(self.outputs)         
         }
 
 

@@ -3,6 +3,17 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
+from models.User import User
+
+class Output(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    main_task_id = db.Column(db.Integer, db.ForeignKey("main_tasks.id"))
+
+    user = db.relationship("User", back_populates = "outputs")
+    main_task = db.relationship("Main_Task", back_populates = "outputs")
+
+
 
 class Main_Task(db.Model):
     __tablename__ = "main_tasks"
@@ -28,8 +39,14 @@ class Main_Task(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"))
     category = db.relationship("Category", back_populates = "main_tasks")
 
-
     sub_tasks = db.relationship("Sub_Task", back_populates = "main_task", cascade = "all, delete")
+    outputs = db.relationship("Output", back_populates="main_task")
+
+    def info(self):
+        return {
+            "id" : self.id,
+            "name": self.mfo,
+        }
 
     def to_dict(self):
         return {

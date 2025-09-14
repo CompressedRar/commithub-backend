@@ -12,6 +12,7 @@ class Department(db.Model):
     icon = db.Column(db.String(50), default = "category")
 
     manager_id = db.Column(db.Integer, default = 0)
+    status = db.Column(db.Integer, default = 1)
 
     users = db.relationship("User", back_populates="department")
     opcrs = db.relationship("OPCR", back_populates="department")
@@ -62,7 +63,7 @@ class Department(db.Model):
 class Department_Service():
     def get_all_departments():
         try:
-            all_depts = Department.query.all()
+            all_depts = Department.query.filter_by(status=1).all()
             all_converted = [dept.to_dict() for dept in all_depts]
 
             return jsonify(all_converted), 200
@@ -150,6 +151,40 @@ class Department_Service():
             db.session.commit()
 
             return jsonify(message = "Department successfully updated."), 200
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Email already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+        
+    
+    def archive_department(id):
+        try:
+            found_department = Department.query.get(id)
+
+            if not found_department:
+                return jsonify({"error": "Department not found"}), 404
+            
+            found_department.status = 0
+
+            db.session.commit()
+
+            return jsonify(message = "Department successfully archived."), 200
         except IntegrityError as e:
             db.session.rollback()
             print(str(e))
