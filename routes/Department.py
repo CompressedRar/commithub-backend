@@ -19,3 +19,13 @@ def get_department_members(id):
     limit = request.args.get("limit")
     print("this trigger")
     return Department_Service.get_members(id, offset, limit)
+
+@department.route("/create", methods = ["POST"])
+def create_department():
+    data = request.form
+    return Department_Service.create_department(data)
+
+@department.route("/update", methods = ["POST"])
+def update_department():
+    data = request.form
+    return Department_Service.update_department(data["id"],data)
