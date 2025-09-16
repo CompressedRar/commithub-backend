@@ -55,7 +55,7 @@ class Department(db.Model):
             "user_count": self.count_users(),
             "opcr_count": self.count_opcr(),
             "ipcr_count": self.count_ipcr(),
-            "main_tasks": self.main_tasks,
+            "main_tasks": [main_task.info() for main_task in self.main_tasks],
             "main_tasks_count": self.count_tasks()
         }
     
