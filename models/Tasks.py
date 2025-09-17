@@ -29,9 +29,7 @@ class Main_Task(db.Model):
     __tablename__ = "main_tasks"
     id = db.Column(db.Integer, primary_key=True)
     
-    mfo = db.Column(db.Text, nullable=False)
-
-    
+    mfo = db.Column(db.Text, nullable=False)    
 
     time_description = db.Column(db.Text, nullable=False)
     modification = db.Column(db.Text, nullable=False)
@@ -73,7 +71,8 @@ class Main_Task(db.Model):
             "actual_accomplishment": self.actual_accomplishment,
             "time_measurement" : self.time_description,
             "modifications": self.modification,
-            "users": [output.info() for output in self.outputs]
+            "users": [output.info() for output in self.outputs],
+            "status": self.status
         }
 
     def to_dict(self):
@@ -151,7 +150,7 @@ class Sub_Task(db.Model):
 class Tasks_Service():
     def get_main_tasks():
         try:
-            all_main_tasks = Main_Task.query.all()
+            all_main_tasks = Main_Task.query.filter_by(status = 1).all()
             converted_main_tasks = [main_task.info() for main_task in all_main_tasks]
         
             return jsonify(converted_main_tasks), 200
@@ -181,9 +180,10 @@ class Tasks_Service():
         
     def create_main_task(data):
         try:
+            print("creating task right now")
             new_main_task = Main_Task(
                 mfo = data["task_name"],
-                department_id  = data["department"],
+                department_id  = int(data["department"]),
                 target_accomplishment = data["task_desc"],
                 actual_accomplishment = data["task_desc"],
                 accomplishment_editable =  int(data["accomplishment_editable"]),
@@ -191,16 +191,70 @@ class Tasks_Service():
                 modification_editable =  int(data["modification_editable"]),
                 time_description = data["time_measurement"],
                 modification =  data["modification"],
-                category_id = data["id"]
+                category_id = int(data["id"])
             )
             print("registered task")
             db.session.add(new_main_task)
             db.session.commit()
             return jsonify(message="Task successfully created."), 200
+        
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e), "Integrity")
+            return jsonify(error="Task already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e), "data error")
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e), "operational")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "unknown")
+            return jsonify(error=str(e)), 500
+        
+    def update_task_info(data):
+        try:
+            found_task = Main_Task.query.get(data["id"])
+
+            if found_task == None:
+                return jsonify(message="No task with that ID"), 400
+            
+            if len(data) == 0:
+                return jsonify(message="You must submit data to update fields"), 400
+
+            if "name" in data:
+                found_task.mfo = data["name"]
+
+            if "target_accomplishment" in data:
+                found_task.target_accomplishment = data["target_accomplishment"]
+
+            if "actual_accomplishment" in data:
+                found_task.actual_accomplishment = data["actual_accomplishment"]
+
+            if "time_description" in data:
+                found_task.time_description = data["time_description"]
+
+            if "modification" in data:
+                found_task.modification = data["modification"]
+
+            if "status" in data:
+                print("status detected", data["status"])
+                found_task.status = data["status"]
+
+            db.session.commit()
+            return jsonify(message = "Task successfully updated."), 200
+        
         except IntegrityError as e:
             db.session.rollback()
             print(str(e))
-            return jsonify(error="Task already exists"), 400
+            return jsonify(error="Data does not exists"), 400
         
         except DataError as e:
             db.session.rollback()
@@ -217,3 +271,36 @@ class Tasks_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+        
+    def archive_task(id):
+        try:
+            found_task = Main_Task.query.get(id)
+
+            if found_task == None:
+                return jsonify(message="No task with that ID"), 400
+            
+            found_task.status = 0
+            db.session.commit()
+            return jsonify(message = "Task successfully archived."), 200
+        
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Data does not exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+        

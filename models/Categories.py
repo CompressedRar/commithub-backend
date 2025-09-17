@@ -32,7 +32,7 @@ class Category(db.Model):
 class Category_Service():
     def get_all():
         try:
-            all_categories = Category.query.all()
+            all_categories = Category.query.filter_by(status = 1).all()
             converted_categories = [category.info() for category in all_categories]
         
             return jsonify(converted_categories), 200
@@ -51,7 +51,6 @@ class Category_Service():
             
             if all_depts:
                 dept = all_depts[0].to_dict()
-                print(dept)
                 return jsonify(dept), 200
             else:
                 return jsonify(message = "There is no category with that id"), 400
@@ -76,6 +75,38 @@ class Category_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error="Category already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+    
+    def archive_category(id):
+        try:
+            found_task = Category.query.get(id)
+
+            if found_task == None:
+                return jsonify(message="No category with that ID"), 400
+            
+            found_task.status = 0
+            db.session.commit()
+            return jsonify(message = "Category successfully archived."), 200
+        
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Data does not exists"), 400
         
         except DataError as e:
             db.session.rollback()

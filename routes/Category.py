@@ -17,3 +17,7 @@ def get_category(id):
 def create_category():
     data = request.form
     return Category_Service.create_category(data)
+
+@category.route("/<id>", methods = ["DELETE"])
+def archive_category(id):
+    return Category_Service.archive_category(id)
