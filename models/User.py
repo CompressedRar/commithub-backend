@@ -1,4 +1,6 @@
 from app import db
+from app import socketio
+
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
@@ -56,10 +58,12 @@ class User(db.Model):
             "profile_picture_link": self.profile_picture_link,
             "active_status": self.active_status,
             "account_status": self.account_status,
+            "created_at": str(self.created_at),
 
             "position":self.position.info(),
             "department": self.department.info(),
             "ipcrs": [ipcr.to_dict() for ipcr in self.ipcrs],
+            "ipcrs_count": len([ipcr.to_dict() for ipcr in self.ipcrs]),
             "main_tasks_count": len(self.outputs)         
         }
 
@@ -107,7 +111,7 @@ class Users():
 
     def get_all_users():
         try:
-            users  = User.query.all()
+            users  = User.query.filter_by(account_status = 1).all()
 
             return jsonify([user.to_dict() for user in users]), 200
         
@@ -167,7 +171,11 @@ class Users():
                     db.session.commit()
                 
                 if "department" in data:
-                    user.department = data["department"] 
+                    user.department_id = data["department"] 
+                    db.session.commit()
+
+                if "position" in data:
+                    user.position_id = data["position"] 
                     db.session.commit()
                 
                 if "role" in data:
@@ -242,6 +250,8 @@ class Users():
 
             db.session.add(new_user)
             db.session.commit()
+            
+            socketio.emit("user_created", "user added")
 
             return jsonify(message="Account creation is successful."), 200
 

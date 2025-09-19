@@ -91,6 +91,38 @@ class Category_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+        
+    def update_category(data):
+        try:
+            found_category = Category.query.get(data["id"])
+            
+            if found_category == None:
+                return jsonify(message = "Category doesn't exists."), 400
+            found_category.name = data["title"]
+
+            db.session.commit()
+
+            return jsonify(message = "Category updated."), 200
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Category already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
     
     def archive_category(id):
         try:

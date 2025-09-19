@@ -21,3 +21,9 @@ def create_category():
 @category.route("/<id>", methods = ["DELETE"])
 def archive_category(id):
     return Category_Service.archive_category(id)
+
+@category.route("/", methods = ["PATCH"])
+def update_category():
+    data = request.form
+    print(data)
+    return Category_Service.update_category(data)

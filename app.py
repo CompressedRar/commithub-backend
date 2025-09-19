@@ -2,6 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 from dotenv import load_dotenv
 import os
 from utils.Email import mail, send_email
@@ -9,6 +10,7 @@ from utils.Email import mail, send_email
 
 db = SQLAlchemy()
 migrate = Migrate()
+socketio = SocketIO()
 
 def create_app():
     load_dotenv()
@@ -28,6 +30,7 @@ def create_app():
     mail.init_app(app)
     db.init_app(app)
     migrate.init_app(app, db)
+    socketio.init_app(app, cors_allowed_origins="*")
 
     # dito daw ilagay lahat ng routes
     from routes.Auth import auth
@@ -44,6 +47,10 @@ def create_app():
 
     from routes.Task import task
     app.register_blueprint(task)
+
+
+    from routes.Users import users
+    app.register_blueprint(users)
 
     @app.route("/test-email")
     def test_email():
