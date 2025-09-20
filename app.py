@@ -48,9 +48,11 @@ def create_app():
     from routes.Task import task
     app.register_blueprint(task)
 
-
     from routes.Users import users
     app.register_blueprint(users)
+
+    from routes.Logs import logs
+    app.register_blueprint(logs)
 
     @app.route("/test-email")
     def test_email():

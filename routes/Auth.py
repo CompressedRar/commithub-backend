@@ -6,21 +6,22 @@ from models.User import Users
 from models.Positions import Position, Positions
 from models.Categories import Category
 from models.Tasks import Sub_Task, Main_Task
-from models.Logs import Logs
 from models.Departments import Department
 from models.PCR import IPCR, OPCR
 from models.Notifications import Notification
-
+from utils.decorators import log_enter
 
 auth = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 
 @auth.route("/login", methods = ["POST"])
+@log_enter(action="LOGIN")
 def authenticate_user():
     data = request.form
     print("Data received: ", data.keys())
     return Users.authenticate_user(data)
 
 @auth.route("/register", methods=["POST"])
+@log_enter(action="REGISTER")
 def register_user():
     data = request.form
     profile_pic = request.files.get("profile_picture")
@@ -45,7 +46,6 @@ def get_all_positions():
 def getall_count():
     
     return Users.count_users_by_depts()
-
 
 @auth.route("/check/<email>", methods=["GET"])
 def check_email(email):

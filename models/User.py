@@ -8,8 +8,10 @@ from models.Positions import Positions, Position
 from FirebaseApi.config import upload_file
 from utils.Generate import generate_default_password
 from utils.Email import send_email
+from models.Logs import Log_Service
 from argon2 import PasswordHasher
 import jwt
+
 
 class User(db.Model):
     __tablename__ = "users"
@@ -111,7 +113,7 @@ class Users():
 
     def get_all_users():
         try:
-            users  = User.query.filter_by(account_status = 1).all()
+            users  = User.query.all()
 
             return jsonify([user.to_dict() for user in users]), 200
         
@@ -217,7 +219,50 @@ class Users():
         except Exception as e:
             db.session.rollback()
             return jsonify(error=str(e)), 500
+        
+    
 
+    def archive_user(id):
+        try:
+            user = User.query.get(id)
+
+            if user:
+                user.account_status = 0
+                db.session.commit()
+                socketio.emit("user_modified", "user deactivated")
+                return jsonify(message = "User successfully deactivated"), 200
+    
+            else: 
+                return jsonify(error= "There is no user with that id"), 400
+
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def unarchive_user(id):
+        try:
+            user = User.query.get(id)
+
+            if user:
+                user.account_status = 1
+                db.session.commit()
+                socketio.emit("user_modified", "user deactivated")
+                return jsonify(message = "User successfully reactivated"), 200
+    
+            else: 
+                return jsonify(error= "There is no user with that id"), 400
+
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
 
 
     def add_new_user(data, profile_picture):
