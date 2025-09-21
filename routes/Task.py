@@ -5,6 +5,10 @@ from models.Tasks import Tasks_Service
 from utils.decorators import log_action
 task = Blueprint("task", __name__, url_prefix="/api/v1/task")
 
+@task.route("/count", methods = ["GET"])
+def get_tasks_count():
+    return Tasks_Service.get_all_tasks_count()
+
 @task.route("/", methods = ["GET"])
 def get_tasks():
     return Tasks_Service.get_main_tasks()

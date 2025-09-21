@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError, DataError, Programm
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.User import *
+from app import socketio
 
 class Department(db.Model):
     __tablename__ = "departments"
@@ -171,7 +172,32 @@ class Department_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+    
+    def remove_user_from_department(id):
+        try:
+            user = User.query.get(id)
+
+            user.department_id = None
+            db.session.commit()
+            print("UPDSTING")
+            socketio.emit("user_modified", "user removed from department")
+            return jsonify(message="User successfully removed."), 200
         
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
     
     def archive_department(id):
         try:

@@ -1,11 +1,15 @@
 from app import db
+from app import socketio
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.User import User
+from sqlalchemy import func
 
+  
 class Output(db.Model):
+    
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     main_task_id = db.Column(db.Integer, db.ForeignKey("main_tasks.id"))
@@ -14,13 +18,12 @@ class Output(db.Model):
     main_task = db.relationship("Main_Task", back_populates = "outputs")
 
     def user_info(self):
-        return{
-            "users": [use.info() for use in self.user ]
-        }
+        return self.user.info()
+    
     
     def task_info(self):
         return{
-            "users": [task.info() for task in self.main_task ]
+            "users": self.main_task.info()
         }
 
 
@@ -57,9 +60,21 @@ class Main_Task(db.Model):
     outputs = db.relationship("Output", back_populates="main_task")
 
     def get_users(self):
-        return {
-            "users": self.outputs
-        }
+        return [output.user_info() for output in self.outputs]
+    
+    def get_users_by_dept(self, id):
+        all_user = []
+        for output in self.outputs:
+            print(output.user_info())
+            
+            if output.user_info()["department_name"] == "NONE": 
+                continue
+            if  str(output.user_info()["department"]["id"]) == id:
+                all_user.append(output.user_info())
+
+        
+        return all_user
+        
 
     def info(self):
         return {
@@ -71,8 +86,9 @@ class Main_Task(db.Model):
             "actual_accomplishment": self.actual_accomplishment,
             "time_measurement" : self.time_description,
             "modifications": self.modification,
-            "users": [output.info() for output in self.outputs],
-            "status": self.status
+            "users": [output.user_info() for output in self.outputs],
+            "status": self.status,
+            "category": self.category.info() if self.category else "NONE"
         }
 
     def to_dict(self):
@@ -101,8 +117,9 @@ class Sub_Task(db.Model):
                 value: 0
                 }
     """
-    target_accomplishment = db.Column(JSON)
-    target_time_description = db.Column(JSON)
+    target_accomplishment = db.Column(db.Text, nullable = False)
+    target_accomplishment_value = db.Column(db.Integer, default = 0)
+    target_time_description = db.Column(db.Text, nullable = False)
     target_modification = db.Column(JSON)
 
     actual_accomplishment = db.Column(JSON)
@@ -142,9 +159,11 @@ class Sub_Task(db.Model):
             "timeliness": self.timeliness,
             "average": self.average,
 
+         
             "ipcr": self.ipcr_id,
             "main_task": self.main_task_id
         }
+  
  
 
 class Tasks_Service():
@@ -272,6 +291,94 @@ class Tasks_Service():
             print(str(e))
             return jsonify(error=str(e)), 500
         
+    def get_all_tasks_count():
+        tasks_count = db.session.query(func.count(Main_Task.id)).scalar()        
+        return jsonify(message = {
+            "count":tasks_count
+        })
+    
+    def assign_user(task_id, user_id):
+        try:
+            new_output = Output(user_id = user_id, main_task_id = task_id)
+            db.session.add(new_output)
+            db.session.commit()
+            socketio.emit("user_assigned", "user assigned")
+
+            return jsonify(message = "User successfully assigned."), 200
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+        
+    def unassign_user(task_id, user_id):
+        try:
+            new_output = Output.query.filter_by(user_id = user_id, main_task_id = task_id).first()
+            if new_output:
+                db.session.delete(new_output)
+                db.session.commit()
+            
+            socketio.emit("user_assigned", "user assigned")
+
+            return jsonify(message = "Task successfully removed."), 200
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+            
+    
+    def get_assigned_users(dept_id, task_id):
+        try:
+            found_task = Main_Task.query.filter_by(department_id = dept_id, id = task_id).all()[0]
+            if found_task == None:
+                 return jsonify(""), 200
+            converted = found_task.get_users_by_dept(id = dept_id) 
+            return jsonify(converted), 200
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+    
+    def get_tasks_by_department(id):
+        try:
+            all_department_tasks = Main_Task.query.filter_by(department_id = id).all()
+            converted = [task.info() for task in all_department_tasks]
+            return jsonify(converted), 200
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+        
     def archive_task(id):
         try:
             found_task = Main_Task.query.get(id)
@@ -282,6 +389,39 @@ class Tasks_Service():
             found_task.status = 0
             db.session.commit()
             return jsonify(message = "Task successfully archived."), 200
+        
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Data does not exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+        
+    def remove_task_from_dept(id):
+        try:
+            found_task = Main_Task.query.get(id)
+
+            if found_task == None:
+                return jsonify(message="No task with that ID"), 400
+            
+            found_task.department_id = None
+            db.session.commit()
+            socketio.emit("task_modified", "task modified")
+            return jsonify(message = "Task successfully removed."), 200
         
         except IntegrityError as e:
             db.session.rollback()

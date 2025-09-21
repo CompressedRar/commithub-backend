@@ -15,7 +15,7 @@ socketio = SocketIO()
 def create_app():
     load_dotenv()
     app = Flask(__name__)
-    CORS(app)
+    CORS(app, supports_credentials=True)
     app.config["SECRET_KEY"] = "priscilla"
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("LOCAL_DATABASE_URL")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

@@ -37,7 +37,7 @@ class User(db.Model):
 
     managed_dept_id = db.Column(db.Integer)
 
-    department_id = db.Column(db.Integer, db.ForeignKey("departments.id"), default=1)
+    department_id = db.Column(db.Integer, db.ForeignKey("departments.id"), default=1, nullable = True)
     department = db.relationship("Department", back_populates="users")
 
     #multiple ipcrs for one user
@@ -45,7 +45,18 @@ class User(db.Model):
 
     ipcrs = db.relationship("IPCR", back_populates="user")
     notifications = db.relationship("Notification", back_populates="user", cascade = "all, delete")
-  
+    
+    def info(self):
+        return {
+            "id": self.id,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "middle_name": self.middle_name,
+            "profile_picture_link": self.profile_picture_link,
+
+            "department": self.department.info() if self.department else "NONE",
+            "department_name": self.department.info()["name"] if self.department else "NONE",
+        }
 
     def to_dict(self):
         return {
@@ -62,8 +73,8 @@ class User(db.Model):
             "account_status": self.account_status,
             "created_at": str(self.created_at),
 
-            "position":self.position.info(),
-            "department": self.department.info(),
+            "position":self.position.info() if self.position else "NONE",
+            "department": self.department.info() if self.department else "NONE",
             "ipcrs": [ipcr.to_dict() for ipcr in self.ipcrs],
             "ipcrs_count": len([ipcr.to_dict() for ipcr in self.ipcrs]),
             "main_tasks_count": len(self.outputs)         
@@ -337,13 +348,13 @@ class Users():
         other_count = 0
 
         for user in all_converted:
-            dept = user["department"] 
+            dept = user["department"]["name"] 
             print(dept)
-            if dept == "computing_studies":
+            if dept == "Computing Studies":
                 ccs_count += 1
-            elif dept == "education":
+            elif dept == "Education":
                 educ_count += 1
-            elif dept == "hospitality_management":
+            elif dept == "Hospitality Management":
                 hm_count += 1
             else:
                 other_count += 1

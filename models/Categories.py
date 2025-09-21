@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
-
+from sqlalchemy import func
 class Category(db.Model):
     __tablename__ = "categories"
     id = db.Column(db.Integer, primary_key=True)
@@ -155,3 +155,10 @@ class Category_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+        
+    
+    def get_category_count():
+        categories_count = db.session.query(func.count(Category.id)).scalar()        
+        return jsonify(message = {
+            "count":categories_count
+        })

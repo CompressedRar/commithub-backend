@@ -70,7 +70,7 @@ def log_enter(action):
                 ip_address = request.remote_addr
                 user_agent = request.headers.get("User-Agent")
                 
-                res = Log_Service.add_logs("0","NONR", "NONR", action, "NONE", ip=ip_address, agent=user_agent)
+                res = Log_Service.add_logs("0","UNKNOWN", "UNKNOWN", action, "UNKNOWN", ip=ip_address, agent=user_agent)
                 print("Log Recorded: ", res)
                 
                 
