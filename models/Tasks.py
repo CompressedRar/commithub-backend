@@ -202,7 +202,7 @@ class Tasks_Service():
             print("creating task right now")
             new_main_task = Main_Task(
                 mfo = data["task_name"],
-                department_id  = int(data["department"]),
+                department_id  = int(data["department"]) if int(data["department"]) != 0 else None,
                 target_accomplishment = data["task_desc"],
                 actual_accomplishment = data["task_desc"],
                 accomplishment_editable =  int(data["accomplishment_editable"]),
@@ -321,6 +321,40 @@ class Tasks_Service():
             print(str(e))
             return jsonify(error=str(e)), 500
         
+    def assign_department(task_id, dept_id):
+        try:
+            task = Main_Task.query.get(task_id)
+
+            if task == None:
+                return jsonify(message = "Task is not found."), 400
+            
+            task.department_id = dept_id
+
+            db.session.commit()
+            print("task id: ", task_id)
+            print("dept id: ", dept_id)
+
+            socketio.emit("department_assigned", "department assigned")
+
+            return jsonify(message = "Task successfully assigned."), 200
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+        
+        #ayusin yung mga logs mamaya
+        
     def unassign_user(task_id, user_id):
         try:
             new_output = Output.query.filter_by(user_id = user_id, main_task_id = task_id).first()
@@ -421,6 +455,8 @@ class Tasks_Service():
             found_task.department_id = None
             db.session.commit()
             socketio.emit("task_modified", "task modified")
+            socketio.emit("department_assigned", "task modified")
+
             return jsonify(message = "Task successfully removed."), 200
         
         except IntegrityError as e:

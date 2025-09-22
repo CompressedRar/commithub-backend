@@ -18,6 +18,10 @@ def get_department(id):
 def get_department_tasks(id):
     return Tasks_Service.get_tasks_by_department(id)
 
+@department.route("/tasks/<task_id>&<dept_id>", methods = ["POST"])
+def assign_department_tasks(task_id, dept_id):
+    return Tasks_Service.assign_department(task_id, dept_id)
+
 @department.route("/assigned/<dept_id>&<task_id>", methods = ["GET"])
 def get_assigned_users_tasks(dept_id, task_id):
     return Tasks_Service.get_assigned_users(dept_id, task_id)

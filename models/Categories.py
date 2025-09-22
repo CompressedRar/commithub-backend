@@ -4,13 +4,13 @@ from sqlalchemy.exc import IntegrityError, OperationalError, DataError, Programm
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
 from sqlalchemy import func
+
 class Category(db.Model):
     __tablename__ = "categories"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text, nullable=False)
-
     status = db.Column(db.Integer, default = 1)
-    
+
     main_tasks = db.relationship("Main_Task", back_populates = "category")
 
     def info(self):
@@ -34,6 +34,21 @@ class Category_Service():
         try:
             all_categories = Category.query.filter_by(status = 1).all()
             converted_categories = [category.info() for category in all_categories]
+        
+            return jsonify(converted_categories), 200
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def get_all_with_tasks():
+        try:
+            all_categories = Category.query.filter_by(status = 1).all()
+            converted_categories = [category.to_dict() for category in all_categories]
         
             return jsonify(converted_categories), 200
         
@@ -162,3 +177,4 @@ class Category_Service():
         return jsonify(message = {
             "count":categories_count
         })
+    

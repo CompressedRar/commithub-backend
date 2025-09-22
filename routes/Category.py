@@ -9,6 +9,10 @@ category = Blueprint("category", __name__, url_prefix="/api/v1/category")
 def get_categories():
     return Category_Service.get_all()
 
+@category.route("/tasks", methods = ["GET"])
+def get_categories_with_tasks():
+    return Category_Service.get_all_with_tasks()
+
 @category.route("/count", methods = ["GET"])
 def get_categories_count():
     return Category_Service.get_category_count()

@@ -82,7 +82,6 @@ class Department_Service():
             
             if all_depts:
                 dept = all_depts[0].to_dict()
-                print(dept)
                 return jsonify(dept), 200
             else:
                 return jsonify(message = "There is no department with that id"), 200
