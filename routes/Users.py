@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, jsonify, request
 from app import db
 from utils.decorators import log_action
 from models.User import Users
-
+from models.PCR import PCR_Service
 users = Blueprint("users", __name__, url_prefix="/api/v1/users")
 
 
@@ -29,10 +29,30 @@ def archive_user(id):
     
     return Users.archive_user(id)
 
+@users.route("/tasks/<id>", methods = ["GET"])
+def get_user_tasks(id):
+    
+    return Users.get_user_assigned_tasks(id)
+
+@users.route("/assigned/<user_id>", methods = ["GET"])
+def get_assigned_tasks(user_id):
+    
+    return Users.get_user_assigned_tasks(user_id)
+
+@users.route("/tasks/<user_id>", methods = ["POST"])
+def generate_user_tasks(user_id):
+    
+    data = request.get_json()
+    id_array = data.get("task_ids", [])
+    print(id_array)
+    return PCR_Service.generate_IPCR(user_id, id_array)
+    
 
 @users.route("/<id>", methods = ["POST"])
 @log_action(action = "REACTIVATE", target="USER")
 def unarchive_user(id):
     
     return Users.unarchive_user(id)
+
+
 

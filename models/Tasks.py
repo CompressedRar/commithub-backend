@@ -7,24 +7,63 @@ from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.User import User
 from sqlalchemy import func
 
-  
-class Output(db.Model):
-    
+class Assigned_Task(db.Model):
+    __tablename__ = "assigned_tasks"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     main_task_id = db.Column(db.Integer, db.ForeignKey("main_tasks.id"))
+    is_assigned = db.Column(db.Boolean, default = False)
 
-    user = db.relationship("User", back_populates = "outputs")
-    main_task = db.relationship("Main_Task", back_populates = "outputs")
+    user = db.relationship("User", back_populates = "assigned_tasks")
+    main_task = db.relationship("Main_Task", back_populates = "assigned_tasks")
 
     def user_info(self):
         return self.user.info()
-    
-    
+     
     def task_info(self):
-        return{
-            "users": self.main_task.info()
+        return self.main_task.info()
+    
+    def assigned_task_info(self):
+        return {
+            "tasks": self.main_task.info(),
+            "is_assigned": self.is_assigned
         }
+
+class Output(db.Model):
+    __tablename__ = "outputs"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    main_task_id = db.Column(db.Integer, db.ForeignKey("main_tasks.id"))
+    
+    user = db.relationship("User", back_populates = "outputs")
+    sub_task = db.relationship("Sub_Task", back_populates="output", uselist=False, cascade="all, delete-orphan")
+    main_task = db.relationship("Main_Task", back_populates = "outputs")
+
+    def __init__(self, user_id, main_task_id):
+        super().__init__()
+        self.user_id = user_id
+        self.main_task = Main_Task.query.get(main_task_id)
+
+        # Create subtask automatically by copying from main task
+        new_sub_task = Sub_Task(
+            mfo=self.main_task.mfo,
+            main_task=self.main_task
+        )
+
+        db.session.add(new_sub_task)
+        db.session.flush()  # make sure sub_task.id is available
+
+        self.sub_task = new_sub_task
+
+    def user_info(self):
+        return self.user.info()
+     
+    def task_info(self):
+        return self.main_task.info()
+    
+    def sub_task_info(self):
+        return self.sub_task.to_dict()
+        
 
 
 
@@ -45,6 +84,7 @@ class Main_Task(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     status = db.Column(db.Integer, default=1)
     assigned = db.Column(db.Boolean, default=False)
+
     accomplishment_editable = db.Column(db.Boolean, default=False)
     time_editable = db.Column(db.Boolean, default=False)
     modification_editable = db.Column(db.Boolean, default=False)
@@ -59,34 +99,47 @@ class Main_Task(db.Model):
     sub_tasks = db.relationship("Sub_Task", back_populates = "main_task", cascade = "all, delete")
     outputs = db.relationship("Output", back_populates="main_task")
 
+    assigned_tasks = db.relationship("Assigned_Task", back_populates="main_task")
+
     def get_users(self):
         return [output.user_info() for output in self.outputs]
     
     def get_users_by_dept(self, id):
         all_user = []
-        for output in self.outputs:
-            print(output.user_info())
+        for assigned in self.assigned_tasks:
+            print(assigned.user_info())
             
-            if output.user_info()["department_name"] == "NONE": 
+            if assigned.user_info()["department_name"] == "NONE": 
                 continue
-            if  str(output.user_info()["department"]["id"]) == id:
-                all_user.append(output.user_info())
-
+            if  str(assigned.user_info()["department"]["id"]) == id:
+                all_user.append(assigned.user_info())
         
         return all_user
-        
+    
+    
+    def ipcr_info(self):
+        return {
+            "id": self.id,
+            "title": self.mfo,
+            "target_acc": self.target_accomplishment,
+            "actual_acc": self.actual_accomplishment,
+            "created_at": str(self.created_at),
+            "status": self.status,
+
+            "category": self.category_id
+        }
 
     def info(self):
         return {
             "id" : self.id,
             "name": self.mfo,
             "department": self.department.name if self.department else "General",
-            "created_at": self.created_at,
+            "created_at": str(self.created_at),
             "target_accomplishment": self.target_accomplishment,
             "actual_accomplishment": self.actual_accomplishment,
             "time_measurement" : self.time_description,
             "modifications": self.modification,
-            "users": [output.user_info() for output in self.outputs],
+            "users": [assigned.user_info() for assigned in self.assigned_tasks],
             "status": self.status,
             "category": self.category.info() if self.category else "NONE"
         }
@@ -97,7 +150,7 @@ class Main_Task(db.Model):
             "title": self.mfo,
             "target_acc": self.target_accomplishment,
             "actual_acc": self.actual_accomplishment,
-            "created_at": self.created_at,
+            "created_at": str(self.created_at),
             "status": self.status,
 
             "category": self.category_id,
@@ -110,21 +163,13 @@ class Sub_Task(db.Model):
     
     mfo = db.Column(db.Text, nullable=False)
 
+    target_acc = db.Column(db.Integer, nullable = True, default = 0)
+    target_time = db.Column(db.Integer, nullable = True, default = 0)
+    target_mod = db.Column(db.Integer, nullable = True, default = 0)
 
-    """
-     target : {
-                description: test,
-                value: 0
-                }
-    """
-    target_accomplishment = db.Column(db.Text, nullable = False)
-    target_accomplishment_value = db.Column(db.Integer, default = 0)
-    target_time_description = db.Column(db.Text, nullable = False)
-    target_modification = db.Column(JSON)
-
-    actual_accomplishment = db.Column(JSON)
-    actual_time_description = db.Column(JSON)
-    actual_modification = db.Column(JSON)
+    actual_acc = db.Column(db.Integer, nullable = True, default = 0)
+    actual_time = db.Column(db.Integer, nullable = True, default = 0)
+    actual_mod = db.Column(db.Integer, nullable = True, default = 0)
 
     created_at = db.Column(db.DateTime, default=datetime.now)
     status = db.Column(db.Boolean, default=True)
@@ -134,10 +179,13 @@ class Sub_Task(db.Model):
     timeliness = db.Column(db.Integer, default = 0)
     average = db.Column(db.Integer, default = 0)
 
+    output_id = db.Column(db.Integer, db.ForeignKey("outputs.id"), unique=True)
+    output = db.relationship("Output", back_populates="sub_task")
+
     main_task_id = db.Column(db.Integer, db.ForeignKey("main_tasks.id"))
     main_task = db.relationship("Main_Task", back_populates="sub_tasks")
 
-    ipcr_id = db.Column(db.Integer, db.ForeignKey("ipcr.id"))
+    ipcr_id = db.Column(db.Integer, db.ForeignKey("ipcr.id"), default = None)
     ipcr = db.relationship("IPCR", back_populates="sub_tasks")    
 
 
@@ -145,13 +193,13 @@ class Sub_Task(db.Model):
         return {
             "id": self.id,
             "title": self.mfo,
-            "target_acc": self.target_accomplishment,
-            "target_time": self.target_time_description,
-            "target_mod": self.target_modification,
-            "actual_acc": self.actual_accomplishment,
-            "actual_time": self.actual_time_description,
-            "actual_acc": self.actual_modification,
-            "created_at": self.created_at,
+            "target_acc": self.target_acc,
+            "target_time": self.target_time,
+            "target_mod": self.target_mod,
+            "actual_acc": self.actual_acc,
+            "actual_time": self.actual_time,
+            "actual_acc": self.actual_mod,
+            "created_at": str(self.created_at),
             "status": self.status,
 
             "quantity": self.quantity,
@@ -160,8 +208,8 @@ class Sub_Task(db.Model):
             "average": self.average,
 
          
-            "ipcr": self.ipcr_id,
-            "main_task": self.main_task_id
+            "ipcr": self.ipcr.info(),
+            "main_task": self.main_task.ipcr_info()
         }
   
  
@@ -299,7 +347,32 @@ class Tasks_Service():
     
     def assign_user(task_id, user_id):
         try:
-            new_output = Output(user_id = user_id, main_task_id = task_id)
+            new_assigned_task = Assigned_Task(user_id = user_id, main_task_id = task_id, is_assigned = True)
+          
+            db.session.add(new_assigned_task)
+            db.session.commit()
+            socketio.emit("user_assigned", "user assigned")
+
+            return jsonify(message = "User successfully assigned."), 200
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+        
+    def create_user_output(task_id, user_id):
+        try:
+            new_output = Output(user_id = user_id, main_task_id = task_id)            
             db.session.add(new_output)
             db.session.commit()
             socketio.emit("user_assigned", "user assigned")
@@ -357,10 +430,11 @@ class Tasks_Service():
         
     def unassign_user(task_id, user_id):
         try:
-            new_output = Output.query.filter_by(user_id = user_id, main_task_id = task_id).first()
+            new_output = Assigned_Task.query.filter_by(user_id = user_id, main_task_id = task_id).all()
             if new_output:
-                db.session.delete(new_output)
-                db.session.commit()
+                for task in new_output:
+                    db.session.delete(task)
+                    db.session.commit()
             
             socketio.emit("user_assigned", "user assigned")
 

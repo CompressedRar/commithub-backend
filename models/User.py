@@ -12,6 +12,11 @@ from models.Logs import Log_Service
 from argon2 import PasswordHasher
 import jwt
 
+# gagawa ng output base sa id
+#pagtapos gumawa ng mga output, kukunin id ni ipcr
+#kuhanin yung mga outputs ni user
+#i assign yung ipcr id sa subtasks ng output ni user
+# si output ang kukuni kay user, si sub task ang lalagyan ng ipcr
 
 class User(db.Model):
     __tablename__ = "users"
@@ -40,11 +45,12 @@ class User(db.Model):
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id"), default=1, nullable = True)
     department = db.relationship("Department", back_populates="users")
 
-    #multiple ipcrs for one user
     outputs = db.relationship("Output", back_populates="user")
 
     ipcrs = db.relationship("IPCR", back_populates="user")
     notifications = db.relationship("Notification", back_populates="user", cascade = "all, delete")
+
+    assigned_tasks = db.relationship("Assigned_Task", back_populates="user")
     
     def info(self):
         return {
@@ -56,6 +62,16 @@ class User(db.Model):
 
             "department": self.department.info() if self.department else "NONE",
             "department_name": self.department.info()["name"] if self.department else "NONE",
+        }
+    
+    def tasks(self):
+        return {
+            "assigned_tasks" : [assigned.task_info() for assigned in self.assigned_tasks]            
+        }
+    
+    def assigned_task(self):
+        return {
+            "assigned_tasks" : [assigned.assigned_task_info() for assigned in self.assigned_tasks]            
         }
 
     def to_dict(self):
@@ -128,6 +144,40 @@ class Users():
 
             return jsonify([user.to_dict() for user in users]), 200
         
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def get_assigned_tasks(id):
+        try:
+            user = User.query.get(id)
+
+            if user:
+                return jsonify(user.tasks()), 200
+            else: 
+                return jsonify(error= "There is no user with that id"), 400
+
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+    
+    def get_user_assigned_tasks(id):
+        try:
+            user = User.query.get(id)
+
+            if user:
+                return jsonify(user.assigned_task()), 200
+            else: 
+                return jsonify(error= "There is no user with that id"), 400
+
         except OperationalError:
             #db.session.rollback()
             return jsonify(error="Database connection error"), 500
@@ -348,7 +398,10 @@ class Users():
         other_count = 0
 
         for user in all_converted:
-            dept = user["department"]["name"] 
+            if user["department"] == "NONE":
+                continue
+            
+            dept = user["department"]["name"]
             print(dept)
             if dept == "Computing Studies":
                 ccs_count += 1
