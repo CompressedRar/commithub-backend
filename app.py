@@ -54,6 +54,9 @@ def create_app():
     from routes.Logs import logs
     app.register_blueprint(logs)
 
+    from routes.PCR import pcrs
+    app.register_blueprint(pcrs)
+
     @app.route("/test-email")
     def test_email():
         res = send_email("qwertythanzip@gmail.com")

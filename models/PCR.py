@@ -1,10 +1,12 @@
 from app import db
+from app import socketio
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.Tasks import Tasks_Service, Assigned_Task
 from models.User import Users, User
+import uuid
 
 class IPCR(db.Model):
     __tablename__ = "ipcr"
@@ -85,27 +87,81 @@ class OPCR(db.Model):
 #si subtask yung target, kasse pag may output may sub_task din,eh si sub task kailangan ng ipcr id
 class PCR_Service():
     def generate_IPCR(user_id, main_task_id_array):
-        
-        
-        new_ipcr = IPCR(user_id = user_id)
-        db.session.add(new_ipcr)
-        
-        for id in main_task_id_array:
-            new_assigned = Assigned_Task(user_id = user_id, main_task_id = id)
-            db.session.add(new_assigned)
-            Tasks_Service.create_user_output(id, user_id)
-        print("creawting outputs done")
+        try:
+            new_ipcr = IPCR(user_id = user_id)
+            db.session.add(new_ipcr)
 
-        user = User.query.get(user_id)
-        user_outputs = [output.sub_task for output in user.outputs] 
-        
-        for tasks in user_outputs:
-            #eto nas yung id
-            tasks.ipcr_id = new_ipcr.id
+            #need ng way para maidentify yung mga assigned task at outputs na ginawa at the same time
+            #solution ay batch id
+            current_batch_id = str(uuid.uuid4())
+            print("eto batch id", current_batch_id)
 
-        db.session.commit()        
-        return jsonify(message = "IPCR successfully created"), 200
+
+            
+            for id in main_task_id_array:
+                new_assigned = Assigned_Task(user_id = user_id, main_task_id = id, batch_id = current_batch_id)
+                print("newassigned", new_assigned.batch_id)
+                
+                db.session.add(new_assigned)
+                Tasks_Service.create_user_output(id, user_id, current_batch_id = current_batch_id)
+            print("creawting outputs done")
+
+            user = User.query.get(user_id)
+            user_outputs = [output.sub_task for output in user.outputs] 
+            
+            for tasks in user_outputs:
+                #eto as yung id
+                if tasks.batch_id == current_batch_id:
+                    tasks.ipcr_id = new_ipcr.id
+
+            socketio.emit("ipcr_create", "i[pcr] create")
+            db.session.commit()     
+               
+            return jsonify(message = "IPCR successfully created"), 200    
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Category already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
     
+    def get_ipcr(ipcr_id):
+        try:
+            ipcr = IPCR.query.get(ipcr_id)
+
+            if ipcr:
+                return jsonify(ipcr.to_dict()), 200
+
+            return jsonify(message = "There is no ipcr with that id"), 400
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    
+
+        
+
+
+#lagyan ng date period si ipcr
 #search subtask by ipcr id
 
 

@@ -34,3 +34,10 @@ def create_main_task():
 def update_main_task():
     data = request.form
     return Tasks_Service.update_task_info(data)
+
+@task.route("/sub_task/<sub_task_id>", methods = ["PATCH"])
+def update_sub_task_field(sub_task_id):
+    field = request.args.get("field")
+    value = request.args.get("value")
+    print(sub_task_id, field, value)
+    return Tasks_Service.update_sub_task_fields(sub_task_id, field, value)

@@ -14,6 +14,8 @@ class Assigned_Task(db.Model):
     main_task_id = db.Column(db.Integer, db.ForeignKey("main_tasks.id"))
     is_assigned = db.Column(db.Boolean, default = False)
 
+    batch_id = db.Column(db.Text, default = "")
+
     user = db.relationship("User", back_populates = "assigned_tasks")
     main_task = db.relationship("Main_Task", back_populates = "assigned_tasks")
 
@@ -34,12 +36,14 @@ class Output(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     main_task_id = db.Column(db.Integer, db.ForeignKey("main_tasks.id"))
+
+    batch_id = db.Column(db.Text, default = "")
     
     user = db.relationship("User", back_populates = "outputs")
     sub_task = db.relationship("Sub_Task", back_populates="output", uselist=False, cascade="all, delete-orphan")
     main_task = db.relationship("Main_Task", back_populates = "outputs")
 
-    def __init__(self, user_id, main_task_id):
+    def __init__(self, user_id, main_task_id, batch_id):
         super().__init__()
         self.user_id = user_id
         self.main_task = Main_Task.query.get(main_task_id)
@@ -47,13 +51,16 @@ class Output(db.Model):
         # Create subtask automatically by copying from main task
         new_sub_task = Sub_Task(
             mfo=self.main_task.mfo,
-            main_task=self.main_task
+            main_task=self.main_task,
+            batch_id = batch_id
         )
+       
 
         db.session.add(new_sub_task)
         db.session.flush()  # make sure sub_task.id is available
 
         self.sub_task = new_sub_task
+
 
     def user_info(self):
         return self.user.info()
@@ -125,8 +132,10 @@ class Main_Task(db.Model):
             "actual_acc": self.actual_accomplishment,
             "created_at": str(self.created_at),
             "status": self.status,
+            "time": self.time_description,
+            "modification": self.modification,
 
-            "category": self.category_id
+            "category": self.category.info()
         }
 
     def info(self):
@@ -188,6 +197,83 @@ class Sub_Task(db.Model):
     ipcr_id = db.Column(db.Integer, db.ForeignKey("ipcr.id"), default = None)
     ipcr = db.relationship("IPCR", back_populates="sub_tasks")    
 
+    batch_id = db.Column(db.Text, nullable=False)
+
+    def calculateQuantity(self):
+        rating = 0
+        target = self.target_acc
+        actual = self.actual_acc
+
+        if target == 0:
+            self.quantity = 0
+            return 0
+        
+        calculations = actual/target
+        
+        if calculations >= 1.3:
+            rating = 5
+        elif calculations >= 1.01 and calculations <= 1.299:
+            rating = 4
+        elif calculations >= 0.90 and calculations <= 1:
+            rating = 3    
+        elif calculations >= .70 and calculations <= 0.899:
+            rating = 2
+        elif calculations <= 0.699:
+            rating = 1
+        
+        self.quantity = rating
+        return rating  
+
+    def calculateEfficiency(self):
+        
+        target = self.target_mod
+        actual = self.actual_mod
+        rating = 0
+        
+        calculations = actual
+
+        if calculations == 0:            
+            rating = 5
+        elif calculations >= 1 and calculations <= 2:
+            rating = 4
+        elif calculations >= 3 and calculations <= 4:
+            rating = 3    
+        elif calculations >= 5 and calculations <= 6:
+            rating = 2
+        elif calculations <= 7:
+            rating = 1
+        self.efficiency = rating
+        return rating 
+    
+    def calculateTimeliness(self):
+        
+        target = self.target_time
+        actual = self.actual_time
+        rating = 0
+        if target == 0:
+            self.timeliness = 0
+            return 0
+        
+        calculations = ((target - actual) / target) + 1
+        
+        if calculations >= 1.3:
+            rating = 5
+        elif calculations >= 1.15 and calculations <= 1.29:
+            rating = 4
+        elif calculations >= 0.9 and calculations <= 1.14:
+            rating = 3    
+        elif calculations >= 0.51 and calculations <= 0.89:
+            rating = 2
+        elif calculations <= 0.5:
+            rating = 1
+        self.timeliness = rating
+        return rating
+    
+    def calculateAverage(self):
+        calculations = self.quantity + self.efficiency + self.timeliness
+        result = calculations/3
+        self.average = result
+        return result
 
     def to_dict(self):
         return {
@@ -198,14 +284,14 @@ class Sub_Task(db.Model):
             "target_mod": self.target_mod,
             "actual_acc": self.actual_acc,
             "actual_time": self.actual_time,
-            "actual_acc": self.actual_mod,
+            "actual_mod": self.actual_mod,
             "created_at": str(self.created_at),
             "status": self.status,
 
-            "quantity": self.quantity,
-            "efficiency": self.efficiency,
-            "timeliness": self.timeliness,
-            "average": self.average,
+            "quantity": self.calculateQuantity(),
+            "efficiency": self.calculateEfficiency(),
+            "timeliness": self.calculateTimeliness(),
+            "average": self.calculateAverage(),
 
          
             "ipcr": self.ipcr.info(),
@@ -370,9 +456,11 @@ class Tasks_Service():
             print(str(e))
             return jsonify(error=str(e)), 500
         
-    def create_user_output(task_id, user_id):
+    def create_user_output(task_id, user_id, current_batch_id):
         try:
-            new_output = Output(user_id = user_id, main_task_id = task_id)            
+            new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = current_batch_id)
+            print("new output", new_output.batch_id)
+                        
             db.session.add(new_output)
             db.session.commit()
             socketio.emit("user_assigned", "user assigned")
@@ -554,3 +642,49 @@ class Tasks_Service():
             print(str(e))
             return jsonify(error=str(e)), 500
         
+    def update_sub_task_fields(sub_task_id, field, value):
+        try:
+            ipcr = Sub_Task.query.get(sub_task_id)
+
+            if field == "target_acc":
+                ipcr.target_acc = value
+
+            if field == "target_time":
+                ipcr.target_time = value
+
+            if field == "target_mod":
+                ipcr.target_mod = value
+
+            if field == "actual_acc":
+                ipcr.actual_acc = value
+
+            if field == "actual_time":
+                ipcr.actual_time = value
+
+            if field == "actual_mod":
+                ipcr.actual_mod = value
+
+            db.session.commit()
+            socketio.emit("ipcr", "change")
+            return jsonify(message = "Task updated"), 200
+        
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Data does not exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
