@@ -1,10 +1,11 @@
 from app import db
 from app import socketio
-
+from pprint import pprint
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from models.Positions import Positions, Position
+from models.Departments import Department
 from FirebaseApi.config import upload_file
 from utils.Generate import generate_default_password
 from utils.Email import send_email
@@ -419,6 +420,60 @@ class Users():
             "other": other_count,
             "all": len(all_converted)
         }), 200
+    
+    def assign_department_head(user_id, dept_id):
+        try:
+            department = Department.query.get(dept_id)
+
+            if department == None:
+                return jsonify(message = "There is no department with that id."), 400
+
+            for user in department.users:
+                user.role = "faculty"
+
+            user = User.query.get(user_id)
+
+            if user == None:
+                return jsonify(message = "There is no user with that id."), 400
+
+            user.role = "head"
+            db.session.commit()
+
+            socketio.emit("department", "department head assigned")
+            return jsonify(message = "Department head successfully assigned."), 200
+        
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e),  "OPERATIONAL")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "EXCEPTION")
+            return jsonify(error=str(e)), 500
+        
+    def remove_department_head(user_id):
+        try:        
+            user = User.query.get(user_id)
+
+            if user == None:
+                return jsonify(message = "There is no user with that id."), 400
+
+            user.role = "faculty"
+            db.session.commit()
+
+            socketio.emit("department", "department head removed")
+            return jsonify(message = "Department head successfully removed."), 200
+        
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e),  "OPERATIONAL")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "EXCEPTION")
+            return jsonify(error=str(e)), 500
 
 
     def authenticate_user(login_data):
@@ -428,7 +483,8 @@ class Users():
             password = login_data["password"]
 
             userCheck = Users.authenticate_if_email_exists(email)
-            print("User check: ", userCheck)
+            print("User check: ")
+            pprint(userCheck)
             if userCheck:
                 
                 ph = PasswordHasher()

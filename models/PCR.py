@@ -30,6 +30,10 @@ class IPCR(db.Model):
 
     sub_tasks = db.relationship("Sub_Task", back_populates = "ipcr", cascade = "all, delete")
 
+    isMain = db.Column(db.Boolean, default = False)
+    status = db.Column(db.Integer, default = 1)
+    form_status = db.Column(db.Enum("pending", "reviewed", "approved"), default="pending")
+
     def count_sub_tasks(self):
         return len([main_task.to_dict() for main_task in self.sub_tasks])
     
@@ -46,7 +50,7 @@ class IPCR(db.Model):
             "user": self.user_id,
             "sub_tasks": [main_task.to_dict() for main_task in self.sub_tasks],
             "sub_tasks_count": self.count_sub_tasks(),
-            "created_at": self.created_at
+            "created_at": str(self.created_at)
         }
     
 class OPCR(db.Model):
@@ -65,6 +69,9 @@ class OPCR(db.Model):
     department = db.relationship("Department", back_populates="opcrs")
 
     ipcrs = db.relationship("IPCR", back_populates = "opcr", cascade = "all, delete")
+    isMain = db.Column(db.Boolean, default = False)
+    status = db.Column(db.Integer, default = 1)
+    form_status = db.Column(db.Enum("pending", "reviewed", "approved"), default="pending")
 
     def count_ipcr(self):
         return len([ipcr.to_dict() for ipcr in self.ipcrs])
@@ -155,6 +162,33 @@ class PCR_Service():
         except Exception as e:
             #db.session.rollback()
             return jsonify(error=str(e)), 500
+        
+    def assign_main_ipcr(ipcr_id, user_id):
+        try:
+            user = User.query.get(user_id)
+
+            if user == None:
+                return jsonify(message = "There is no user with that id"), 400
+
+            for ipcr in user.ipcrs:
+                ipcr.isMain = False
+
+            
+            ipcr = IPCR.query.get(ipcr_id)
+            ipcr.isMain = True
+
+            db.session.commit()
+
+            return jsonify(message = "IPCR successfully assigned."), 200
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+
         
     
 

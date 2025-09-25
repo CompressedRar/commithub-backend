@@ -150,7 +150,8 @@ class Main_Task(db.Model):
             "modifications": self.modification,
             "users": [assigned.user_info() for assigned in self.assigned_tasks],
             "status": self.status,
-            "category": self.category.info() if self.category else "NONE"
+            "category": self.category.info() if self.category else "NONE",
+            "sub_tasks": [sub.info() for sub in self.sub_tasks]
         }
 
     def to_dict(self):
@@ -274,6 +275,15 @@ class Sub_Task(db.Model):
         result = calculations/3
         self.average = result
         return result
+    
+    def info(self):
+        return {
+            "id": self.id,
+            "title": self.mfo,
+            "created_at": str(self.created_at),
+            "status": self.status,
+            "batch_id": self.batch_id
+        }
 
     def to_dict(self):
         return {
@@ -287,6 +297,7 @@ class Sub_Task(db.Model):
             "actual_mod": self.actual_mod,
             "created_at": str(self.created_at),
             "status": self.status,
+            "batch_id": self.batch_id,
 
             "quantity": self.calculateQuantity(),
             "efficiency": self.calculateEfficiency(),
@@ -338,7 +349,7 @@ class Tasks_Service():
                 mfo = data["task_name"],
                 department_id  = int(data["department"]) if int(data["department"]) != 0 else None,
                 target_accomplishment = data["task_desc"],
-                actual_accomplishment = data["task_desc"],
+                actual_accomplishment = data["past_task_desc"],
                 accomplishment_editable =  int(data["accomplishment_editable"]),
                 time_editable =  int(data["time_editable"]),
                 modification_editable =  int(data["modification_editable"]),

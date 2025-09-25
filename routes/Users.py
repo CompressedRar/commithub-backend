@@ -46,6 +46,17 @@ def generate_user_tasks(user_id):
     id_array = data.get("task_ids", [])
     print(id_array)
     return PCR_Service.generate_IPCR(user_id, id_array)
+
+@users.route("/head/<user_id>", methods = ["POST"])
+def assign_department_head(user_id):
+    
+    data = request.args
+    dept_id = data.get("dept_id")
+    return Users.assign_department_head(user_id, dept_id)
+
+@users.route("/head/<user_id>", methods = ["DELETE"])
+def remove_department_head(user_id):
+    return Users.remove_department_head(user_id)
     
 
 @users.route("/<id>", methods = ["POST"])
