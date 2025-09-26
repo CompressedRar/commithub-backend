@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
-from models.Tasks import Tasks_Service, Assigned_Task
+from models.Tasks import Tasks_Service, Assigned_Task, Output
 from models.User import Users, User
 import uuid
 
@@ -29,10 +29,13 @@ class IPCR(db.Model):
     opcr = db.relationship("OPCR", back_populates="ipcrs")
 
     sub_tasks = db.relationship("Sub_Task", back_populates = "ipcr", cascade = "all, delete")
+    outputs = db.relationship("Output", back_populates = "ipcr")
 
     isMain = db.Column(db.Boolean, default = False)
     status = db.Column(db.Integer, default = 1)
     form_status = db.Column(db.Enum("pending", "reviewed", "approved"), default="pending")
+
+    batch_id = db.Column(db.Text, default="")
 
     def count_sub_tasks(self):
         return len([main_task.to_dict() for main_task in self.sub_tasks])
@@ -50,7 +53,10 @@ class IPCR(db.Model):
             "user": self.user_id,
             "sub_tasks": [main_task.to_dict() for main_task in self.sub_tasks],
             "sub_tasks_count": self.count_sub_tasks(),
-            "created_at": str(self.created_at)
+            "created_at": str(self.created_at),
+            "form_status": self.form_status,
+            "isMain": self.isMain,
+            "batch_id": self.batch_id
         }
     
 class OPCR(db.Model):
@@ -95,55 +101,65 @@ class OPCR(db.Model):
 class PCR_Service():
     def generate_IPCR(user_id, main_task_id_array):
         try:
-            new_ipcr = IPCR(user_id = user_id)
-            db.session.add(new_ipcr)
-
-            #need ng way para maidentify yung mga assigned task at outputs na ginawa at the same time
-            #solution ay batch id
+            # start batch
             current_batch_id = str(uuid.uuid4())
-            print("eto batch id", current_batch_id)
 
+            # create IPCR and flush so id is available
+            new_ipcr = IPCR(user_id=user_id, batch_id=current_batch_id)
+            db.session.add(new_ipcr)
+            db.session.flush()   # <-- new_ipcr.id now available
 
-            
-            for id in main_task_id_array:
-                new_assigned = Assigned_Task(user_id = user_id, main_task_id = id, batch_id = current_batch_id)
-                print("newassigned", new_assigned.batch_id)
-                
-                db.session.add(new_assigned)
-                Tasks_Service.create_user_output(id, user_id, current_batch_id = current_batch_id)
-            print("creawting outputs done")
+            # For each main task, create batch-scoped Assigned_Task (if not exist)
+            # and create Output (which will create Sub_Task inside Output.__init__)
+            for mt_id in main_task_id_array:
+                # skip if there's already an output for same user/task/batch
+                existing_output = Output.query.filter_by(
+                    user_id=user_id, main_task_id=mt_id, batch_id=current_batch_id
+                ).first()
 
-            user = User.query.get(user_id)
-            user_outputs = [output.sub_task for output in user.outputs] 
-            
-            for tasks in user_outputs:
-                #eto as yung id
-                if tasks.batch_id == current_batch_id:
-                    tasks.ipcr_id = new_ipcr.id
+                if existing_output:
+                    # already created for this batch — skip
+                    continue
 
-            socketio.emit("ipcr_create", "i[pcr] create")
-            db.session.commit()     
-               
-            return jsonify(message = "IPCR successfully created"), 200    
-        except IntegrityError as e:
+                # create batch-scoped Assigned_Task if it doesn't exist for this batch
+                existing_assigned = Assigned_Task.query.filter_by(
+                    user_id=user_id, main_task_id=mt_id, batch_id=current_batch_id
+                ).first()
+
+                if not existing_assigned:
+                    new_assigned = Assigned_Task(
+                        user_id=user_id,
+                        main_task_id=mt_id,
+                        is_assigned=False,
+                        batch_id=current_batch_id
+                    )
+                    db.session.add(new_assigned)
+
+                # create new Output (this will create Sub_Task in Output.__init__)
+                new_output = Output(
+                    user_id=user_id,
+                    main_task_id=mt_id,
+                    batch_id=current_batch_id,
+                    ipcr_id=new_ipcr.id
+                )
+                db.session.add(new_output)
+
+            # commit all at once
+            db.session.commit()
+
+            # emit one structured event
+            socketio.emit("ipcr_create", {
+                "ipcr_id": new_ipcr.id,
+                "batch_id": current_batch_id,
+                "user_id": user_id,
+                "task_count": len(main_task_id_array)
+            })
+
+            return jsonify(message="IPCR successfully created"), 200
+
+        except Exception as e:
             db.session.rollback()
-            print(str(e))
-            return jsonify(error="Category already exists"), 400
-        
-        except DataError as e:
-            db.session.rollback()
-            print(str(e))
-            
-            return jsonify(error="Invalid data format"), 400
-
-        except OperationalError as e:
-            db.session.rollback()
-            print(str(e))
-            return jsonify(error="Database connection error"), 500
-
-        except Exception as e:  # fallback for unknown errors
-            db.session.rollback()
-            print(str(e))
+            print("generate_IPCR error:", e)
             return jsonify(error=str(e)), 500
     
     def get_ipcr(ipcr_id):
@@ -176,6 +192,7 @@ class PCR_Service():
             
             ipcr = IPCR.query.get(ipcr_id)
             ipcr.isMain = True
+            socketio.emit("ipcr", "ipcr assigned as main")
 
             db.session.commit()
 

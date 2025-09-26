@@ -36,23 +36,28 @@ class Output(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     main_task_id = db.Column(db.Integer, db.ForeignKey("main_tasks.id"))
+    ipcr_id = db.Column(db.Integer, db.ForeignKey("ipcr.id"))
 
     batch_id = db.Column(db.Text, default = "")
     
     user = db.relationship("User", back_populates = "outputs")
+    ipcr = db.relationship("IPCR", back_populates = "outputs")
     sub_task = db.relationship("Sub_Task", back_populates="output", uselist=False, cascade="all, delete-orphan")
     main_task = db.relationship("Main_Task", back_populates = "outputs")
 
-    def __init__(self, user_id, main_task_id, batch_id):
+    def __init__(self, user_id, main_task_id, batch_id, ipcr_id):
         super().__init__()
         self.user_id = user_id
+        self.batch_id = batch_id
+        self.ipcr_id = ipcr_id
         self.main_task = Main_Task.query.get(main_task_id)
 
         # Create subtask automatically by copying from main task
         new_sub_task = Sub_Task(
             mfo=self.main_task.mfo,
             main_task=self.main_task,
-            batch_id = batch_id
+            batch_id = batch_id,
+            ipcr_id = self.ipcr_id
         )
        
 
@@ -444,6 +449,8 @@ class Tasks_Service():
     
     def assign_user(task_id, user_id):
         try:
+            #search ko muna lahat ng assigned task kung existing na siya
+
             new_assigned_task = Assigned_Task(user_id = user_id, main_task_id = task_id, is_assigned = True)
           
             db.session.add(new_assigned_task)
@@ -467,9 +474,9 @@ class Tasks_Service():
             print(str(e))
             return jsonify(error=str(e)), 500
         
-    def create_user_output(task_id, user_id, current_batch_id):
+    def create_user_output(task_id, user_id, current_batch_id, ipcr_id):
         try:
-            new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = current_batch_id)
+            new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = current_batch_id, ipcr_id=ipcr_id)
             print("new output", new_output.batch_id)
                         
             db.session.add(new_output)
@@ -477,6 +484,35 @@ class Tasks_Service():
             socketio.emit("user_assigned", "user assigned")
 
             return jsonify(message = "User successfully assigned."), 200
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+        
+    def create_task_for_ipcr(task_id, user_id, current_batch_id, ipcr_id):
+        try:
+            new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = current_batch_id, ipcr_id=ipcr_id)
+            new_assigned_tasks = Assigned_Task(user_id=user_id, main_task_id = task_id, batch_id = current_batch_id)
+            
+            print("new output", new_output.batch_id)
+                        
+            db.session.add(new_output)
+            db.session.add(new_assigned_tasks)
+            db.session.commit()
+            socketio.emit("ipcr_added", "user assigned")
+
+            return jsonify(message = "Task successfully added."), 200
         except DataError as e:
             db.session.rollback()
             print(str(e))
@@ -507,6 +543,7 @@ class Tasks_Service():
             print("dept id: ", dept_id)
 
             socketio.emit("department_assigned", "department assigned")
+            socketio.emit("user_assigned", "user assigned")
 
             return jsonify(message = "Task successfully assigned."), 200
         except DataError as e:
@@ -529,14 +566,21 @@ class Tasks_Service():
         
     def unassign_user(task_id, user_id):
         try:
-            new_output = Assigned_Task.query.filter_by(user_id = user_id, main_task_id = task_id).all()
-            if new_output:
-                for task in new_output:
+            assigned_tasks = Assigned_Task.query.filter_by(user_id = user_id, main_task_id = task_id).all()
+
+            user = User.query.get(user_id)
+
+            for output in user.outputs:
+                if output.main_task_id == task_id:
+                    db.session.delete(output)
+                    db.session.commit()
+
+            if assigned_tasks:
+                for task in assigned_tasks:
                     db.session.delete(task)
                     db.session.commit()
             
-            socketio.emit("user_assigned", "user assigned")
-
+            socketio.emit("user_unassigned", "user assigned")
             return jsonify(message = "Task successfully removed."), 200
         except DataError as e:
             db.session.rollback()
@@ -652,6 +696,48 @@ class Tasks_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+    
+    def remove_output_by_main_task_id(main_task_id, batch_id):
+        try:
+            output = Output.query.filter_by(main_task_id = main_task_id, batch_id = batch_id).first()
+            assigned_task = Assigned_Task.query.filter_by(main_task_id = main_task_id, batch_id = batch_id).first()
+
+            if output == None:
+                return jsonify(message = "There is no outputs found."), 400
+            
+            if assigned_task == None:
+                return jsonify(message = "There is no assigned tasks found."), 400
+            
+            db.session.delete(output)
+            db.session.delete(assigned_task)
+
+            db.session.commit()
+            socketio.emit("ipcr", "subtask removed")
+            socketio.emit("ipcr_remove", "subtask removed")
+
+            return jsonify(message = "Task was successfully removed."), 200
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Data does not exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+
+
         
     def update_sub_task_fields(sub_task_id, field, value):
         try:

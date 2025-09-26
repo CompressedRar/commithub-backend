@@ -5,7 +5,6 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from models.Positions import Positions, Position
-from models.Departments import Department
 from FirebaseApi.config import upload_file
 from utils.Generate import generate_default_password
 from utils.Email import send_email
@@ -429,6 +428,7 @@ class Users():
                 return jsonify(message = "There is no department with that id."), 400
 
             for user in department.users:
+                if user.role == "administrator" or user.role == "president": continue
                 user.role = "faculty"
 
             user = User.query.get(user_id)

@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
-from models.User import *
+from models.User import User
 from app import socketio
 
 class Department(db.Model):
@@ -21,7 +21,7 @@ class Department(db.Model):
     main_tasks = db.relationship("Main_Task", back_populates = "department")
 
     def count_tasks(self):
-        return len([main_task.to_dict() for main_task in self.main_tasks])
+        return len([main_task.info() for main_task in self.main_tasks])
 
     def count_users(self):
         return len([user.to_dict() for user in self.users])
@@ -78,10 +78,10 @@ class Department_Service():
         
     def get_department(id):
         try:
-            all_depts = Department.query.filter_by(id = id).all()
+            all_depts = Department.query.filter_by(id = id).first()
             
             if all_depts:
-                dept = all_depts[0].to_dict()
+                dept = all_depts.to_dict()
                 return jsonify(dept), 200
             else:
                 return jsonify(message = "There is no department with that id"), 200
@@ -97,6 +97,8 @@ class Department_Service():
         try:
             print("finding members of dept id:", dept_id)
             users = User.query.filter_by(department_id = dept_id).order_by(User.id.asc()).offset(offset).limit(limit).all()
+
+
             converted_user = [user.to_dict() for user in users]
             return jsonify(converted_user), 200
         
