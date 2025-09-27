@@ -29,7 +29,8 @@ def add_task_to_ipcr(main_task_id, batch_id, user_id, ipcr_id):
 
 @pcrs.route("/ipcr/download/<ipcr_id>", methods = ["GET"])
 def download_ipcr(ipcr_id):
-    return NewExcelHandler.createNewIPCR_from_db(ipcr_id=ipcr_id, individuals={
+
+    file_url = NewExcelHandler.createNewIPCR_from_db(ipcr_id=ipcr_id, individuals={
         "review": {"name": "Arman Bitancur", "position": "Librarian II", "date": datetime.datetime(2025, 1, 15) },
         "approve": {"name": "Arman Bitancur", "position": "Librarian II", "date": datetime.datetime(2025, 1, 15) },
         "discuss": {"name": "Arman Bitancur", "position": "Librarian II", "date": datetime.datetime(2025, 1, 15) },
@@ -37,5 +38,7 @@ def download_ipcr(ipcr_id):
         "final": {"name": "Arman Bitancur", "position": "Librarian II", "date": datetime.datetime(2025, 1, 15) },
         "confirm": {"name": "Arman Bitancur", "position": "Librarian II", "date": datetime.datetime(2025, 1, 15) }
     })
+
+    return jsonify(link = file_url), 200
 
 

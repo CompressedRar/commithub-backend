@@ -2,6 +2,7 @@
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side, Alignment, Font
 import datetime, random
+from utils.FileStorage import upload_file
 
 # Adjust these imports to match your project structure:
 from models.PCR import IPCR           # or from models.pcr import IPCR
@@ -443,5 +444,7 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     link = f"excels/IPCR/{filename}.xlsx"
     wb.save(link)
 
+    file_url = upload_file(link, "commiathub-bucket", f"IPCR/{filename}.xlsx")
 
-    return link
+
+    return file_url
