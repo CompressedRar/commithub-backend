@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
-from models.Tasks import Tasks_Service, Assigned_Task, Output
+from models.Tasks import Tasks_Service, Assigned_Task, Output, Sub_Task
 from models.User import Users, User
 import uuid
 
@@ -56,7 +56,8 @@ class IPCR(db.Model):
             "created_at": str(self.created_at),
             "form_status": self.form_status,
             "isMain": self.isMain,
-            "batch_id": self.batch_id
+            "batch_id": self.batch_id,
+            "status": self.status
         }
     
 class OPCR(db.Model):
@@ -206,7 +207,40 @@ class PCR_Service():
             #db.session.rollback()
             return jsonify(error=str(e)), 500
 
-        
+    def archive_ipcr(ipcr_id):
+        try:
+            ipcr = IPCR.query.get(ipcr_id)
+
+            ipcr.status = 0
+            batch_id = ipcr.batch_id
+
+            all_batched_outputs = Output.query.filter_by(batch_id = batch_id).all()
+            all_batched_assigned_task = Assigned_Task.query.filter_by(batch_id = batch_id).all()
+            all_batched_sub_tasks = Sub_Task.query.filter_by(batch_id = batch_id).all()
+
+            for i in all_batched_outputs:
+                i.status = 0
+
+            for i in all_batched_assigned_task:
+                i.status = 0
+
+            for i in all_batched_sub_tasks:
+                i.status = 0
+            socketio.emit("ipcr_create", "ipcr archive")
+            db.session.commit()
+            return jsonify(message="IPCR was archived successfully."), 200
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+
+
+
+
     
 
         

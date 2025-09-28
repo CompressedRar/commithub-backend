@@ -14,6 +14,10 @@ pcrs = Blueprint("pcrs", __name__, url_prefix="/api/v1/pcr")
 def get_ipcr(id):
     return PCR_Service.get_ipcr(id)
 
+@pcrs.route("/ipcr/<id>", methods = ["DELETE"])
+def archiv_ipcr(id):
+    return PCR_Service.archive_ipcr(id)
+
 @pcrs.route("/ipcr/<ipcr_id>&<user_id>", methods = ["PATCH"])
 def assign_ipcr(ipcr_id, user_id):
     return PCR_Service.assign_main_ipcr(ipcr_id, user_id)
@@ -26,6 +30,8 @@ def remove_task_from_ipcr(main_task_id, batch_id):
 @pcrs.route("/ipcr/task/<main_task_id>&<batch_id>&<user_id>&<ipcr_id>", methods = ["POST"])
 def add_task_to_ipcr(main_task_id, batch_id, user_id, ipcr_id):
     return Tasks_Service.create_task_for_ipcr(task_id=main_task_id, current_batch_id=batch_id , user_id=user_id, ipcr_id=ipcr_id)
+
+
 
 @pcrs.route("/ipcr/download/<ipcr_id>", methods = ["GET"])
 def download_ipcr(ipcr_id):

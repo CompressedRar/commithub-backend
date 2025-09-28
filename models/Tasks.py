@@ -19,6 +19,8 @@ class Assigned_Task(db.Model):
     user = db.relationship("User", back_populates = "assigned_tasks")
     main_task = db.relationship("Main_Task", back_populates = "assigned_tasks")
 
+    status = db.Column(db.Integer, default = 1)
+
     def user_info(self):
         return self.user.info()
      
@@ -44,6 +46,8 @@ class Output(db.Model):
     ipcr = db.relationship("IPCR", back_populates = "outputs")
     sub_task = db.relationship("Sub_Task", back_populates="output", uselist=False, cascade="all, delete-orphan")
     main_task = db.relationship("Main_Task", back_populates = "outputs")
+
+    status = db.Column(db.Integer, default = 1)
 
     def __init__(self, user_id, main_task_id, batch_id, ipcr_id):
         super().__init__()
@@ -187,7 +191,7 @@ class Sub_Task(db.Model):
     actual_mod = db.Column(db.Integer, nullable = True, default = 0)
 
     created_at = db.Column(db.DateTime, default=datetime.now)
-    status = db.Column(db.Boolean, default=True)
+    status = db.Column(db.Integer, default=1)
     
     quantity = db.Column(db.Integer, default = 0)
     efficiency = db.Column(db.Integer, default = 0)
@@ -202,6 +206,8 @@ class Sub_Task(db.Model):
 
     ipcr_id = db.Column(db.Integer, db.ForeignKey("ipcr.id"), default = None)
     ipcr = db.relationship("IPCR", back_populates="sub_tasks")    
+
+    
 
     batch_id = db.Column(db.Text, nullable=False)
 
