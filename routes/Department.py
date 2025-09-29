@@ -18,6 +18,10 @@ def get_department(id):
 def get_department_tasks(id):
     return Tasks_Service.get_tasks_by_department(id)
 
+@department.route("/ipcr/<id>", methods = ["GET"])
+def get_department_ipcr(id):
+    return Department_Service.get_all_department_ipcr(id)
+
 @department.route("/tasks/<task_id>&<dept_id>", methods = ["POST"])
 def assign_department_tasks(task_id, dept_id):
     return Tasks_Service.assign_department(task_id, dept_id)
@@ -64,3 +68,4 @@ def archive_department(id):
 @department.route("/remove/<id>", methods = ["DELETE"])
 def remove_task_department(id):
     return Tasks_Service.remove_task_from_dept(id)
+

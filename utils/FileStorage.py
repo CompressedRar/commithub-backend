@@ -2,7 +2,7 @@ import boto3
 import os
 from botocore.exceptions import NoCredentialsError
 from dotenv import load_dotenv
-
+from flask import jsonify
 # Initialize S3 client
 
 load_dotenv()
@@ -39,6 +39,37 @@ def upload_file(file_path, bucket_name, object_name=None):
         print("❌ The file was not found")
     except NoCredentialsError:
         print("❌ AWS credentials not available")
+
+
+def get_file(object_name=None):
+    
+
+    try:        
+        url = s3.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': "commiathub-bucket", 'Key': object_name},
+            ExpiresIn=3600  # link valid for 1 hour
+        )
+
+        return url
+    except FileNotFoundError:
+        print("❌ The file was not found")
+    except NoCredentialsError:
+        print("❌ AWS credentials not available")
+
+
+def generate_presigned_url(file_name, file_type):
+    try:
+        url = s3.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": "commiathub-bucket", "Key": f"documents/{file_name}", "ContentType": file_type},
+            ExpiresIn=3600
+        )
+
+
+        return jsonify(link= url), 200
+    except:
+        return jsonify(error = "there is an error generating url"), 400
 
 # Example usage
 #upload_file("background.png", "commiathub-bucket", "test/example.png")

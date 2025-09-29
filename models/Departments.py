@@ -10,7 +10,7 @@ class Department(db.Model):
     __tablename__ = "departments"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text, nullable=False)
-    icon = db.Column(db.String(50), default = "category")
+    icon = db.Column(db.String(50), default = "")
 
     manager_id = db.Column(db.Integer, default = 0)
     status = db.Column(db.Integer, default = 1)
@@ -30,19 +30,24 @@ class Department(db.Model):
         return len([opcr.to_dict() for opcr in self.opcrs])
     
     def count_ipcr(self):
-        count = 0
-        for opcr in self.opcrs:
-            stat = opcr.to_dict()
-            ipcr_count = stat["ipcr_count"]
-            count += ipcr_count
-
-        return count
+        ipcr_count = 0
+        for user in self.users:
+            ipcr_count += len(user.ipcrs)            
+        return ipcr_count
     
     def info(self):
         return {
             "id" : self.id,
             "name": self.name,
         }
+    
+    def collect_all_ipcr(self):
+        all_ipcr = []
+        for user in self.users:
+            for ipcr in user.ipcrs:
+                all_ipcr.append(ipcr.department_info())
+
+        return all_ipcr
 
 
     def to_dict(self):
@@ -57,7 +62,8 @@ class Department(db.Model):
             "opcr_count": self.count_opcr(),
             "ipcr_count": self.count_ipcr(),
             "main_tasks": [main_task.info() for main_task in self.main_tasks],
-            "main_tasks_count": self.count_tasks()
+            "main_tasks_count": self.count_tasks(),
+            
         }
     
 
@@ -232,6 +238,22 @@ class Department_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+    
+    def get_all_department_ipcr(dept_id):
+        try:
+            dept = Department.query.get(dept_id)
+
+            if dept == None:
+                return jsonify(error="Department not found"), 400
         
-       
+            return jsonify(dept.collect_all_ipcr()), 200
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
     

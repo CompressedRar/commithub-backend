@@ -6,7 +6,32 @@ from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.Tasks import Tasks_Service, Assigned_Task, Output, Sub_Task
 from models.User import Users, User
+from utils import FileStorage
 import uuid
+
+class Supporting_Document(db.Model):
+    __tablename__ = "supporting_documents"
+    id = db.Column(db.Integer, primary_key=True)
+    
+    file_type = db.Column(db.Text, default="")
+    file_name = db.Column(db.Text, default="")
+    ipcr_id = db.Column(db.Integer, db.ForeignKey("ipcr.id"), default = None)
+    batch_id = db.Column(db.Text, default = " ")
+    status = db.Column(db.Integer, default = 1)
+
+    ipcr = db.relationship("IPCR", back_populates = "supporting_documents")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "file_type": self.file_type,
+            "object_name": "documents/" + self.file_name,
+            "file_name": self.file_name,
+            "batch_id": self.batch_id,
+            "ipcr_id": self.ipcr_id,
+            "status": self.status,
+            "download_url": FileStorage.get_file("documents/" + self.file_name)
+        }
 
 class IPCR(db.Model):
     __tablename__ = "ipcr"
@@ -29,7 +54,8 @@ class IPCR(db.Model):
     opcr = db.relationship("OPCR", back_populates="ipcrs")
 
     sub_tasks = db.relationship("Sub_Task", back_populates = "ipcr", cascade = "all, delete")
-    outputs = db.relationship("Output", back_populates = "ipcr")
+    outputs = db.relationship("Output", back_populates = "ipcr", cascade = "all, delete")
+    supporting_documents = db.relationship("Supporting_Document", back_populates = "ipcr", cascade = "all, delete")
 
     isMain = db.Column(db.Boolean, default = False)
     status = db.Column(db.Integer, default = 1)
@@ -45,12 +71,24 @@ class IPCR(db.Model):
             "id" : self.id,
             "user": self.user_id
         }
+    
+    def department_info(self):
+        return {
+            "id" : self.id,
+            "user": self.user.info(),
+            "created_at": str(self.created_at),
+            "form_status": self.form_status,
+            "isMain": self.isMain,
+            "batch_id": self.batch_id,
+            "status": self.status
+        }
 
 
     def to_dict(self):
         return {
             "id" : self.id,
             "user": self.user_id,
+            "user_info": self.user.info(),
             "sub_tasks": [main_task.to_dict() for main_task in self.sub_tasks],
             "sub_tasks_count": self.count_sub_tasks(),
             "created_at": str(self.created_at),
@@ -237,13 +275,65 @@ class PCR_Service():
             #db.session.rollback()
             return jsonify(error=str(e)), 500
 
-
-
-
-
-    
-
+    def record_supporting_document(file_type, file_name, ipcr_id, batch_id):
+        try:
+            new_supporting_document = Supporting_Document(file_type = file_type, file_name = file_name, ipcr_id = ipcr_id, batch_id = batch_id)
+            db.session.add(new_supporting_document)
+            db.session.commit()
+            socketio.emit("document", "document")
+            return jsonify(message = "File successfully uploaded."), 200
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Data does not exists"), 400
         
+        except DataError as e:
+            db.session.rollback()
+            print(str(e))
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+        
+    def get_ipcr_supporting_document(ipcr_id):
+        try:
+            ipcr = IPCR.query.get(ipcr_id)
+            return [docs.to_dict() for docs in ipcr.supporting_documents], 200
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+    
+    def archive_document(document_id):
+        try:
+            docu = Supporting_Document.query.get(document_id)
+            docu.status = 0
+            db.session.commit()
+            socketio.emit("document", "document")
+            return jsonify(message = "Document successfully archived."), 200
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
 
 
 #lagyan ng date period si ipcr

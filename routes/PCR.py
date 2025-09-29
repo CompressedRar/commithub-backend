@@ -4,7 +4,7 @@ from utils.decorators import log_action
 from models.User import Users
 from models.PCR import PCR_Service
 from models.Tasks import Tasks_Service
-from utils import NewExcelHandler
+from utils import NewExcelHandler, FileStorage
 import datetime
 pcrs = Blueprint("pcrs", __name__, url_prefix="/api/v1/pcr")
 
@@ -47,4 +47,26 @@ def download_ipcr(ipcr_id):
 
     return jsonify(link = file_url), 200
 
+@pcrs.route("/ipcr/documents/<ipcr_id>", methods = ["GET"])
+def get_supporting_documents(ipcr_id):
+    return PCR_Service.get_ipcr_supporting_document(ipcr_id=ipcr_id)
+
+@pcrs.route("/ipcr/documents/<document_id>", methods = ["DELETE"])
+def archive_supporting_documents(document_id):
+    return PCR_Service.archive_document(document_id=document_id)
+
+@pcrs.route("/generate_presigned_url", methods = ["POST"])
+def generate_presigned_url():
+    file_name = request.json["fileName"]
+    file_type = request.json["fileType"]
+    return FileStorage.generate_presigned_url(file_name = file_name, file_type = file_type)
+
+@pcrs.route("/record", methods = ["POST"])
+def record_supporting_document():
+    file_name = request.json["fileName"]
+    file_type = request.json["fileType"]
+    ipcr_id = request.json["ipcrID"]
+    batch_id = request.json["batchID"]
+
+    return PCR_Service.record_supporting_document(file_name=file_name, file_type=file_type, ipcr_id=ipcr_id, batch_id=batch_id)
 
