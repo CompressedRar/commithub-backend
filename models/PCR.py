@@ -334,6 +334,176 @@ class PCR_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+        
+    def generate_opcr(ipcr_ids):
+        data = []
+        categories = []
+
+        assigned = {}
+
+        for ipcr_id in ipcr_ids:
+            ipcr = IPCR.query.get(ipcr_id)
+
+
+            for sub_task in ipcr.sub_tasks:
+                if sub_task.main_task.category.name not in categories:
+                    categories.append(sub_task.main_task.category.name)
+
+                    if sub_task.main_task.mfo in assigned.keys():
+                        assigned[sub_task.main_task.mfo].append(f"{ipcr.user.first_name} {ipcr.user.last_name}")
+                    else:
+                        assigned[sub_task.main_task.mfo] = [f"{ipcr.user.first_name} {ipcr.user.last_name}"]
+
+        
+        for cat in categories:
+            data.append({
+                cat:[]
+            })
+
+        for ipcr_id in ipcr_ids:
+            ipcr = IPCR.query.get(ipcr_id)
+
+
+            for sub_task in ipcr.sub_tasks:
+                #sub_task.main_task.category.name
+                #print(sub_task.main_task.category.name)
+                
+                current_data_index = 0
+                for cat in data:
+                    for name, arr in cat.items():
+
+                        
+
+                        if sub_task.main_task.category.name == name:
+
+
+                            #check mo kung exzisting na yung task sa loob ng category
+                            current_task_index = 0
+                            found = False
+                            for tasks in data[current_data_index][name]:
+                                
+                                if sub_task.mfo == tasks["title"]:
+                                    found = True
+                                    data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
+                                    data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
+                                    data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
+                                    data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
+                                    data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
+                                    data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
+
+                                    data[current_data_index][name][current_task_index]["rating"]["quantity"] = PCR_Service.calculateQuantity(data[current_data_index][name][current_task_index]["summary"]["target"], data[current_data_index][name][current_task_index]["summary"]["actual"])
+                                    data[current_data_index][name][current_task_index]["rating"]["efficiency"] = PCR_Service.calculateQuantity(data[current_data_index][name][current_task_index]["corrections"]["target"], data[current_data_index][name][current_task_index]["corrections"]["actual"])
+                                    data[current_data_index][name][current_task_index]["rating"]["timeliness"] = PCR_Service.calculateTimeliness(data[current_data_index][name][current_task_index]["working_days"]["target"], data[current_data_index][name][current_task_index]["working_days"]["actual"])
+
+                                    data[current_data_index][name][current_task_index]["rating"]["average"] = PCR_Service.calculateAverage(data[current_data_index][name][current_task_index]["rating"]["quantity"], data[current_data_index][name][current_task_index]["rating"]["efficiency"], data[current_data_index][name][current_task_index]["rating"]["timeliness"])
+                                current_task_index += 1     
+
+                            if not found:
+                                data[current_data_index][name].append({
+                                "title": sub_task.mfo,
+                                "summary": {
+                                    "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                },
+                                "corrections": {
+                                    "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                },
+                                "working_days": {
+                                    "target": sub_task.target_time, "actual": sub_task.actual_time
+                                },
+                                "description":{
+                                    "target": sub_task.main_task.target_accomplishment,
+                                    "actual": sub_task.main_task.actual_accomplishment,
+                                    "alterations": sub_task.main_task.modification,
+                                    "time": sub_task.main_task.time_description,
+                                },
+                                "rating": {
+                                    "quantity": 0,
+                                    "efficiency": 0,
+                                    "timeliness": 0,
+                                    "average": 0,
+                                }
+                            })
+                            
+
+                    current_data_index += 1
+                    
+                
+
+        
+
+        return jsonify(data, assigned)
+        
+
+    def calculateQuantity(target_acc, actual_acc):
+        rating = 0
+        target = target_acc
+        actual = actual_acc
+
+        if target == 0:
+            
+            return 0
+        
+        calculations = actual/target
+        
+        if calculations >= 1.3:
+            rating = 5
+        elif calculations >= 1.01 and calculations <= 1.299:
+            rating = 4
+        elif calculations >= 0.90 and calculations <= 1:
+            rating = 3    
+        elif calculations >= .70 and calculations <= 0.899:
+            rating = 2
+        elif calculations <= 0.699:
+            rating = 1
+        
+        return rating  
+
+    def calculateEfficiency(target_mod, actual_mod):
+        
+        target = target_mod
+        actual = actual_mod
+        rating = 0
+        
+        calculations = actual
+
+        if calculations == 0:            
+            rating = 5
+        elif calculations >= 1 and calculations <= 2:
+            rating = 4
+        elif calculations >= 3 and calculations <= 4:
+            rating = 3    
+        elif calculations >= 5 and calculations <= 6:
+            rating = 2
+        elif calculations <= 7:
+            rating = 1
+        return rating 
+    
+    def calculateTimeliness(target_time, actual_time):
+        
+        target = target_time
+        actual = actual_time
+        rating = 0
+        if target == 0:
+            return 0
+        
+        calculations = ((target - actual) / target) + 1
+        
+        if calculations >= 1.3:
+            rating = 5
+        elif calculations >= 1.15 and calculations <= 1.29:
+            rating = 4
+        elif calculations >= 0.9 and calculations <= 1.14:
+            rating = 3    
+        elif calculations >= 0.51 and calculations <= 0.89:
+            rating = 2
+        elif calculations <= 0.5:
+            rating = 1
+        return rating
+    
+    def calculateAverage(quantity, efficiency, timeliness):
+        calculations = quantity + efficiency + timeliness
+        result = calculations/3
+        return result
 
 
 #lagyan ng date period si ipcr

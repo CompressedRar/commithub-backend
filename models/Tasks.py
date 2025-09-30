@@ -113,9 +113,9 @@ class Main_Task(db.Model):
     category = db.relationship("Category", back_populates = "main_tasks")
 
     sub_tasks = db.relationship("Sub_Task", back_populates = "main_task", cascade = "all, delete")
-    outputs = db.relationship("Output", back_populates="main_task")
+    outputs = db.relationship("Output", back_populates="main_task", cascade = "all, delete")
 
-    assigned_tasks = db.relationship("Assigned_Task", back_populates="main_task")
+    assigned_tasks = db.relationship("Assigned_Task", back_populates="main_task", cascade = "all, delete")
 
     def get_users(self):
         return [output.user_info() for output in self.outputs]
