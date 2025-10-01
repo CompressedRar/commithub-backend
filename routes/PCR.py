@@ -70,7 +70,13 @@ def record_supporting_document():
 
     return PCR_Service.record_supporting_document(file_name=file_name, file_type=file_type, ipcr_id=ipcr_id, batch_id=batch_id)
 
-@pcrs.route("/test-opcr/", methods = ["GET"])
-def test_opcr():
-    ids = [46, 47]
-    return PCR_Service.generate_opcr(ids)
+@pcrs.route("/opcr/<dept_id>", methods = ["POST"])
+def create_opcr(dept_id):
+    ipcr_ids = request.json["ipcr_ids"]
+
+    return PCR_Service.create_opcr(dept_id=dept_id, ipcr_ids=ipcr_ids)
+
+@pcrs.route("/opcr/download/<opcr_id>", methods = ["GET"])
+def test_opcr(opcr_id):
+    
+    return PCR_Service.generate_opcr(opcr_id=opcr_id)

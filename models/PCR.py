@@ -6,7 +6,7 @@ from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.Tasks import Tasks_Service, Assigned_Task, Output, Sub_Task
 from models.User import Users, User
-from utils import FileStorage
+from utils import FileStorage, ExcelHandler
 import uuid
 
 class Supporting_Document(db.Model):
@@ -126,7 +126,6 @@ class OPCR(db.Model):
     def to_dict(self):
         return {
             "id" : self.id,
-            "user": self.user_id,
             "ipcr_count": self.count_ipcr()
         }
     
@@ -335,24 +334,47 @@ class PCR_Service():
             print(str(e))
             return jsonify(error=str(e)), 500
         
-    def generate_opcr(ipcr_ids):
+    def create_opcr(dept_id, ipcr_ids):
+        try:
+            new_opcr = OPCR(department_id = dept_id)
+            db.session.add(new_opcr)
+            
+            for ipcr_id in ipcr_ids:
+                ipcr = IPCR.query.get(ipcr_id)
+                ipcr.opcr_id = new_opcr.id
+            
+            db.session.commit()
+
+            return jsonify(message="OPCR successfully created."), 200
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+        
+    def generate_opcr(opcr_id):
+
+        opcr = OPCR.query.get(opcr_id)
         data = []
         categories = []
 
         assigned = {}
 
-        for ipcr_id in ipcr_ids:
-            ipcr = IPCR.query.get(ipcr_id)
-
-
+        for ipcr in opcr.ipcrs:
+            
             for sub_task in ipcr.sub_tasks:
+                
                 if sub_task.main_task.category.name not in categories:
                     categories.append(sub_task.main_task.category.name)
-
-                    if sub_task.main_task.mfo in assigned.keys():
-                        assigned[sub_task.main_task.mfo].append(f"{ipcr.user.first_name} {ipcr.user.last_name}")
-                    else:
-                        assigned[sub_task.main_task.mfo] = [f"{ipcr.user.first_name} {ipcr.user.last_name}"]
+                    #print(sub_task.main_task.mfo)
+                if sub_task.main_task.mfo in assigned.keys():
+                    assigned[sub_task.main_task.mfo].append(f"{ipcr.user.first_name} {ipcr.user.last_name}")
+                else:
+                    assigned[sub_task.main_task.mfo] = [f"{ipcr.user.first_name} {ipcr.user.last_name}"]
 
         
         for cat in categories:
@@ -360,8 +382,7 @@ class PCR_Service():
                 cat:[]
             })
 
-        for ipcr_id in ipcr_ids:
-            ipcr = IPCR.query.get(ipcr_id)
+        for ipcr in opcr.ipcrs:
 
 
             for sub_task in ipcr.sub_tasks:
@@ -426,12 +447,98 @@ class PCR_Service():
                             
 
                     current_data_index += 1
+
                     
-                
-
+        #get the head
+        head_data = {}
+        head = User.query.filter_by(department_id = opcr.department_id, role = "head").first()
         
+        if head:
+            head_data = {
+                "fullName": head.first_name + " " + head.last_name,
+                "givenName": head.first_name,
+                "middleName": head.middle_name,
+                "lastName": head.last_name,
+                "position": head.position.name,
 
-        return jsonify(data, assigned)
+                "individuals": {
+                    "review": {
+                        "name": head.first_name + " " + head.last_name,
+                        "position": head.position.name,
+                        "date": "2025-03-10"
+                    },
+                    "approve": {
+                        "name": "Ma. Liberty DG. Pascual, Ph.D",
+                        "position": "College President",
+                        "date": "2025-03-12"
+                    },
+                    "discuss": {
+                        "name": head.first_name + " " + head.last_name,
+                        "position": head.position.name,
+                        "date": "2025-03-15"
+                    },
+                    "assess": {
+                        "name": "Ma. Liberty DG. Pascual, Ph.D",
+                        "position": "College President",
+                        "date": "2025-03-16"
+                    },
+                    "final": {
+                        "name": "Ma. Liberty DG. Pascual, Ph.D",
+                        "position": "College President",
+                        "date": "2025-03-20"
+                    },
+                    "confirm": {
+                        "name": "Hon. Maria Elena L. Germar",
+                        "position": "PMT Chairperson",
+                        "date": "2025-03-21"
+                    }
+                }
+            }
+        else:
+            head_data = {
+                "fullName": "",
+                "givenName": "",
+                "middleName": "",
+                "lastName": "",
+                "position": "",
+
+                "individuals": {
+                    "review": {
+                        "name": "",
+                        "position": "",
+                        "date": "2025-03-10"
+                    },
+                    "approve": {
+                        "name": "Ma. Liberty DG. Pascual, Ph.D",
+                        "position": "College President",
+                        "date": "2025-03-12"
+                    },
+                    "discuss": {
+                        "name": "",
+                        "position": "",
+                        "date": "2025-03-15"
+                    },
+                    "assess": {
+                        "name": "Ma. Liberty DG. Pascual, Ph.D",
+                        "position": "College President",
+                        "date": "2025-03-16"
+                    },
+                    "final": {
+                        "name": "Ma. Liberty DG. Pascual, Ph.D",
+                        "position": "College President",
+                        "date": "2025-03-20"
+                    },
+                    "confirm": {
+                        "name": "Hon. Maria Elena L. Germar",
+                        "position": "PMT Chairperson",
+                        "date": "2025-03-21"
+                    }
+                }
+            }
+
+        ExcelHandler.createNewOPCR(data = data, assigned = assigned, admin_data = head_data)
+
+        return jsonify(data = data, assigned = assigned, admin_data = head_data), 200
         
 
     def calculateQuantity(target_acc, actual_acc):

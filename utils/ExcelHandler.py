@@ -66,17 +66,9 @@ def createNewOPCR(data, assigned, admin_data):
     ws["N10"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["N10"].font = Font(bold=True, name="Calibri", size="11")
     
-    ws["A13"] = admin_data["individuals"]["review"]["name"]
-    ws["A14"] = admin_data["individuals"]["review"]["position"]
-    ws["H13"] = formatDate(admin_data["individuals"]["review"]["date"])
-    ws["H13"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    ws["H13"].font = Font(bold=True, name="Calibri", size="11")
-    
-    ws["J13"] = admin_data["individuals"]["approve"]["name"]
-    ws["J14"] = admin_data["individuals"]["approve"]["position"]
-    ws["R13"] = formatDate(admin_data["individuals"]["approve"]["date"])
-    ws["R13"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    ws["R13"].font = Font(bold=True, name="Calibri", size="11")
+    ws["A13"] = "Name: " + admin_data["individuals"]["approve"]["name"]
+    ws["A14"] = "Position: " +  admin_data["individuals"]["approve"]["position"]
+    ws["A15"] = "Date: " + formatDate(admin_data["individuals"]["approve"]["date"])
     
     
     row = 26
@@ -342,11 +334,11 @@ def createNewOPCR(data, assigned, admin_data):
     # Save changes
     id = random.randint(1,999999)
     filename = f"OPCR-NC-{period}-{admin_data["givenName"]}-{admin_data["middleName"]}-{admin_data["lastName"]}-{datee}-{id}"
-    link = f"excels/IPCR/{filename}.xlsx"
+    link = f"excels/OPCR/{filename}.xlsx"
     wb.save(link)
     
     return "success"
-    
+ 
     
     
 def createNewIPCR(data, given, middle, last, individuals, position, dates):
