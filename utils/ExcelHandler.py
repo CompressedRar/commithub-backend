@@ -2,6 +2,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Border, Side, Alignment, Font
 from openpyxl.drawing.image import Image
 import datetime 
+from utils.FileStorage import upload_file
 
 import random
 from datetime import date
@@ -336,8 +337,12 @@ def createNewOPCR(data, assigned, admin_data):
     filename = f"OPCR-NC-{period}-{admin_data["givenName"]}-{admin_data["middleName"]}-{admin_data["lastName"]}-{datee}-{id}"
     link = f"excels/OPCR/{filename}.xlsx"
     wb.save(link)
+
+    file_url = upload_file(link, "commiathub-bucket", f"OPCR/{filename}.xlsx")
     
-    return "success"
+    return file_url
+
+
  
     
     

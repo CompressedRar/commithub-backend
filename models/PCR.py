@@ -7,7 +7,19 @@ from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.Tasks import Tasks_Service, Assigned_Task, Output, Sub_Task
 from models.User import Users, User
 from utils import FileStorage, ExcelHandler
+
+from pprint import pprint
 import uuid
+
+class Assigned_PCR(db.Model):
+    __tablename__ = "assigned_pcrs"
+    id = db.Column(db.Integer, primary_key=True)
+    
+    ipcr_id = db.Column(db.Integer, db.ForeignKey("ipcr.id"), default = None)
+    opcr_id = db.Column(db.Integer, db.ForeignKey("opcr.id"), default = None)
+
+    ipcr = db.relationship("IPCR", back_populates = "assigned_pcrs")
+    opcr = db.relationship("OPCR", back_populates = "assigned_pcrs")
 
 class Supporting_Document(db.Model):
     __tablename__ = "supporting_documents"
@@ -62,6 +74,7 @@ class IPCR(db.Model):
     form_status = db.Column(db.Enum("pending", "reviewed", "approved"), default="pending")
 
     batch_id = db.Column(db.Text, default="")
+    assigned_pcr = db.relationship("Assigned_PCR", back_populates = "ipcr", cascade = "all, delete")
 
     def count_sub_tasks(self):
         return len([main_task.to_dict() for main_task in self.sub_tasks])
@@ -118,15 +131,19 @@ class OPCR(db.Model):
     status = db.Column(db.Integer, default = 1)
     form_status = db.Column(db.Enum("pending", "reviewed", "approved"), default="pending")
 
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    assigned_pcr = db.relationship("Assigned_PCR", back_populates = "opcr", cascade = "all, delete")
+
     def count_ipcr(self):
         return len([ipcr.to_dict() for ipcr in self.ipcrs])
-    
     
     
     def to_dict(self):
         return {
             "id" : self.id,
-            "ipcr_count": self.count_ipcr()
+            "ipcr_count": self.count_ipcr(),
+            "form_status": self.form_status,
+            "created_at": self.created_at
         }
     
 # gagawa ng output base sa id
@@ -273,6 +290,23 @@ class PCR_Service():
         except Exception as e:
             #db.session.rollback()
             return jsonify(error=str(e)), 500
+        
+    def archive_opcr(opcr_id):
+        try:
+            opcr = OPCR.query.get(opcr_id)
+            opcr.status = 0
+            for ipcr in opcr.ipcrs:
+                PCR_Service.archive_ipcr(ipcr.id)
+
+            
+            return jsonify(message="OPCR was archived successfully."), 200
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
 
     def record_supporting_document(file_type, file_name, ipcr_id, batch_id):
         try:
@@ -334,6 +368,9 @@ class PCR_Service():
             print(str(e))
             return jsonify(error=str(e)), 500
         
+
+    #create a many to many relationship between ipcr and opcr
+    #fix the creation of opcr
     def create_opcr(dept_id, ipcr_ids):
         try:
             new_opcr = OPCR(department_id = dept_id)
@@ -535,10 +572,11 @@ class PCR_Service():
                     }
                 }
             }
+        
+        pprint(data)
+        file_url = ExcelHandler.createNewOPCR(data = data, assigned = assigned, admin_data = head_data)
 
-        ExcelHandler.createNewOPCR(data = data, assigned = assigned, admin_data = head_data)
-
-        return jsonify(data = data, assigned = assigned, admin_data = head_data), 200
+        return file_url
         
 
     def calculateQuantity(target_acc, actual_acc):

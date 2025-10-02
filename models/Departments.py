@@ -48,6 +48,14 @@ class Department(db.Model):
                 all_ipcr.append(ipcr.department_info())
 
         return all_ipcr
+    
+    def collect_all_opcr(self):
+        all_ipcr = []
+        
+        for opcr in self.opcrs:
+            all_ipcr.append(opcr.to_dict())
+
+        return all_ipcr
 
 
     def to_dict(self):
@@ -247,6 +255,24 @@ class Department_Service():
                 return jsonify(error="Department not found"), 400
         
             return jsonify(dept.collect_all_ipcr()), 200
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+        
+    def get_all_department_opcr(dept_id):
+        try:
+            dept = Department.query.get(dept_id)
+
+            if dept == None:
+                return jsonify(error="Department not found"), 400
+        
+            return jsonify(dept.collect_all_opcr()), 200
         except OperationalError as e:
             db.session.rollback()
             print(str(e))

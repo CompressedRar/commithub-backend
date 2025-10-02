@@ -18,6 +18,10 @@ def get_ipcr(id):
 def archiv_ipcr(id):
     return PCR_Service.archive_ipcr(id)
 
+@pcrs.route("/opcr/<id>", methods = ["DELETE"])
+def archiv_opcr(id):
+    return PCR_Service.archive_opcr(id)
+
 @pcrs.route("/ipcr/<ipcr_id>&<user_id>", methods = ["PATCH"])
 def assign_ipcr(ipcr_id, user_id):
     return PCR_Service.assign_main_ipcr(ipcr_id, user_id)
@@ -78,5 +82,5 @@ def create_opcr(dept_id):
 
 @pcrs.route("/opcr/download/<opcr_id>", methods = ["GET"])
 def test_opcr(opcr_id):
-    
-    return PCR_Service.generate_opcr(opcr_id=opcr_id)
+    file_link = PCR_Service.generate_opcr(opcr_id=opcr_id)
+    return jsonify(link = file_link), 200
