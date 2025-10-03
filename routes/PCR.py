@@ -14,6 +14,14 @@ pcrs = Blueprint("pcrs", __name__, url_prefix="/api/v1/pcr")
 def get_ipcr(id):
     return PCR_Service.get_ipcr(id)
 
+@pcrs.route("/opcr/<id>", methods = ["GET"])
+def get_opcr(id):
+    return PCR_Service.get_opcr(id)
+
+@pcrs.route("/ipcr/approve/<id>", methods = ["POST"])
+def approve_ipcr(id):
+    return PCR_Service.approve_ipcr(id)
+
 @pcrs.route("/ipcr/<id>", methods = ["DELETE"])
 def archiv_ipcr(id):
     return PCR_Service.archive_ipcr(id)

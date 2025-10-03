@@ -17,9 +17,11 @@ class Assigned_PCR(db.Model):
     
     ipcr_id = db.Column(db.Integer, db.ForeignKey("ipcr.id"), default = None)
     opcr_id = db.Column(db.Integer, db.ForeignKey("opcr.id"), default = None)
+    department_id = db.Column(db.Integer, db.ForeignKey("departments.id"), default = None)
 
     ipcr = db.relationship("IPCR", back_populates = "assigned_pcrs")
     opcr = db.relationship("OPCR", back_populates = "assigned_pcrs")
+    department = db.relationship("Department", back_populates = "assigned_pcrs")
 
 class Supporting_Document(db.Model):
     __tablename__ = "supporting_documents"
@@ -74,7 +76,7 @@ class IPCR(db.Model):
     form_status = db.Column(db.Enum("pending", "reviewed", "approved"), default="pending")
 
     batch_id = db.Column(db.Text, default="")
-    assigned_pcr = db.relationship("Assigned_PCR", back_populates = "ipcr", cascade = "all, delete")
+    assigned_pcrs = db.relationship("Assigned_PCR", back_populates = "ipcr", cascade = "all, delete")
 
     def count_sub_tasks(self):
         return len([main_task.to_dict() for main_task in self.sub_tasks])
@@ -132,7 +134,7 @@ class OPCR(db.Model):
     form_status = db.Column(db.Enum("pending", "reviewed", "approved"), default="pending")
 
     created_at = db.Column(db.DateTime, default=datetime.now)
-    assigned_pcr = db.relationship("Assigned_PCR", back_populates = "opcr", cascade = "all, delete")
+    assigned_pcrs = db.relationship("Assigned_PCR", back_populates = "opcr", cascade = "all, delete")
 
     def count_ipcr(self):
         return len([ipcr.to_dict() for ipcr in self.ipcrs])
@@ -215,6 +217,26 @@ class PCR_Service():
         except Exception as e:
             db.session.rollback()
             print("generate_IPCR error:", e)
+            return jsonify(error=str(e)), 500
+        
+    def approve_ipcr(ipcr_id):
+        try:
+            ipcr = IPCR.query.get(ipcr_id)
+            ipcr.form_status = "approved"
+            db.session.commit()
+            socketio.emit("ipcr", "approved")
+            socketio.emit("opcr", "approved")
+            if ipcr:
+                return jsonify(message = "This IPCR is successfully approved."), 200
+
+            return jsonify(message = "There is no ipcr with that id"), 400
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
             return jsonify(error=str(e)), 500
     
     def get_ipcr(ipcr_id):
@@ -375,12 +397,16 @@ class PCR_Service():
         try:
             new_opcr = OPCR(department_id = dept_id)
             db.session.add(new_opcr)
+            db.session.flush()
             
             for ipcr_id in ipcr_ids:
-                ipcr = IPCR.query.get(ipcr_id)
-                ipcr.opcr_id = new_opcr.id
+
+                new_assigned_pcr = Assigned_PCR(opcr_id = new_opcr.id, ipcr_id = ipcr_id, department_id = dept_id)
+                db.session.add(new_assigned_pcr)
             
             db.session.commit()
+
+            socketio.emit("opcr", "created")
 
             return jsonify(message="OPCR successfully created."), 200
         except OperationalError as e:
@@ -401,17 +427,17 @@ class PCR_Service():
 
         assigned = {}
 
-        for ipcr in opcr.ipcrs:
+        for assigned_pcr in opcr.assigned_pcrs:
             
-            for sub_task in ipcr.sub_tasks:
+            for sub_task in assigned_pcr.ipcr.sub_tasks:
                 
                 if sub_task.main_task.category.name not in categories:
                     categories.append(sub_task.main_task.category.name)
                     #print(sub_task.main_task.mfo)
                 if sub_task.main_task.mfo in assigned.keys():
-                    assigned[sub_task.main_task.mfo].append(f"{ipcr.user.first_name} {ipcr.user.last_name}")
+                    assigned[sub_task.main_task.mfo].append(f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}")
                 else:
-                    assigned[sub_task.main_task.mfo] = [f"{ipcr.user.first_name} {ipcr.user.last_name}"]
+                    assigned[sub_task.main_task.mfo] = [f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}"]
 
         
         for cat in categories:
@@ -419,12 +445,12 @@ class PCR_Service():
                 cat:[]
             })
 
-        for ipcr in opcr.ipcrs:
+        for assigned_pcr in opcr.assigned_pcrs:
 
 
-            for sub_task in ipcr.sub_tasks:
+            for sub_task in assigned_pcr.ipcr.sub_tasks:
                 #sub_task.main_task.category.name
-                #print(sub_task.main_task.category.name)
+                print(sub_task.main_task.category.name)
                 
                 current_data_index = 0
                 for cat in data:
@@ -577,6 +603,174 @@ class PCR_Service():
         file_url = ExcelHandler.createNewOPCR(data = data, assigned = assigned, admin_data = head_data)
 
         return file_url
+    
+    def get_opcr(opcr_id):
+        opcr = OPCR.query.get(opcr_id)
+        data = []
+        categories = []
+        assigned = {}
+
+        for assigned_pcr in opcr.assigned_pcrs:
+            for sub_task in assigned_pcr.ipcr.sub_tasks:
+                if sub_task.main_task.category.name not in categories:
+                    categories.append(sub_task.main_task.category.name)
+                    #print(sub_task.main_task.mfo)
+                if sub_task.main_task.mfo in assigned.keys():
+                    assigned[sub_task.main_task.mfo].append(f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}")
+                else:
+                    assigned[sub_task.main_task.mfo] = [f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}"]
+
+        for cat in categories:
+            data.append({
+                cat:[]
+            })
+
+        for assigned_pcr in opcr.assigned_pcrs:
+            for sub_task in assigned_pcr.ipcr.sub_tasks:
+                #sub_task.main_task.category.name
+                print(sub_task.main_task.category.name)
+                current_data_index = 0
+                for cat in data:
+                    for name, arr in cat.items():
+                        if sub_task.main_task.category.name == name:
+                            #check mo kung exzisting na yung task sa loob ng category
+                            current_task_index = 0
+                            found = False
+                            for tasks in data[current_data_index][name]:
+                                if sub_task.mfo == tasks["title"]:
+                                    found = True
+                                    data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
+                                    data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
+                                    data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
+                                    data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
+                                    data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
+                                    data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
+
+                                    data[current_data_index][name][current_task_index]["rating"]["quantity"] = PCR_Service.calculateQuantity(data[current_data_index][name][current_task_index]["summary"]["target"], data[current_data_index][name][current_task_index]["summary"]["actual"])
+                                    data[current_data_index][name][current_task_index]["rating"]["efficiency"] = PCR_Service.calculateQuantity(data[current_data_index][name][current_task_index]["corrections"]["target"], data[current_data_index][name][current_task_index]["corrections"]["actual"])
+                                    data[current_data_index][name][current_task_index]["rating"]["timeliness"] = PCR_Service.calculateTimeliness(data[current_data_index][name][current_task_index]["working_days"]["target"], data[current_data_index][name][current_task_index]["working_days"]["actual"])
+
+                                    data[current_data_index][name][current_task_index]["rating"]["average"] = PCR_Service.calculateAverage(data[current_data_index][name][current_task_index]["rating"]["quantity"], data[current_data_index][name][current_task_index]["rating"]["efficiency"], data[current_data_index][name][current_task_index]["rating"]["timeliness"])
+                                current_task_index += 1     
+
+                            if not found:
+                                data[current_data_index][name].append({
+                                "title": sub_task.mfo,
+                                "summary": {
+                                    "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                },
+                                "corrections": {
+                                    "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                },
+                                "working_days": {
+                                    "target": sub_task.target_time, "actual": sub_task.actual_time
+                                },
+                                "description":{
+                                    "target": sub_task.main_task.target_accomplishment,
+                                    "actual": sub_task.main_task.actual_accomplishment,
+                                    "alterations": sub_task.main_task.modification,
+                                    "time": sub_task.main_task.time_description,
+                                },
+                                "rating": {
+                                    "quantity": 0,
+                                    "efficiency": 0,
+                                    "timeliness": 0,
+                                    "average": 0,
+                                }
+                            })
+                    current_data_index += 1
+
+                    
+        #get the head
+        head_data = {}
+        head = User.query.filter_by(department_id = opcr.department_id, role = "head").first()
+        
+        if head:
+            head_data = {
+                "fullName": head.first_name + " " + head.last_name,
+                "givenName": head.first_name,
+                "middleName": head.middle_name,
+                "lastName": head.last_name,
+                "position": head.position.name,
+
+                "individuals": {
+                    "review": {
+                        "name": head.first_name + " " + head.last_name,
+                        "position": head.position.name,
+                        "date": "2025-03-10"
+                    },
+                    "approve": {
+                        "name": "Ma. Liberty DG. Pascual, Ph.D",
+                        "position": "College President",
+                        "date": "2025-03-12"
+                    },
+                    "discuss": {
+                        "name": head.first_name + " " + head.last_name,
+                        "position": head.position.name,
+                        "date": "2025-03-15"
+                    },
+                    "assess": {
+                        "name": "Ma. Liberty DG. Pascual, Ph.D",
+                        "position": "College President",
+                        "date": "2025-03-16"
+                    },
+                    "final": {
+                        "name": "Ma. Liberty DG. Pascual, Ph.D",
+                        "position": "College President",
+                        "date": "2025-03-20"
+                    },
+                    "confirm": {
+                        "name": "Hon. Maria Elena L. Germar",
+                        "position": "PMT Chairperson",
+                        "date": "2025-03-21"
+                    }
+                }
+            }
+        else:
+            head_data = {
+                "fullName": "",
+                "givenName": "",
+                "middleName": "",
+                "lastName": "",
+                "position": "",
+
+                "individuals": {
+                    "review": {
+                        "name": "",
+                        "position": "",
+                        "date": "2025-03-10"
+                    },
+                    "approve": {
+                        "name": "Ma. Liberty DG. Pascual, Ph.D",
+                        "position": "College President",
+                        "date": "2025-03-12"
+                    },
+                    "discuss": {
+                        "name": "",
+                        "position": "",
+                        "date": "2025-03-15"
+                    },
+                    "assess": {
+                        "name": "Ma. Liberty DG. Pascual, Ph.D",
+                        "position": "College President",
+                        "date": "2025-03-16"
+                    },
+                    "final": {
+                        "name": "Ma. Liberty DG. Pascual, Ph.D",
+                        "position": "College President",
+                        "date": "2025-03-20"
+                    },
+                    "confirm": {
+                        "name": "Hon. Maria Elena L. Germar",
+                        "position": "PMT Chairperson",
+                        "date": "2025-03-21"
+                    }
+                }
+            }
+        #ayusion yung desgination  ng mayor at college president
+        pprint(data)
+
+        return jsonify(ipcr_data = data, assigned = assigned, admin_data = head_data)
         
 
     def calculateQuantity(target_acc, actual_acc):

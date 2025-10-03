@@ -13,6 +13,11 @@ def get_tasks_count():
 def get_tasks():
     return Tasks_Service.get_main_tasks()
 
+@task.route("/general", methods = ["GET"])
+def get_general_tasks():
+    return Tasks_Service.get_general_tasks()
+
+
 @task.route("/<id>", methods = ["GET"])
 def get_task(id):
     return Tasks_Service.get_main_task(id)

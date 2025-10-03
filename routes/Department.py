@@ -22,6 +22,10 @@ def get_department_tasks(id):
 def get_department_ipcr(id):
     return Department_Service.get_all_department_ipcr(id)
 
+@department.route("/head/<dept_id>", methods = ["GET"])
+def get_department_head(dept_id):
+    return Department_Service.get_department_head(dept_id)
+
 @department.route("/opcr/<dept_id>", methods = ["GET"])
 def get_department_opcr(dept_id):
     return Department_Service.get_all_department_opcr(dept_id=dept_id)

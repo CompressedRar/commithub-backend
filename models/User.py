@@ -59,6 +59,7 @@ class User(db.Model):
             "last_name": self.last_name,
             "middle_name": self.middle_name,
             "profile_picture_link": self.profile_picture_link,
+            "position": self.position.info(),
 
             "department": self.department.info() if self.department else "NONE",
             "department_name": self.department.info()["name"] if self.department else "NONE",
@@ -499,10 +500,10 @@ class Users():
                     return jsonify(message ="Authenticated.", token = token), 200
                 
                 else:
-                    return jsonify(message ="Invalid Credentials"), 200
+                    return jsonify(error ="Invalid Credentials"), 400
 
             else:
-                return jsonify(message = "Invalid Credentials"), 200
+                return jsonify(error = "Invalid Credentials"), 400
             
         except OperationalError as e:
             db.session.rollback()

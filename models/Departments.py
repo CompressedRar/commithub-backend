@@ -19,6 +19,7 @@ class Department(db.Model):
     opcrs = db.relationship("OPCR", back_populates="department")
 
     main_tasks = db.relationship("Main_Task", back_populates = "department")
+    assigned_pcrs = db.relationship("Assigned_PCR", back_populates = "department")
 
     def count_tasks(self):
         return len([main_task.info() for main_task in self.main_tasks])
@@ -70,8 +71,7 @@ class Department(db.Model):
             "opcr_count": self.count_opcr(),
             "ipcr_count": self.count_ipcr(),
             "main_tasks": [main_task.info() for main_task in self.main_tasks],
-            "main_tasks_count": self.count_tasks(),
-            
+            "main_tasks_count": self.count_tasks(),            
         }
     
 
@@ -106,6 +106,31 @@ class Department_Service():
         except Exception as e:
             #db.session.rollback()
             return jsonify(error=str(e)), 500
+        
+    def get_department_head(dept_id):
+        try:
+            department_head = User.query.filter_by(department_id = dept_id, role = "head").first()
+
+            if department_head:
+                return jsonify(department_head.info()), 200
+            
+            return jsonify({
+                "id": "",
+                "first_name": "",
+                "last_name": "",
+                "middle_name": "",
+                "profile_picture_link": "",
+                "position": "",
+            }), 400
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+
         
     def get_members(dept_id, offset = 0, limit = 10):
         try:

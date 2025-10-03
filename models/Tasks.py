@@ -620,6 +620,20 @@ class Tasks_Service():
         except Exception as e:
             #db.session.rollback()
             return jsonify(error=str(e)), 500
+        
+    def get_general_tasks():
+        try:
+            all_general_tasks = Main_Task.query.filter(Main_Task.department_id.is_(None), Main_Task.status == 1).all()
+            converted = [task.info() for task in all_general_tasks]
+            return jsonify(converted), 200
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
     
     def get_tasks_by_department(id):
         try:
