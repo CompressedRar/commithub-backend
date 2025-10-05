@@ -3,12 +3,14 @@ from app import socketio
 from pprint import pprint
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
+
 from flask import jsonify
 from models.Positions import Positions, Position
 from FirebaseApi.config import upload_file
 from utils.Generate import generate_default_password
 from utils.Email import send_email
 from models.Logs import Log_Service
+
 from argon2 import PasswordHasher
 import jwt
 
@@ -26,12 +28,12 @@ class User(db.Model):
     last_name = db.Column(db.String(50), nullable=False)
 
     email = db.Column(db.String(50), unique=True, nullable=False)
-    password = db.Column(db.String(250), nullable=False, default="12345678")
+    password = db.Column(db.String(250), nullable=False, default="commithubnc")
     profile_picture_link = db.Column(db.String(200), nullable=True)
 
     
     created_at = db.Column(db.DateTime, default=datetime.now)
-    role = db.Column(db.Enum("faculty", "head", "administrator"), default="faculty")
+    role = db.Column(db.Enum("faculty", "head", "president", "administrator"), default="faculty")
 
     active_status = db.Column(db.Boolean, default=True)
     account_status = db.Column(db.Integer, default = 1)
@@ -74,6 +76,17 @@ class User(db.Model):
         return {
             "assigned_tasks" : [assigned.assigned_task_info() for assigned in self.assigned_tasks]            
         }
+    
+    def calculatePerformance(self):
+        all_output_total = 0
+        total = 0
+        for output in self.outputs:
+            total += 1
+            all_output_total += output.sub_task.calculateAverage()
+        
+
+        
+        return all_output_total / total if total != 0 else 0
 
     def to_dict(self):
         return {
@@ -94,7 +107,9 @@ class User(db.Model):
             "department": self.department.info() if self.department else "NONE",
             "ipcrs": [ipcr.to_dict() for ipcr in self.ipcrs],
             "ipcrs_count": len([ipcr.to_dict() for ipcr in self.ipcrs]),
-            "main_tasks_count": len(self.outputs)         
+            "main_tasks_count": len(self.outputs),
+            "avg_performance": self.calculatePerformance()
+
         }
 
 
@@ -515,6 +530,12 @@ class Users():
             db.session.rollback()
             print(str(e), "EXCEPTION")
             return jsonify(error=str(e)), 500
+        
+    
+
+
+    
+
             
 "JEX8iu1hAA"
 

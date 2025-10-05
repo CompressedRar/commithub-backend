@@ -18,6 +18,10 @@ def get_department(id):
 def get_department_tasks(id):
     return Tasks_Service.get_tasks_by_department(id)
 
+@department.route("/general/", methods = ["GET"])
+def get_general_tasks():
+    return Tasks_Service.get_all_general_tasks()
+
 @department.route("/ipcr/<id>", methods = ["GET"])
 def get_department_ipcr(id):
     return Department_Service.get_all_department_ipcr(id)
@@ -37,6 +41,10 @@ def assign_department_tasks(task_id, dept_id):
 @department.route("/assigned/<dept_id>&<task_id>", methods = ["GET"])
 def get_assigned_users_tasks(dept_id, task_id):
     return Tasks_Service.get_assigned_users(dept_id, task_id)
+
+@department.route("/assigned/general/<task_id>", methods = ["GET"])
+def get_general_assigned_users_tasks(task_id):
+    return Tasks_Service.get_general_assigned_users(task_id)
 
 @department.route("/assigned/<user_id>&<task_id>", methods = ["POST"])
 def assign_user_task(user_id, task_id):

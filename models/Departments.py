@@ -4,7 +4,9 @@ from sqlalchemy.exc import IntegrityError, OperationalError, DataError, Programm
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.User import User
+from models.Tasks import Sub_Task, Output
 from app import socketio
+from sqlalchemy import func, outerjoin
 
 class Department(db.Model):
     __tablename__ = "departments"
@@ -46,6 +48,7 @@ class Department(db.Model):
         all_ipcr = []
         for user in self.users:
             for ipcr in user.ipcrs:
+
                 all_ipcr.append(ipcr.department_info())
 
         return all_ipcr
@@ -111,6 +114,7 @@ class Department_Service():
         try:
             department_head = User.query.filter_by(department_id = dept_id, role = "head").first()
 
+            print("department head info: ", department_head.info())
             if department_head:
                 return jsonify(department_head.info()), 200
             
@@ -307,4 +311,83 @@ class Department_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+    
+    def get_user_count_per_department():
+        """
+        Returns department-user counts formatted for Recharts:
+        [
+        { "name": "Department A", "value": 10 },
+        { "name": "Department B", "value": 0 },
+        ...
+        ]
+        """
+        results = (
+            db.session.query(
+                Department.name.label("name"),
+                func.count(User.id).label("value")
+            )
+            .outerjoin(User, User.department_id == Department.id)  # LEFT JOIN
+            .group_by(Department.id)
+            .all()
+        )
+
+        data = [{"name": row.name, "value": row.value or 0} for row in results]
+        return jsonify(data), 200
+    
+    def get_average_performance_by_department():
+        """
+        Returns department performance averages:
+        [
+            { "name": "Education", "value": 3.5 },
+            { "name": "Registrar", "value": 4.1 },
+            ...
+        ]
+        """
+        # Join Department → User → Output → Sub_Task
+        results = (
+            db.session.query(
+                Department.name.label("name"),
+                func.avg(Sub_Task.average).label("value")
+            )
+            .join(User, User.department_id == Department.id)
+            .join(Output, Output.user_id == User.id)
+            .join(Sub_Task, Sub_Task.output_id == Output.id)
+            .group_by(Department.id)
+            .all()
+        )
+
+        # Include all departments (even if they have no performance data)
+        departments = Department.query.all()
+        data = []
+        for dept in departments:
+            match = next((r for r in results if r.name == dept.name), None)
+            avg_value = round(match.value, 2) if match and match.value else 0
+            data.append({"name": dept.name, "value": avg_value})
+
+        return jsonify(data), 200
+    
+    def get_user_performance_by_department_id(department_id):
+        """
+        Returns average performance per user for a specific department.
+        Example:
+        [
+            { "name": "Juan Dela Cruz", "value": 4.5 },
+            { "name": "Maria Santos", "value": 4.1 },
+            ...
+        ]
+        """
+        users = User.query.filter_by(department_id=department_id).all()
+        data = []
+
+        for user in users:
+            avg = user.calculatePerformance()
+            data.append({
+                "name": f"{user.first_name} {user.last_name}",
+                "value": round(avg, 2)
+            })
+
+        # Sort from highest to lowest
+        data.sort(key=lambda x: x["value"], reverse=True)
+        return jsonify(data), 200
+    
     

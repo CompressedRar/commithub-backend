@@ -3,6 +3,8 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 
+from sqlalchemy import func
+
 class Log(db.Model):
     __tablename__ = "logs"
     id = db.Column(db.Integer, primary_key=True)
@@ -77,6 +79,75 @@ class Log_Service:
         except Exception as e:
             #db.session.rollback()
             return jsonify(error=str(e)), 500
+        
+    def get_log_activity_trend():
+        results = (
+            db.session.query(
+                func.date(Log.created_at).label("date"),
+                func.count(Log.id).label("value")
+            )
+            .group_by(func.date(Log.created_at))
+            .order_by(func.date(Log.created_at))
+            .all()
+        )
+
+        data = [
+            {"name": r.date.strftime("%Y-%m-%d"), "value": r.value}
+            for r in results
+        ]
+
+        return jsonify(data), 200
+    
+    def get_logs_by_hour():
+        """
+        Returns number of log entries per hour:
+        [
+            {"name": "00:00", "value": 2},
+            {"name": "01:00", "value": 5},
+            ...
+        ]
+        """
+        results = (
+            db.session.query(
+                func.extract("hour", Log.created_at).label("hour"),
+                func.count(Log.id).label("value")
+            )
+            .group_by(func.extract("hour", Log.created_at))
+            .order_by(func.extract("hour", Log.created_at))
+            .all()
+        )
+
+        # Initialize 24-hour bins to ensure all hours are present
+        data = []
+        for h in range(24):
+            count = next((r.value for r in results if int(r.hour) == h), 0)
+            label = f"{h:02d}:00"
+            data.append({"name": label, "value": int(count)})
+
+        return jsonify(data), 200
+    
+    def get_activity_scatter():
+        """
+        Returns data for scatter chart (activity by day and hour)
+        [
+            { "day": 0, "hour": 13, "count": 5 }, ...
+        ]
+        """
+        results = (
+            db.session.query(
+                func.dayofweek(Log.created_at).label("day"),  # Sunday = 1, Saturday = 7
+                func.hour(Log.created_at).label("hour"),
+                func.count(Log.id).label("count")
+            )
+            .group_by("day", "hour")
+            .all()
+        )
+
+        data = [
+            {"day": r.day, "hour": r.hour, "count": r.count}
+            for r in results
+        ]
+        return jsonify(data), 200
         
 
 """

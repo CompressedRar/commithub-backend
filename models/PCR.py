@@ -6,7 +6,9 @@ from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.Tasks import Tasks_Service, Assigned_Task, Output, Sub_Task
 from models.User import Users, User
+from models.Departments import Department_Service, Department
 from utils import FileStorage, ExcelHandler
+from sqlalchemy import func, outerjoin
 
 from pprint import pprint
 import uuid
@@ -52,11 +54,22 @@ class IPCR(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     reviewed_by = db.Column(db.Text, default="")
+    rev_position = db.Column(db.Text, default="")
+
     approved_by = db.Column(db.Text, default="")
+    app_position = db.Column(db.Text, default="")
+
     discussed_with = db.Column(db.Text, default="")
+    dis_position = db.Column(db.Text, default="")
+
     assessed_by = db.Column(db.Text, default="")
+    ass_position = db.Column(db.Text, default="")
+
     final_rating_by = db.Column(db.Text, default="")
+    fin_position = db.Column(db.Text, default="")
+
     confirmed_by = db.Column(db.Text, default="")
+    con_position = db.Column(db.Text, default="")
     
     created_at = db.Column(db.DateTime, default=datetime.now)
 
@@ -100,6 +113,53 @@ class IPCR(db.Model):
 
 
     def to_dict(self):
+        if self.user.role == "faculty":
+            department_head =User.query.filter_by(department_id = self.user.department_id, role = "head").first()
+
+            print("THE DEPT HEAD", department_head)
+            president = User.query.filter_by(role = "president").first()
+            
+            self.reviewed_by = department_head.first_name + " " + department_head.last_name if department_head else ""
+            self.rev_position = department_head.position.name if department_head else ""
+
+            self.approved_by = president.first_name + " " + president.last_name if president else ""
+            self.app_position = president.position.name if president else ""
+
+            self.discussed_with = self.user.first_name + " " + self.user.last_name if department_head else ""
+            self.dis_position = self.user.position.name if department_head else ""
+
+            self.assessed_by = department_head.first_name + " " + department_head.last_name if department_head else ""
+            self.ass_position = department_head.position.name if department_head else ""
+
+            self.final_rating_by = president.first_name + " " + president.last_name if president else ""
+            self.fin_position = president.position.name if president else ""
+
+            self.confirmed_by = "HON. MARIA ELENA L. GERMAR"
+            self.con_position = "PMT Chairperson"
+        else:
+            department_head =User.query.filter_by(department_id = self.user.department_id, role = "head").first()
+
+            print("THE DEPT HEAD", department_head)
+            president = User.query.filter_by(role = "president").first()
+            
+            self.reviewed_by = president.first_name + " " + president.last_name if president else ""
+            self.rev_position = president.position.name if president else ""
+
+            self.approved_by = president.first_name + " " + president.last_name if president else ""
+            self.app_position = president.position.name if president else ""
+
+            self.discussed_with = department_head.first_name + " " + department_head.last_name if department_head else ""
+            self.dis_position = department_head.position.name if department_head else ""
+
+            self.assessed_by = president.first_name + " " + president.last_name if president else ""
+            self.ass_position = president.position.name if president else ""
+
+            self.final_rating_by = president.first_name + " " + president.last_name if president else ""
+            self.fin_position = president.position.name if president else ""
+
+            self.confirmed_by = "HON. MARIA ELENA L. GERMAR"
+            self.con_position = "PMT Chairperson"
+
         return {
             "id" : self.id,
             "user": self.user_id,
@@ -110,7 +170,31 @@ class IPCR(db.Model):
             "form_status": self.form_status,
             "isMain": self.isMain,
             "batch_id": self.batch_id,
-            "status": self.status
+            "status": self.status,
+            "review" : {
+                "name": self.reviewed_by,
+                "position": self.rev_position
+            },
+            "approve" : {
+                "name": self.approved_by,
+                "position": self.app_position
+            },
+            "discuss" : {
+                "name": self.discussed_with,
+                "position": self.dis_position
+            },
+            "assess" : {
+                "name": self.assessed_by,
+                "position": self.ass_position
+            },
+            "final" : {
+                "name": self.final_rating_by,
+                "position": self.fin_position
+            },
+            "confirm" : {
+                "name": self.confirmed_by,
+                "position": self.con_position
+            }
         }
     
 class OPCR(db.Model):
@@ -118,11 +202,22 @@ class OPCR(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     reviewed_by = db.Column(db.Text, default="")
+    rev_position = db.Column(db.Text, default="")
+
     approved_by = db.Column(db.Text, default="")
+    app_position = db.Column(db.Text, default="")
+
     discussed_with = db.Column(db.Text, default="")
+    dis_position = db.Column(db.Text, default="")
+
     assessed_by = db.Column(db.Text, default="")
+    ass_position = db.Column(db.Text, default="")
+
     final_rating_by = db.Column(db.Text, default="")
+    fin_position = db.Column(db.Text, default="")
+
     confirmed_by = db.Column(db.Text, default="")
+    con_position = db.Column(db.Text, default="")
     #one ipcr to one opcr
 
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id"))
@@ -141,11 +236,58 @@ class OPCR(db.Model):
     
     
     def to_dict(self):
+        department_head =User.query.filter_by(department_id = self.user.department_id, role = "head").first()
+
+        print("THE DEPT HEAD", department_head)
+        president = User.query.filter_by(role = "president").first()
+        
+        self.reviewed_by = department_head.first_name + " " + department_head.last_name if department_head else ""
+        self.rev_position = department_head.position.name if department_head else ""
+
+        self.approved_by = president.first_name + " " + president.last_name if president else ""
+        self.app_position = president.position.name if president else ""
+
+        self.discussed_with = department_head.first_name + " " + department_head.last_name if department_head else ""
+        self.dis_position = department_head.position.name if department_head else ""
+
+        self.assessed_by = president.first_name + " " + president.last_name if president else ""
+        self.ass_position = president.position.name if president else ""
+
+        self.final_rating_by = president.first_name + " " + president.last_name if president else ""
+        self.fin_position = president.position.name if president else ""
+
+        self.confirmed_by = "HON. MARIA ELENA L. GERMAR"
+        self.con_position = "PMT Chairperson"
+
         return {
             "id" : self.id,
             "ipcr_count": self.count_ipcr(),
             "form_status": self.form_status,
-            "created_at": self.created_at
+            "created_at": self.created_at,
+            "review" : {
+                "name": self.reviewed_by,
+                "position": self.rev_position
+            },
+            "approve" : {
+                "name": self.approved_by,
+                "position": self.app_position
+            },
+            "discuss" : {
+                "name": self.discussed_with,
+                "position": self.dis_position
+            },
+            "assess" : {
+                "name": self.assessed_by,
+                "position": self.ass_position
+            },
+            "final" : {
+                "name": self.final_rating_by,
+                "position": self.fin_position
+            },
+            "confirm" : {
+                "name": self.confirmed_by,
+                "position": self.con_position
+            }
         }
     
 # gagawa ng output base sa id
@@ -219,6 +361,26 @@ class PCR_Service():
             print("generate_IPCR error:", e)
             return jsonify(error=str(e)), 500
         
+    def review_ipcr(ipcr_id):
+        try:
+            ipcr = IPCR.query.get(ipcr_id)
+            ipcr.form_status = "reviewed"
+            db.session.commit()
+            socketio.emit("ipcr", "approved")
+            socketio.emit("opcr", "approved")
+            if ipcr:
+                return jsonify(message = "This IPCR is successfully reviewed."), 200
+
+            return jsonify(message = "There is no ipcr with that id"), 400
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
     def approve_ipcr(ipcr_id):
         try:
             ipcr = IPCR.query.get(ipcr_id)
@@ -269,7 +431,6 @@ class PCR_Service():
             
             ipcr = IPCR.query.get(ipcr_id)
             ipcr.isMain = True
-            socketio.emit("ipcr", "ipcr assigned as main")
 
             db.session.commit()
 
@@ -843,6 +1004,65 @@ class PCR_Service():
         calculations = quantity + efficiency + timeliness
         result = calculations/3
         return result
+    
+    def get_department_performance_summary():
+        """
+        Returns department performance averages like:
+        [
+            {
+                "name": "Education",
+                "Quantity": 4.2,
+                "Efficiency": 3.8,
+                "Timeliness": 4.5,
+                "Average": 4.17
+            },
+            ...
+        ]
+        """
+
+        # Aggregate averages per department through user → sub_task relationship
+        results = (
+            db.session.query(
+                Department.id.label("dept_id"),
+                Department.name.label("name"),
+                func.avg(Sub_Task.quantity).label("Quantity"),
+                func.avg(Sub_Task.efficiency).label("Efficiency"),
+                func.avg(Sub_Task.timeliness).label("Timeliness"),
+                func.avg(Sub_Task.average).label("Average")
+            )
+            .join(User, User.department_id == Department.id)
+            .join(IPCR, IPCR.user_id == User.id)
+            .join(Sub_Task, Sub_Task.ipcr_id == IPCR.id)
+            .group_by(Department.id)
+            .all()
+        )
+
+        # Include all departments (even without any subtasks)
+        departments = Department.query.all()
+        data = []
+
+        for dept in departments:
+            # find match from query results
+            match = next((r for r in results if r.dept_id == dept.id), None)
+            if match:
+                data.append({
+                    "name": dept.name,
+                    "Quantity": round(match.Quantity or 0, 2),
+                    "Efficiency": round(match.Efficiency or 0, 2),
+                    "Timeliness": round(match.Timeliness or 0, 2),
+                    "Average": round(match.Average or 0, 2)
+                })
+            else:
+                # department with no users or subtasks
+                data.append({
+                    "name": dept.name,
+                    "Quantity": 0,
+                    "Efficiency": 0,
+                    "Timeliness": 0,
+                    "Average": 0
+                })
+
+        return jsonify(data), 200
 
 
 #lagyan ng date period si ipcr

@@ -22,6 +22,10 @@ def get_opcr(id):
 def approve_ipcr(id):
     return PCR_Service.approve_ipcr(id)
 
+@pcrs.route("/ipcr/review/<id>", methods = ["POST"])
+def review_ipcr(id):
+    return PCR_Service.review_ipcr(id)
+
 @pcrs.route("/ipcr/<id>", methods = ["DELETE"])
 def archiv_ipcr(id):
     return PCR_Service.archive_ipcr(id)

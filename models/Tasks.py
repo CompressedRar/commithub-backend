@@ -62,7 +62,7 @@ class Output(db.Model):
             main_task=self.main_task,
             batch_id = batch_id,
             ipcr_id = self.ipcr_id
-        )
+        )             
        
 
         db.session.add(new_sub_task)
@@ -620,6 +620,22 @@ class Tasks_Service():
         except Exception as e:
             #db.session.rollback()
             return jsonify(error=str(e)), 500
+    
+    def get_general_assigned_users(task_id):
+        try:
+            found_task = Main_Task.query.filter_by(id = task_id).first()
+            if found_task == None:
+                 return jsonify(""), 200
+            converted = [user.user_info() for user in found_task.outputs] 
+            return jsonify(converted), 200
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
         
     def get_general_tasks():
         try:
@@ -637,8 +653,22 @@ class Tasks_Service():
     
     def get_tasks_by_department(id):
         try:
-            all_department_tasks = Main_Task.query.filter_by(department_id = id).all()
+            all_department_tasks = Main_Task.query.filter_by(department_id = id, status = 1).all()
             converted = [task.info() for task in all_department_tasks]
+            return jsonify(converted), 200
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def get_all_general_tasks():
+        try:
+            all_general_tasks = Main_Task.query.filter_by(department_id = None, status = 1).all()
+            converted = [task.info() for task in all_general_tasks]
             return jsonify(converted), 200
         
         except OperationalError:
