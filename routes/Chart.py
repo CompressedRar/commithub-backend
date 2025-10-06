@@ -4,7 +4,8 @@ from utils.decorators import log_action
 from models.Departments import Department_Service
 from models.PCR import PCR_Service
 from models.Logs import Log_Service
-
+from models.Categories import Category_Service
+from models.Tasks import Tasks_Service
 charts = Blueprint("charts", __name__, url_prefix="/api/v1/chart")
 
 @charts.route("/pie/population-per-department", methods = ["GET"])
@@ -34,3 +35,25 @@ def get_logs_by_hour():
 @charts.route("/scatter/logs/", methods = ["GET"])
 def get_scatter_activity():
     return Log_Service.get_activity_scatter()
+
+@charts.route("/bar/category/<cat_id>", methods = ["GET"])
+def get_tasks_average(cat_id):
+    return Category_Service.get_task_average_summary(category_id=cat_id)
+
+@charts.route("/bar/task-user-average/<main_task_id>", methods = ["GET"])
+def get_tasks_user_average(main_task_id):
+    return Tasks_Service.get_task_user_averages(main_task_id)
+
+@charts.route("/pie/task-ratio/<main_task_id>", methods = ["GET"])
+def get_tasks_user_ratio(main_task_id):
+    return Tasks_Service.get_department_subtask_percentage(main_task_id)
+
+
+@charts.route("/pie/category-performance/<cat_id>", methods = ["GET"])
+def get_category_performancve(cat_id):
+    return Category_Service.calculate_category_performance(category_id=cat_id)
+
+
+@charts.route("/pie/main-task-performance/<main_task_id>", methods = ["GET"])
+def get_main_task_performancve(main_task_id):
+    return Tasks_Service.calculate_main_task_performance(main_task_id)

@@ -6,6 +6,7 @@ from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.User import User
 from sqlalchemy import func
+from collections import defaultdict
 
 class Assigned_Task(db.Model):
     __tablename__ = "assigned_tasks"
@@ -835,3 +836,142 @@ class Tasks_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+        
+    def get_task_user_averages(task_id):
+        """
+        Returns a list of user summaries for a specific task.
+        Each summary includes user info and their average ratings.
+        """
+        results = (
+            db.session.query(
+                Output.user_id,
+                func.avg(Sub_Task.quantity).label("avg_quantity"),
+                func.avg(Sub_Task.efficiency).label("avg_efficiency"),
+                func.avg(Sub_Task.timeliness).label("avg_timeliness"),
+                func.avg(Sub_Task.average).label("overall_average")
+            )
+            .join(Sub_Task, Output.id == Sub_Task.output_id)
+            .filter(Output.main_task_id == task_id)
+            .group_by(Output.user_id)
+            .all()
+        )
+
+        # Format results
+        user_averages = []
+        for row in results:
+            user = row.user_id  # you can fetch user info if needed
+            user_data = {
+                "user_id": row.user_id,
+                "avg_quantity": round(row.avg_quantity or 0, 2),
+                "avg_efficiency": round(row.avg_efficiency or 0, 2),
+                "avg_timeliness": round(row.avg_timeliness or 0, 2),
+                "overall_average": round(row.overall_average or 0, 2),
+            }
+            user_averages.append(user_data)
+        
+        return user_averages
+    
+    def get_department_subtask_percentage(main_task_id):
+        """
+        Returns the percentage of users with subtasks for a given main task,
+        grouped by department. Output format is suitable for Recharts.
+        
+        Example output:
+        [
+            {"name": "HR", "value": 25.0},
+            {"name": "Finance", "value": 50.0},
+            {"name": "IT", "value": 25.0}
+        ]
+        """
+        
+
+        main_task = Main_Task.query.get(main_task_id)
+        if not main_task:
+            return []
+
+        dept_count = defaultdict(int)
+        total_users = 0
+
+        # Count users per department based on outputs
+        for output in main_task.outputs:
+            user = output.user
+            if not user or not user.department:
+                continue
+            dept_name = user.department.name
+            dept_count[dept_name] += 1
+            total_users += 1
+
+        if total_users == 0:
+            return []
+
+        # Prepare list with counts and percentages
+        stats_list = [
+            {
+                "name": dept,
+                "count": count,
+                "percentage": round((count / total_users) * 100, 2)
+            }
+            for dept, count in dept_count.items()
+        ]
+
+        return stats_list
+    
+    def calculate_main_task_performance(main_task_id):
+        """
+        Calculate the average quantity, efficiency, timeliness, and overall average
+        for all subtasks under a given Main Task.
+
+        Returns JSON response:
+        {
+            "quantity": 4.2,
+            "efficiency": 3.8,
+            "timeliness": 4.0,
+            "overall_average": 4.0
+        }
+        """
+
+        main_task = Main_Task.query.get(main_task_id)
+
+        if not main_task:
+            return jsonify({
+                "quantity": 0,
+                "efficiency": 0,
+                "timeliness": 0,
+                "overall_average": 0
+            }), 404
+
+        total_quantity = 0
+        total_efficiency = 0
+        total_timeliness = 0
+        total_average = 0
+        count = 0
+
+        for sub_task in main_task.sub_tasks:
+            # Assuming these methods exist in your Sub_Task model
+            quantity = sub_task.calculateQuantity()
+            efficiency = sub_task.calculateEfficiency()
+            timeliness = sub_task.calculateTimeliness()
+            average = sub_task.calculateAverage()
+
+            total_quantity += quantity
+            total_efficiency += efficiency
+            total_timeliness += timeliness
+            total_average += average
+            count += 1
+
+        if count == 0:
+            return jsonify({
+                "quantity": 0,
+                "efficiency": 0,
+                "timeliness": 0,
+                "overall_average": 0
+            }), 200
+
+        data = {
+            "quantity": round(total_quantity / count, 2),
+            "efficiency": round(total_efficiency / count, 2),
+            "timeliness": round(total_timeliness / count, 2),
+            "overall_average": round(total_average / count, 2)
+        }
+
+        return jsonify(data), 200

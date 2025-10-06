@@ -126,6 +126,15 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
         raise ValueError("IPCR has no user")
 
     # If individuals not provided, try to fill from ipcr text fields; otherwise use blanks
+    individuals={
+        "review": {"name": ipcr.reviewed_by, "position": ipcr.rev_position, "date": datetime.datetime(2025, 1, 15) },
+        "approve": {"name": ipcr.approved_by, "position": ipcr.app_position, "date": datetime.datetime(2025, 1, 15) },
+        "discuss": {"name": ipcr.discussed_with, "position": ipcr.dis_position, "date": datetime.datetime(2025, 1, 15) },
+        "assess": {"name": ipcr.assessed_by, "position": ipcr.ass_position, "date": datetime.datetime(2025, 1, 15) },
+        "final": {"name": ipcr.final_rating_by, "position": ipcr.fin_position, "date": datetime.datetime(2025, 1, 15) },
+        "confirm": {"name": ipcr.confirmed_by, "position": ipcr.con_position, "date": datetime.datetime(2025, 1, 15) }
+    }
+
     if individuals is None:
         def _mk(name):
             # try to parse ipcr.<name> if available; ipcr fields are plain text in your model

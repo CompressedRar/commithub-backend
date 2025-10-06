@@ -116,7 +116,6 @@ class IPCR(db.Model):
         if self.user.role == "faculty":
             department_head =User.query.filter_by(department_id = self.user.department_id, role = "head").first()
 
-            print("THE DEPT HEAD", department_head)
             president = User.query.filter_by(role = "president").first()
             
             self.reviewed_by = department_head.first_name + " " + department_head.last_name if department_head else ""
@@ -139,7 +138,6 @@ class IPCR(db.Model):
         else:
             department_head =User.query.filter_by(department_id = self.user.department_id, role = "head").first()
 
-            print("THE DEPT HEAD", department_head)
             president = User.query.filter_by(role = "president").first()
             
             self.reviewed_by = president.first_name + " " + president.last_name if president else ""
@@ -236,11 +234,11 @@ class OPCR(db.Model):
     
     
     def to_dict(self):
-        department_head =User.query.filter_by(department_id = self.user.department_id, role = "head").first()
+        department_head =User.query.filter_by(department_id = self.department_id, role = "head").first()
 
-        print("THE DEPT HEAD", department_head)
         president = User.query.filter_by(role = "president").first()
-        
+          
+
         self.reviewed_by = department_head.first_name + " " + department_head.last_name if department_head else ""
         self.rev_position = department_head.position.name if department_head else ""
 
@@ -259,6 +257,7 @@ class OPCR(db.Model):
         self.confirmed_by = "HON. MARIA ELENA L. GERMAR"
         self.con_position = "PMT Chairperson"
 
+        print("eto si president: ", self.approved_by)  
         return {
             "id" : self.id,
             "ipcr_count": self.count_ipcr(),
@@ -583,6 +582,7 @@ class PCR_Service():
     def generate_opcr(opcr_id):
 
         opcr = OPCR.query.get(opcr_id)
+        opcr_data = opcr.to_dict()
         data = []
         categories = []
 
@@ -677,8 +677,7 @@ class PCR_Service():
         head_data = {}
         head = User.query.filter_by(department_id = opcr.department_id, role = "head").first()
         
-        if head:
-            head_data = {
+        head_data = {
                 "fullName": head.first_name + " " + head.last_name,
                 "givenName": head.first_name,
                 "middleName": head.middle_name,
@@ -692,64 +691,23 @@ class PCR_Service():
                         "date": "2025-03-10"
                     },
                     "approve": {
-                        "name": "Ma. Liberty DG. Pascual, Ph.D",
-                        "position": "College President",
+                        "name": opcr_data["approve"]["name"],
+                        "position": opcr_data["approve"]["position"],
                         "date": "2025-03-12"
                     },
                     "discuss": {
-                        "name": head.first_name + " " + head.last_name,
-                        "position": head.position.name,
+                        "name": opcr_data["discuss"]["name"],
+                        "position": opcr_data["discuss"]["position"],
                         "date": "2025-03-15"
                     },
                     "assess": {
-                        "name": "Ma. Liberty DG. Pascual, Ph.D",
-                        "position": "College President",
+                        "name": opcr_data["assess"]["name"],
+                        "position": opcr_data["assess"]["position"],
                         "date": "2025-03-16"
                     },
                     "final": {
-                        "name": "Ma. Liberty DG. Pascual, Ph.D",
-                        "position": "College President",
-                        "date": "2025-03-20"
-                    },
-                    "confirm": {
-                        "name": "Hon. Maria Elena L. Germar",
-                        "position": "PMT Chairperson",
-                        "date": "2025-03-21"
-                    }
-                }
-            }
-        else:
-            head_data = {
-                "fullName": "",
-                "givenName": "",
-                "middleName": "",
-                "lastName": "",
-                "position": "",
-
-                "individuals": {
-                    "review": {
-                        "name": "",
-                        "position": "",
-                        "date": "2025-03-10"
-                    },
-                    "approve": {
-                        "name": "Ma. Liberty DG. Pascual, Ph.D",
-                        "position": "College President",
-                        "date": "2025-03-12"
-                    },
-                    "discuss": {
-                        "name": "",
-                        "position": "",
-                        "date": "2025-03-15"
-                    },
-                    "assess": {
-                        "name": "Ma. Liberty DG. Pascual, Ph.D",
-                        "position": "College President",
-                        "date": "2025-03-16"
-                    },
-                    "final": {
-                        "name": "Ma. Liberty DG. Pascual, Ph.D",
-                        "position": "College President",
+                        "name": opcr_data["final"]["name"],
+                        "position": opcr_data["final"]["position"],
                         "date": "2025-03-20"
                     },
                     "confirm": {
@@ -767,6 +725,7 @@ class PCR_Service():
     
     def get_opcr(opcr_id):
         opcr = OPCR.query.get(opcr_id)
+        opcr_data = opcr.to_dict()
         data = []
         categories = []
         assigned = {}
@@ -843,11 +802,10 @@ class PCR_Service():
 
                     
         #get the head
-        head_data = {}
+        pprint(opcr_data)
         head = User.query.filter_by(department_id = opcr.department_id, role = "head").first()
         
-        if head:
-            head_data = {
+        head_data = {
                 "fullName": head.first_name + " " + head.last_name,
                 "givenName": head.first_name,
                 "middleName": head.middle_name,
@@ -861,23 +819,23 @@ class PCR_Service():
                         "date": "2025-03-10"
                     },
                     "approve": {
-                        "name": "Ma. Liberty DG. Pascual, Ph.D",
-                        "position": "College President",
+                        "name": opcr_data["approve"]["name"],
+                        "position": opcr_data["approve"]["position"],
                         "date": "2025-03-12"
                     },
                     "discuss": {
-                        "name": head.first_name + " " + head.last_name,
-                        "position": head.position.name,
+                        "name": opcr_data["discuss"]["name"],
+                        "position": opcr_data["discuss"]["position"],
                         "date": "2025-03-15"
                     },
                     "assess": {
-                        "name": "Ma. Liberty DG. Pascual, Ph.D",
-                        "position": "College President",
+                        "name": opcr_data["assess"]["name"],
+                        "position": opcr_data["assess"]["position"],
                         "date": "2025-03-16"
                     },
                     "final": {
-                        "name": "Ma. Liberty DG. Pascual, Ph.D",
-                        "position": "College President",
+                        "name": opcr_data["final"]["name"],
+                        "position": opcr_data["final"]["position"],
                         "date": "2025-03-20"
                     },
                     "confirm": {
@@ -887,51 +845,10 @@ class PCR_Service():
                     }
                 }
             }
-        else:
-            head_data = {
-                "fullName": "",
-                "givenName": "",
-                "middleName": "",
-                "lastName": "",
-                "position": "",
+        
+        pprint(head_data)
 
-                "individuals": {
-                    "review": {
-                        "name": "",
-                        "position": "",
-                        "date": "2025-03-10"
-                    },
-                    "approve": {
-                        "name": "Ma. Liberty DG. Pascual, Ph.D",
-                        "position": "College President",
-                        "date": "2025-03-12"
-                    },
-                    "discuss": {
-                        "name": "",
-                        "position": "",
-                        "date": "2025-03-15"
-                    },
-                    "assess": {
-                        "name": "Ma. Liberty DG. Pascual, Ph.D",
-                        "position": "College President",
-                        "date": "2025-03-16"
-                    },
-                    "final": {
-                        "name": "Ma. Liberty DG. Pascual, Ph.D",
-                        "position": "College President",
-                        "date": "2025-03-20"
-                    },
-                    "confirm": {
-                        "name": "Hon. Maria Elena L. Germar",
-                        "position": "PMT Chairperson",
-                        "date": "2025-03-21"
-                    }
-                }
-            }
-        #ayusion yung desgination  ng mayor at college president
-        pprint(data)
-
-        return jsonify(ipcr_data = data, assigned = assigned, admin_data = head_data)
+        return jsonify(ipcr_data = data, assigned = assigned, admin_data = head_data, form_status = opcr.form_status)
         
 
     def calculateQuantity(target_acc, actual_acc):
