@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
-from models.User import User
+from models.User import User, Notification_Service
 from models.Tasks import Sub_Task, Output
 from app import socketio
 from sqlalchemy import func, outerjoin
@@ -48,16 +48,17 @@ class Department(db.Model):
         all_ipcr = []
         for user in self.users:
             for ipcr in user.ipcrs:
-
-                all_ipcr.append(ipcr.department_info())
-
+                if ipcr.status == 1:
+                    all_ipcr.append(ipcr.department_info())
+                
         return all_ipcr
     
     def collect_all_opcr(self):
         all_ipcr = []
         
         for opcr in self.opcrs:
-            all_ipcr.append(opcr.to_dict())
+            if opcr.status == 1:
+                all_ipcr.append(opcr.to_dict())
 
         return all_ipcr
 
@@ -159,6 +160,9 @@ class Department_Service():
             new_department = Department(name = data["department_name"], icon = data["icon"])
             db.session.add(new_department)
             db.session.commit()
+            Notification_Service.notify_heads(f"{data["department_name"]} has been added.")
+            Notification_Service.notify_presidents(f"{data["department_name"]} has been added.")
+            Notification_Service.notify_administrators(f"{data["department_name"]} has been added.")
 
             return jsonify(message = "Department successfully created."), 200
         except IntegrityError as e:
@@ -194,6 +198,9 @@ class Department_Service():
             found_department.icon = data["icon"]
 
             db.session.commit()
+            Notification_Service.notify_heads(f"{data["department_name"]} has been updated.")
+            Notification_Service.notify_presidents(f"{data["department_name"]} has been updated.")
+            Notification_Service.notify_administrators(f"{data["department_name"]} has been updated.")
 
             return jsonify(message = "Department successfully updated."), 200
         except IntegrityError as e:
@@ -220,11 +227,16 @@ class Department_Service():
     def remove_user_from_department(id):
         try:
             user = User.query.get(id)
+            prev_dept = user.department.name
 
             user.department_id = None
             db.session.commit()
             print("UPDSTING")
             socketio.emit("user_modified", "user removed from department")
+
+            Notification_Service.notify_heads(f"{user.first_name + " " + user.last_name} has been removed from {prev_dept}.")
+            Notification_Service.notify_presidents(f"{user.first_name + " " + user.last_name} has been removed from {prev_dept}.")
+            Notification_Service.notify_administrators(f"{user.first_name + " " + user.last_name} has been removed from {prev_dept}.")
             return jsonify(message="User successfully removed."), 200
         
         except DataError as e:
@@ -253,6 +265,9 @@ class Department_Service():
             found_department.status = 0
 
             db.session.commit()
+            Notification_Service.notify_heads(f"{found_department.name} has been removed archived.")
+            Notification_Service.notify_presidents(f"{found_department.name} has been removed archived.")
+            Notification_Service.notify_administrators(f"{found_department.name} has been removed archived.")
 
             return jsonify(message = "Department successfully archived."), 200
         except IntegrityError as e:
@@ -388,6 +403,54 @@ class Department_Service():
 
         # Sort from highest to lowest
         data.sort(key=lambda x: x["value"], reverse=True)
+        return jsonify(data), 200
+    
+    def get_top_performing_department():
+        """
+        Find the most performing department based on the average
+        of their users' OPCR/Sub_Task overall averages.
+
+        Returns:
+        {
+            "department": "Registrar",
+            "average": 4.32,
+            "quantity": 4.1,
+            "efficiency": 4.3,
+            "timeliness": 4.5
+        }
+        """
+
+        # Query department averages based on Sub_Task ratings through user relationships
+        results = (
+            db.session.query(
+                Department.id.label("dept_id"),
+                Department.name.label("department"),
+                func.avg(Sub_Task.quantity).label("avg_quantity"),
+                func.avg(Sub_Task.efficiency).label("avg_efficiency"),
+                func.avg(Sub_Task.timeliness).label("avg_timeliness"),
+                func.avg(Sub_Task.average).label("overall_average")
+            )
+            .join(User, User.department_id == Department.id)
+            .join(Output, Output.user_id == User.id)
+            .join(Sub_Task, Sub_Task.output_id == Output.id)
+            .group_by(Department.id)
+            .all()
+        )
+
+        if not results:
+            return jsonify({"message": "No performance data available"}), 404
+
+        # Find the department with the highest overall average
+        top_dept = max(results, key=lambda r: r.overall_average or 0)
+
+        data = {
+            "department": top_dept.department,
+            "quantity": round(top_dept.avg_quantity or 0, 2),
+            "efficiency": round(top_dept.avg_efficiency or 0, 2),
+            "timeliness": round(top_dept.avg_timeliness or 0, 2),
+            "average": round(top_dept.overall_average or 0, 2)
+        }
+
         return jsonify(data), 200
     
     

@@ -8,7 +8,7 @@ from flask import jsonify
 from models.Positions import Positions, Position
 from FirebaseApi.config import upload_file
 from utils.Generate import generate_default_password
-from utils.Email import send_email
+from utils.Email import send_email, send_reset_email
 from models.Logs import Log_Service
 
 from argon2 import PasswordHasher
@@ -19,6 +19,267 @@ import jwt
 #kuhanin yung mga outputs ni user
 #i assign yung ipcr id sa subtasks ng output ni user
 # si output ang kukuni kay user, si sub task ang lalagyan ng ipcr
+class Notification(db.Model):
+    __tablename__ = "notifications"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.Text, nullable=False)
+    
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user = db.relationship("User", back_populates = "notifications")
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    
+    user = db.relationship("User", back_populates = "notifications")
+
+
+    def to_dict(self):
+        return {
+            "id" : self.id,
+            "name": self.name,
+            "created_at": self.created_at
+        }
+    
+class Notification_Service():
+
+    def notify_everyone(msg):
+        try:
+            users = User.query.all()
+
+            if not users:
+                return
+
+            for user in users:
+                new_notification = Notification(user_id = user.id, name = msg)
+                db.session.add(new_notification)
+
+
+            db.session.commit()
+            socketio.emit("notification")
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e), "Integrity")
+            return jsonify(error="Task already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e), "data error")
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e), "operational")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "unknown")
+            return jsonify(error=str(e)), 500
+    def notify_user(user_id, msg):
+        try:
+            users = User.query.filter_by(id = user_id).first()
+
+            if not users:
+                return
+
+            new_notification = Notification(user_id = user_id, name = msg)
+            db.session.add(new_notification)
+
+
+            db.session.commit()
+            socketio.emit("notification")
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e), "Integrity")
+            return jsonify(error="Task already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e), "data error")
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e), "operational")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "unknown")
+            return jsonify(error=str(e)), 500
+
+    def notify_department(dept_id, msg):
+        try:
+            users = User.query.filter_by(department_id = dept_id).all()
+
+            for user in users:
+                new_notification = Notification(user_id = user.id, name = msg)
+                db.session.add(new_notification)
+
+
+            db.session.commit()
+            socketio.emit("notification")
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e), "Integrity")
+            return jsonify(error="Task already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e), "data error")
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e), "operational")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "unknown")
+            return jsonify(error=str(e)), 500
+        
+    def notify_heads(msg):
+        try:
+            heads = User.query.filter_by(role = "head").all()
+
+            if not heads:
+                return
+            
+            for head in heads:
+                new_notif = Notification(user_id = head.id, name = msg)
+                db.session.add(new_notif)
+            
+            db.session.commit()
+            socketio.emit("notification")
+
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e), "Integrity")
+            return jsonify(error="Task already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e), "data error")
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e), "operational")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "unknown")
+            return jsonify(error=str(e)), 500
+        
+    def notify_department_heads(dept_id, msg):
+        try:
+            heads = User.query.filter_by(role = "head", department_id = dept_id).all()
+
+            if not heads:
+                return
+            
+            for head in heads:
+                new_notif = Notification(user_id = head.id, name = msg)
+                db.session.add(new_notif)
+            
+            db.session.commit()
+            socketio.emit("notification")
+
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e), "Integrity")
+            return jsonify(error="Task already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e), "data error")
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e), "operational")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "unknown")
+            return jsonify(error=str(e)), 500
+        
+    def notify_presidents(msg):
+        try:
+            pres = User.query.filter_by(role = "president").all()
+
+            if not pres:
+                return
+
+            for president in pres:
+                new_notif = Notification(user_id = president.id, name = msg)
+                db.session.add(new_notif)
+            
+            db.session.commit()
+            socketio.emit("notification")
+
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e), "Integrity")
+            return jsonify(error="Task already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e), "data error")
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e), "operational")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "unknown")
+            return jsonify(error=str(e)), 500
+        
+    def notify_administrators(msg):
+        try:
+            pres = User.query.filter_by(role = "administrator").all()
+
+            if not pres:
+                return
+
+            for president in pres:
+                new_notif = Notification(user_id = president.id, name = msg)
+                db.session.add(new_notif)
+            
+            db.session.commit()
+            socketio.emit("notification")
+
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e), "Integrity")
+            return jsonify(error="Task already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e), "data error")
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e), "operational")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "unknown")
+            return jsonify(error=str(e)), 500
+        
 
 class User(db.Model):
     __tablename__ = "users"
@@ -89,6 +350,12 @@ class User(db.Model):
         return all_output_total / total if total != 0 else 0
 
     def to_dict(self):
+        active_ipcrs = []
+
+        for ipcr in self.ipcrs:
+            if ipcr.status == 1:
+                active_ipcrs.append(ipcr.to_dict())
+
         return {
             "id": self.id,
             "first_name": self.first_name,
@@ -105,11 +372,10 @@ class User(db.Model):
 
             "position":self.position.info() if self.position else "NONE",
             "department": self.department.info() if self.department else "NONE",
-            "ipcrs": [ipcr.to_dict() for ipcr in self.ipcrs],
+            "ipcrs": active_ipcrs,
             "ipcrs_count": len([ipcr.to_dict() for ipcr in self.ipcrs]),
             "main_tasks_count": len(self.outputs),
             "avg_performance": self.calculatePerformance()
-
         }
 
 
@@ -219,11 +485,18 @@ class Users():
             #db.session.rollback()
             return jsonify(error=str(e)), 500
         
-    def update_user(id, data):
+    def update_user(id, data, rq):
+        print("form data" ,data)
         try:
             user = User.query.get(id)
-
+            
             if user:
+                profile = rq.files.get("profile_picture_link")
+                if profile:
+                    res = upload_file(profile)
+                    print(res)
+                    user.profile_picture_link = res 
+                    db.session.commit()
 
                 if "first_name" in data:
                     user.first_name = data["first_name"] 
@@ -245,9 +518,7 @@ class Users():
                     user.password = data["password"] 
                     db.session.commit()
 
-                if "profile_picture_link" in data:
-                    user.profile_picture_link = data["profile_picture_link"] 
-                    db.session.commit()
+                
                 
                 if "department" in data:
                     user.department_id = data["department"] 
@@ -260,6 +531,8 @@ class Users():
                 if "role" in data:
                     user.role = data["role"] 
                     db.session.commit()
+
+                socketio.emit("user_modified", "modified")
 
                 return jsonify(message = "User successfully updated"), 200
             
@@ -296,7 +569,43 @@ class Users():
         except Exception as e:
             db.session.rollback()
             return jsonify(error=str(e)), 500
-        
+    
+
+    def reset_password(id):
+       
+        try:
+            user = User.query.get(id)
+            
+            if user:
+                new_default_password = "commithubnc"
+                msg = "Hello!, The password reset was done to this account. Your default password is: " + new_default_password 
+
+                print(msg)
+
+                ph = PasswordHasher()
+                hashed_password = ph.hash(new_default_password)
+
+                user.password = hashed_password
+                send_reset_email(user.email, msg)
+                Notification_Service.notify_user(user.id, "The account password has been reset.")
+
+                socketio.emit("user_modified", "modified")
+                
+
+                return jsonify(message = "Password successfully reset."), 200
+            
+
+            
+            else: 
+                return jsonify(error= "There is no user with that id"), 400
+
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
     
 
     def archive_user(id):
@@ -307,6 +616,13 @@ class Users():
                 user.account_status = 0
                 db.session.commit()
                 socketio.emit("user_modified", "user deactivated")
+                Notification_Service.notify_user(user.id, "This account has been deactivated.")
+                Notification_Service.notify_department_heads(user.department.id, f"The account of {user.first_name + " " + user.last_name} has been deactivated.")
+                Notification_Service.notify_presidents(f"The account of {user.first_name + " " + user.last_name} has been deactivated.")
+                Notification_Service.notify_administrators(f"The account of {user.first_name + " " + user.last_name} has been deactivated.")
+                
+                
+
                 return jsonify(message = "User successfully deactivated"), 200
     
             else: 
@@ -328,6 +644,7 @@ class Users():
                 user.account_status = 1
                 db.session.commit()
                 socketio.emit("user_modified", "user deactivated")
+                Notification_Service.notify_user(user.id, "This account has been reactivated.")
                 return jsonify(message = "User successfully reactivated"), 200
     
             else: 
@@ -369,12 +686,18 @@ class Users():
             profile_picture_link = res
             
             )
+            db.session.flush()
             send_email(data["email"], msg)
 
             db.session.add(new_user)
             db.session.commit()
             
             socketio.emit("user_created", "user added")
+            Notification_Service.notify_user(new_user.id, "Welcome to Commithub! Start by creating your own IPCR.")
+            Notification_Service.notify_department_heads(f"{data["first_name"] + " " + data["last_name"]} joined {new_user.department.name}.")
+            Notification_Service.notify_administrators(f"{data["first_name"] + " " + data["last_name"]} joined {new_user.department.name}.")
+            Notification_Service.notify_presidents(f"{data["first_name"] + " " + data["last_name"]} joined {new_user.department.name}.")
+            
 
             return jsonify(message="Account creation is successful."), 200
 
@@ -455,7 +778,10 @@ class Users():
 
             user.role = "head"
             db.session.commit()
-
+            Notification_Service.notify_user(user.id, f"This account is now the department head of {department.name}.")
+            Notification_Service.notify_department(department.id, f"{user.first_name + " " + user.last_name} has been assigned as the new department head of {department.name}.")
+            Notification_Service.notify_heads(msg = f"{user.first_name + " " + user.last_name} has been assigned as the new department head of {department.name}.")
+            Notification_Service.notify_presidents(msg = f"{user.first_name + " " + user.last_name} has been assigned as the new department head of {department.name}.")
             socketio.emit("department", "department head assigned")
             return jsonify(message = "Department head successfully assigned."), 200
         
@@ -480,6 +806,9 @@ class Users():
             db.session.commit()
 
             socketio.emit("department", "department head removed")
+            Notification_Service.notify_user(user.id, "This account has been removed from being department head.")
+            Notification_Service.notify_department(dept_id=user.department_id, msg = f"The head of {user.department.name} has been removed from its position.")
+            Notification_Service.notify_presidents(msg = f"The head of {user.department.name} has been removed from its position.")
             return jsonify(message = "Department head successfully removed."), 200
         
         except OperationalError as e:
@@ -530,6 +859,9 @@ class Users():
             db.session.rollback()
             print(str(e), "EXCEPTION")
             return jsonify(error=str(e)), 500
+        
+
+    
         
     
 

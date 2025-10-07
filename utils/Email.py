@@ -13,3 +13,15 @@ def send_email(recipient, message):
     except Exception as a:
         print(a)
         return "sending email failed"
+    
+def send_reset_email(recipient, message):
+    sub = "Password Reset"
+    bd = message
+
+    try :
+        msg = Message(subject = sub,recipients = [recipient], body = bd)
+        mail.send(msg)
+        return "email sent"
+    except Exception as a:
+        print(a)
+        return "sending email failed"

@@ -40,6 +40,10 @@ def get_scatter_activity():
 def get_tasks_average(cat_id):
     return Category_Service.get_task_average_summary(category_id=cat_id)
 
+@charts.route("/bar/task/all", methods = ["GET"])
+def get_all_tasks_average():
+    return Tasks_Service.get_all_tasks_average_summary()
+
 @charts.route("/bar/task-user-average/<main_task_id>", methods = ["GET"])
 def get_tasks_user_average(main_task_id):
     return Tasks_Service.get_task_user_averages(main_task_id)
@@ -57,3 +61,12 @@ def get_category_performancve(cat_id):
 @charts.route("/pie/main-task-performance/<main_task_id>", methods = ["GET"])
 def get_main_task_performancve(main_task_id):
     return Tasks_Service.calculate_main_task_performance(main_task_id)
+
+
+@charts.route("/pie/user-task-performance/<user_id>", methods = ["GET"])
+def get_user_task_performancve(user_id):
+    return Tasks_Service.calculate_user_performance(user_id=user_id)
+
+@charts.route("/top/department-performance/", methods = ["GET"])
+def get_top_department():
+    return Department_Service.get_top_performing_department()

@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError, DataError, Programm
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.Tasks import Tasks_Service, Assigned_Task, Output, Sub_Task
-from models.User import Users, User
+from models.User import Users, User, Notification_Service
 from models.Departments import Department_Service, Department
 from utils import FileStorage, ExcelHandler
 from sqlalchemy import func, outerjoin
@@ -352,6 +352,8 @@ class PCR_Service():
                 "user_id": user_id,
                 "task_count": len(main_task_id_array)
             })
+            Notification_Service.notify_department_heads(f"A new IPCR has been submitted from this department.")
+            Notification_Service.notify_presidents(f"A new IPCR has been submitted from {new_ipcr.user.department.name}.")
 
             return jsonify(message="IPCR successfully created"), 200
 
@@ -363,11 +365,14 @@ class PCR_Service():
     def review_ipcr(ipcr_id):
         try:
             ipcr = IPCR.query.get(ipcr_id)
-            ipcr.form_status = "reviewed"
-            db.session.commit()
-            socketio.emit("ipcr", "approved")
-            socketio.emit("opcr", "approved")
+            
             if ipcr:
+                ipcr.form_status = "reviewed"
+                db.session.commit()
+                socketio.emit("ipcr", "approved")
+                socketio.emit("opcr", "approved")
+                Notification_Service.notify_user(ipcr.user.id, f"Your IPCR: #{ipcr_id} has been reviewed by department head of this department.")
+                Notification_Service.notify_presidents(f"IPCR: #{ipcr_id} from {ipcr.user.department.name} has been reviewed by department head.")
                 return jsonify(message = "This IPCR is successfully reviewed."), 200
 
             return jsonify(message = "There is no ipcr with that id"), 400
@@ -388,6 +393,7 @@ class PCR_Service():
             socketio.emit("ipcr", "approved")
             socketio.emit("opcr", "approved")
             if ipcr:
+                Notification_Service.notify_user(ipcr.user.id, f"Your IPCR: #{ipcr_id} has been reviewed by president.")
                 return jsonify(message = "This IPCR is successfully approved."), 200
 
             return jsonify(message = "There is no ipcr with that id"), 400
@@ -432,7 +438,9 @@ class PCR_Service():
             ipcr.isMain = True
 
             db.session.commit()
-
+            Notification_Service.notify_department_heads(user.department_id, f"{user.first_name + " " + user.last_name} assigned IPCR: #{ipcr_id} as its latest IPCR.")
+            Notification_Service.notify_presidents(f"{user.first_name + " " + user.last_name} from {user.department.name} assigned IPCR: #{ipcr_id} as its latest IPCR.")
+            
             return jsonify(message = "IPCR successfully assigned."), 200
         
         except OperationalError:
@@ -464,6 +472,9 @@ class PCR_Service():
                 i.status = 0
             socketio.emit("ipcr_create", "ipcr archive")
             db.session.commit()
+            Notification_Service.notify_user(ipcr.user.id, f"Your IPCR: #{ipcr_id} has been archived.")
+            Notification_Service.notify_department_heads(ipcr.user.department_id, f"The IPCR: #{ipcr_id} has been archived.")
+            Notification_Service.notify_presidents(f"The IPCR: #{ipcr_id} from {ipcr.user.department.name} has been archived.")
             return jsonify(message="IPCR was archived successfully."), 200
         except OperationalError:
             #db.session.rollback()
@@ -477,10 +488,11 @@ class PCR_Service():
         try:
             opcr = OPCR.query.get(opcr_id)
             opcr.status = 0
+            print("ARCHIVED OPCR", opcr_id)
             for ipcr in opcr.ipcrs:
                 PCR_Service.archive_ipcr(ipcr.id)
 
-            
+            db.session.commit()
             return jsonify(message="OPCR was archived successfully."), 200
         except OperationalError:
             #db.session.rollback()
@@ -492,10 +504,13 @@ class PCR_Service():
 
     def record_supporting_document(file_type, file_name, ipcr_id, batch_id):
         try:
+            ipcr = IPCR.query.get(ipcr_id)
             new_supporting_document = Supporting_Document(file_type = file_type, file_name = file_name, ipcr_id = ipcr_id, batch_id = batch_id)
             db.session.add(new_supporting_document)
             db.session.commit()
             socketio.emit("document", "document")
+            Notification_Service.notify_department_heads(ipcr.user.department_id, f"{ipcr.user.first_name + " " + ipcr.user.last_name} attached supporting document to IPCR: #{ipcr_id}.")
+            Notification_Service.notify_presidents(f"{ipcr.user.first_name + " " + ipcr.user.last_name} attached supporting document to IPCR: #{ipcr_id}.")
             return jsonify(message = "File successfully uploaded."), 200
         except IntegrityError as e:
             db.session.rollback()
@@ -560,13 +575,16 @@ class PCR_Service():
             db.session.flush()
             
             for ipcr_id in ipcr_ids:
-
+                ipcr = IPCR.query.get(ipcr_id)
                 new_assigned_pcr = Assigned_PCR(opcr_id = new_opcr.id, ipcr_id = ipcr_id, department_id = dept_id)
+                Notification_Service.notify_user(ipcr.user.id, f"Your IPCR: #{ipcr_id} has been consolidated to OPCR: #{new_opcr.id}.")
+                Notification_Service.notify_presidents(f"{ipcr.user.department.name} created a new OPCR.")
                 db.session.add(new_assigned_pcr)
             
             db.session.commit()
 
             socketio.emit("opcr", "created")
+            Notification_Service.notify_department(dept_id, f"A new OPCR has been created for this department.")
 
             return jsonify(message="OPCR successfully created."), 200
         except OperationalError as e:
@@ -716,7 +734,7 @@ class PCR_Service():
                         "date": "2025-03-21"
                     }
                 }
-            }
+            }      
         
         pprint(data)
         file_url = ExcelHandler.createNewOPCR(data = data, assigned = assigned, admin_data = head_data)

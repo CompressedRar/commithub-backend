@@ -3,8 +3,11 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
-from sqlalchemy import func
+from sqlalchemy import func, case, cast, Float, and_
 from models.Tasks import Sub_Task, Main_Task, Output
+from app import socketio
+
+
 class Category(db.Model):
     __tablename__ = "categories"
     id = db.Column(db.Integer, primary_key=True)
@@ -148,6 +151,8 @@ class Category_Service():
             
             found_task.status = 0
             db.session.commit()
+            socketio.emit("category", "archive")
+            
             return jsonify(message = "Category successfully archived."), 200
         
         except IntegrityError as e:
@@ -189,58 +194,86 @@ class Category_Service():
                 "average_efficiency": 4.1,
                 "average_timeliness": 4.6,
                 "overall_average": 4.33
-            },
-            ...
+            }, ...
         ]
+
+        Ratings are computed in SQL to match the Python logic in Sub_Task.calculate*().
         """
-        # Query all main tasks under the category
-        tasks = (
-            db.session.query(Main_Task.id, Main_Task.mfo)
-            .filter(Main_Task.category_id == category_id)
-            .all()
+
+        # cast helpers
+        tgt_acc = cast(Sub_Task.target_acc, Float)
+        act_acc = cast(Sub_Task.actual_acc, Float)
+        tgt_mod = cast(Sub_Task.target_mod, Float)
+        act_mod = cast(Sub_Task.actual_mod, Float)
+        tgt_time = cast(Sub_Task.target_time, Float)
+        act_time = cast(Sub_Task.actual_time, Float)
+
+        # quantity ratio = actual / nullif(target,0)
+        qty_ratio = act_acc / func.nullif(tgt_acc, 0.0)
+
+        qty_rating = case(
+            
+            (Sub_Task.target_acc == 0, 0),           # if target == 0 -> 0
+            (qty_ratio >= 1.3, 5),
+            (qty_ratio >= 1.01, 4),
+            (qty_ratio >= 0.90, 3),
+            (qty_ratio >= 0.70, 2),
+            
+            else_=1  # else covers <= 0.699 etc.
         )
 
-        # Query averages grouped by task
+        # efficiency uses actual_mod (the original logic returns 5 when actual_mod == 0)
+        eff_rating = case(
+            
+                (Sub_Task.actual_mod == 0, 5),
+                (and_(act_mod >= 1, act_mod <= 2), 4),
+                (and_(act_mod >= 3, act_mod <= 4), 3),
+                (and_(act_mod >= 5, act_mod <= 6), 2),
+            
+            else_=1
+        )
+
+        # timeliness calculation: 1 + (target - actual) / target ; if target == 0 -> 0
+        tim_calc = 1 + (tgt_time - act_time) / func.nullif(tgt_time, 0.0)
+
+        tim_rating = case(
+            
+                (Sub_Task.target_time == 0, 0),
+                (tim_calc >= 1.3, 5),
+                (tim_calc >= 1.15, 4),
+                (tim_calc >= 0.9, 3),
+                (tim_calc >= 0.51, 2),
+            
+            else_=1
+        )
+
+        # Build query: left outer join so tasks without subtasks are included
         results = (
             db.session.query(
                 Main_Task.id.label("task_id"),
-                func.avg(Sub_Task.quantity).label("avg_quantity"),
-                func.avg(Sub_Task.efficiency).label("avg_efficiency"),
-                func.avg(Sub_Task.timeliness).label("avg_timeliness"),
-                func.avg(Sub_Task.average).label("avg_overall")
+                Main_Task.mfo.label("task_name"),
+                func.avg(qty_rating).label("avg_quantity"),
+                func.avg(eff_rating).label("avg_efficiency"),
+                func.avg(tim_rating).label("avg_timeliness"),
+                # average of the three computed ratings per sub_task
+                func.avg((qty_rating + eff_rating + tim_rating) / 3.0).label("avg_overall")
             )
-            .join(Sub_Task, Sub_Task.main_task_id == Main_Task.id)
-            .filter(Main_Task.category_id == category_id)
+            .outerjoin(Sub_Task, Sub_Task.main_task_id == Main_Task.id)
+            .filter(Main_Task.category_id == category_id, Main_Task.status == 1)
             .group_by(Main_Task.id)
             .all()
         )
 
-        # Convert results into a dictionary for quick lookup
-        result_map = {r.task_id: r for r in results}
-
-        # Combine data for all tasks (even those without Sub_Tasks)
         data = []
-        for t in tasks:
-            if t.id in result_map:
-                r = result_map[t.id]
-                data.append({
-                    "task_id": t.id,
-                    "task_name": t.mfo,
-                    "average_quantity": round(r.avg_quantity or 0, 2),
-                    "average_efficiency": round(r.avg_efficiency or 0, 2),
-                    "average_timeliness": round(r.avg_timeliness or 0, 2),
-                    "overall_average": round(r.avg_overall or 0, 2),
-                })
-            else:
-                # Task has no Sub_Tasks yet
-                data.append({
-                    "task_id": t.id,
-                    "task_name": t.mfo,
-                    "average_quantity": 0,
-                    "average_efficiency": 0,
-                    "average_timeliness": 0,
-                    "overall_average": 0,
-                })
+        for r in results:
+            data.append({
+                "task_id": int(r.task_id),
+                "task_name": r.task_name,
+                "average_quantity": round(float(r.avg_quantity or 0), 2),
+                "average_efficiency": round(float(r.avg_efficiency or 0), 2),
+                "average_timeliness": round(float(r.avg_timeliness or 0), 2),
+                "overall_average": round(float(r.avg_overall or 0), 2),
+            })
 
         return jsonify(data), 200
     
@@ -271,20 +304,23 @@ class Category_Service():
         count = 0
 
         for main_task in category.main_tasks:
-            for sub_task in main_task.sub_tasks:
-                # Ensure calculations are up to date
-                quantity = sub_task.calculateQuantity()
-                efficiency = sub_task.calculateEfficiency()
-                timeliness = sub_task.calculateTimeliness()
-                average = sub_task.calculateAverage()
+            print(main_task.status)
+            if main_task.status == 1:
 
-                total_quantity += quantity
-                total_efficiency += efficiency
-                total_timeliness += timeliness
-                total_average += average
-                count += 1
+                for sub_task in main_task.sub_tasks:
+                    # Ensure calculations are up to date
+                    quantity = sub_task.calculateQuantity()
+                    efficiency = sub_task.calculateEfficiency()
+                    timeliness = sub_task.calculateTimeliness()
+                    average = sub_task.calculateAverage()
 
-                print("merrpon")
+                    total_quantity += quantity
+                    total_efficiency += efficiency
+                    total_timeliness += timeliness
+                    total_average += average
+                    count += 1
+
+                    print("merrpon")
 
         if count == 0:
             return {"quantity": 0, "efficiency": 0, "timeliness": 0, "overall_average": 0}

@@ -4,8 +4,8 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
-from models.User import User
-from sqlalchemy import func
+from models.User import User, Notification_Service
+from sqlalchemy import func, case
 from collections import defaultdict
 
 class Assigned_Task(db.Model):
@@ -21,6 +21,8 @@ class Assigned_Task(db.Model):
     main_task = db.relationship("Main_Task", back_populates = "assigned_tasks")
 
     status = db.Column(db.Integer, default = 1)
+
+    
 
     def user_info(self):
         return self.user.info()
@@ -370,6 +372,9 @@ class Tasks_Service():
                 category_id = int(data["id"])
             )
             print("registered task")
+            Notification_Service.notify_department(dept_id=data["department"], msg="A new task has been added to the department.")
+            Notification_Service.notify_presidents( msg="A new task has been added.")
+            Notification_Service.notify_administrators( msg="A new task has been added.")
             db.session.add(new_main_task)
             db.session.commit()
             return jsonify(message="Task successfully created."), 200
@@ -425,6 +430,7 @@ class Tasks_Service():
                 found_task.status = data["status"]
 
             db.session.commit()
+            Notification_Service.notify_everyone(msg=f"The task: {found_task.mfo} has been updated.")
             return jsonify(message = "Task successfully updated."), 200
         
         except IntegrityError as e:
@@ -459,10 +465,18 @@ class Tasks_Service():
             #search ko muna lahat ng assigned task kung existing na siya
 
             new_assigned_task = Assigned_Task(user_id = user_id, main_task_id = task_id, is_assigned = True)
-          
+            
+
             db.session.add(new_assigned_task)
+            db.session.flush()
+
             db.session.commit()
+            user = User.query.get(user_id)
             socketio.emit("user_assigned", "user assigned")
+
+            Notification_Service.notify_user(user_id, msg=f"The task: { new_assigned_task.main_task.mfo} has been assigned to this account.")
+            Notification_Service.notify_presidents( msg=f"The task: { new_assigned_task.main_task.mfo} has been assigned to {user.first_name + " " + user.last_name}.")
+            
 
             return jsonify(message = "User successfully assigned."), 200
         except DataError as e:
@@ -549,6 +563,9 @@ class Tasks_Service():
             print("task id: ", task_id)
             print("dept id: ", dept_id)
 
+            Notification_Service.notify_department(dept_id=dept_id, msg=f"The task: {task.mfo} has been assigned to the department.")
+            Notification_Service.notify_administrators(msg=f"The task: {task.mfo} has been assigned to {task.department.name}.")
+            Notification_Service.notify_presidents(msg=f"The task: {task.mfo} has been assigned to {task.department.name}.")
             socketio.emit("department_assigned", "department assigned")
             socketio.emit("user_assigned", "user assigned")
 
@@ -586,8 +603,13 @@ class Tasks_Service():
                 for task in assigned_tasks:
                     db.session.delete(task)
                     db.session.commit()
+
+            task = Main_Task.query.get(task_id)
             
             socketio.emit("user_unassigned", "user assigned")
+            Notification_Service.notify_user(user_id=user_id, msg=f"A task has been unassigned from you.")
+            Notification_Service.notify_presidents(msg=f"{user.first_name + " " + user.last_name} has been removed from task: {task.mfo}.")
+            
             return jsonify(message = "Task successfully removed."), 200
         except DataError as e:
             db.session.rollback()
@@ -670,6 +692,8 @@ class Tasks_Service():
         try:
             all_general_tasks = Main_Task.query.filter_by(department_id = None, status = 1).all()
             converted = [task.info() for task in all_general_tasks]
+
+            
             return jsonify(converted), 200
         
         except OperationalError:
@@ -690,6 +714,8 @@ class Tasks_Service():
             
             found_task.status = 0
             db.session.commit()
+            Notification_Service.notify_everyone(f"The task: {found_task.mfo} has been archived.")
+
             return jsonify(message = "Task successfully archived."), 200
         
         except IntegrityError as e:
@@ -716,6 +742,7 @@ class Tasks_Service():
     def remove_task_from_dept(id):
         try:
             found_task = Main_Task.query.get(id)
+            
 
             if found_task == None:
                 return jsonify(message="No task with that ID"), 400
@@ -724,6 +751,10 @@ class Tasks_Service():
             db.session.commit()
             socketio.emit("task_modified", "task modified")
             socketio.emit("department_assigned", "task modified")
+            Notification_Service.notify_department(f"The task: {found_task.mfo} has been removed from this department.")
+            Notification_Service.notify_heads(f"The task: {found_task.mfo} has been assigned as a general task.")
+            Notification_Service.notify_presidents(f"The task: {found_task.mfo} has been assigned as a general task.")
+            Notification_Service.notify_administrators(f"The task: {found_task.mfo} has been assigned as a general task.")
 
             return jsonify(message = "Task successfully removed."), 200
         
@@ -973,5 +1004,103 @@ class Tasks_Service():
             "timeliness": round(total_timeliness / count, 2),
             "overall_average": round(total_average / count, 2)
         }
+
+        return jsonify(data), 200
+    
+    def calculate_user_performance(user_id):
+        """
+        Calculate the average quantity, efficiency, timeliness, and overall average
+        for all sub_tasks (via IPCR or Outputs) belonging to a specific user.
+
+        Returns:
+        {
+            "user_id": 1,
+            "quantity": 4.2,
+            "efficiency": 3.8,
+            "timeliness": 4.0,
+            "overall_average": 4.0
+        }
+        """
+
+        results = (
+            db.session.query(
+                func.avg(Sub_Task.quantity).label("avg_quantity"),
+                func.avg(Sub_Task.efficiency).label("avg_efficiency"),
+                func.avg(Sub_Task.timeliness).label("avg_timeliness"),
+                func.avg(Sub_Task.average).label("avg_overall")
+            )
+            .join(Output, Output.id == Sub_Task.output_id)
+            .filter(Output.user_id == user_id)
+            .first()
+        )
+
+        if not results or results.avg_quantity is None:
+            return {
+                "user_id": user_id,
+                "quantity": 0,
+                "efficiency": 0,
+                "timeliness": 0,
+                "overall_average": 0
+            }
+
+        data = {
+            "user_id": user_id,
+            "quantity": round(results.avg_quantity or 0, 2),
+            "efficiency": round(results.avg_efficiency or 0, 2),
+            "timeliness": round(results.avg_timeliness or 0, 2),
+            "overall_average": round(results.avg_overall or 0, 2)
+        }
+
+        return data
+    
+    def get_all_tasks_average_summary():
+        """
+        Calculates the real average performance for ALL main tasks
+        (across all categories), using Sub_Task's calculation methods.
+        """
+
+        all_tasks = Main_Task.query.filter_by(status=1).all()
+        data = []
+
+        for task in all_tasks:
+            total_quantity = 0
+            total_efficiency = 0
+            total_timeliness = 0
+            total_average = 0
+            count = 0
+
+            for sub_task in task.sub_tasks:
+                # Dynamically compute each rating
+                quantity = sub_task.calculateQuantity()
+                efficiency = sub_task.calculateEfficiency()
+                timeliness = sub_task.calculateTimeliness()
+                average = sub_task.calculateAverage()
+
+                total_quantity += quantity
+                total_efficiency += efficiency
+                total_timeliness += timeliness
+                total_average += average
+                count += 1
+
+            if count > 0:
+                data.append({
+                    "task_id": task.id,
+                    "category_id": task.category_id,
+                    "task_name": task.mfo,
+                    "average_quantity": round(total_quantity / count, 2),
+                    "average_efficiency": round(total_efficiency / count, 2),
+                    "average_timeliness": round(total_timeliness / count, 2),
+                    "overall_average": round(total_average / count, 2),
+                })
+            else:
+                data.append({
+                    "task_id": task.id,
+                    "category_id": task.category_id,
+                    "task_name": task.mfo,
+                    "average_quantity": 0,
+                    "average_efficiency": 0,
+                    "average_timeliness": 0,
+                    "overall_average": 0,
+                })
 
         return jsonify(data), 200
