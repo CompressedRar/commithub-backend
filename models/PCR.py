@@ -157,6 +157,7 @@ class IPCR(db.Model):
 
             self.confirmed_by = "HON. MARIA ELENA L. GERMAR"
             self.con_position = "PMT Chairperson"
+            db.session.commit()
 
         return {
             "id" : self.id,
@@ -256,6 +257,7 @@ class OPCR(db.Model):
 
         self.confirmed_by = "HON. MARIA ELENA L. GERMAR"
         self.con_position = "PMT Chairperson"
+        db.session.commit()
 
         print("eto si president: ", self.approved_by)  
         return {
@@ -352,7 +354,6 @@ class PCR_Service():
                 "user_id": user_id,
                 "task_count": len(main_task_id_array)
             })
-            Notification_Service.notify_department_heads(f"A new IPCR has been submitted from this department.")
             Notification_Service.notify_presidents(f"A new IPCR has been submitted from {new_ipcr.user.department.name}.")
 
             return jsonify(message="IPCR successfully created"), 200
@@ -492,6 +493,8 @@ class PCR_Service():
             for ipcr in opcr.ipcrs:
                 PCR_Service.archive_ipcr(ipcr.id)
 
+            socketio.emit("opcr", "arcgive")
+
             db.session.commit()
             return jsonify(message="OPCR was archived successfully."), 200
         except OperationalError:
@@ -570,7 +573,15 @@ class PCR_Service():
     #fix the creation of opcr
     def create_opcr(dept_id, ipcr_ids):
         try:
-            new_opcr = OPCR(department_id = dept_id)
+            all_opcr = OPCR.query.filter_by(department_id = dept_id).all()
+
+            for opcr in all_opcr:
+                opcr.isMain = False
+                opcr.status = 0
+                db.session.commit()
+
+
+            new_opcr = OPCR(department_id = dept_id, isMain = True)
             db.session.add(new_opcr)
             db.session.flush()
             
@@ -738,6 +749,152 @@ class PCR_Service():
         
         pprint(data)
         file_url = ExcelHandler.createNewOPCR(data = data, assigned = assigned, admin_data = head_data)
+
+        return file_url
+    
+    def generate_master_opcr():
+
+        opcrs = OPCR.query.filter_by(isMain = True).all()
+        data = []
+        categories = []
+
+        assigned = {}
+
+        for opcr in opcrs:
+            for assigned_pcr in opcr.assigned_pcrs:
+            
+                for sub_task in assigned_pcr.ipcr.sub_tasks:
+                    
+                    if sub_task.main_task.category.name not in categories:
+                        categories.append(sub_task.main_task.category.name)
+                        #print(sub_task.main_task.mfo)
+                    if sub_task.main_task.mfo in assigned.keys():
+                        assigned[sub_task.main_task.mfo].append(f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}")
+                    else:
+                        assigned[sub_task.main_task.mfo] = [f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}"]
+
+            
+            for cat in categories:
+                data.append({
+                    cat:[]
+                })
+
+            for assigned_pcr in opcr.assigned_pcrs:
+
+
+                for sub_task in assigned_pcr.ipcr.sub_tasks:
+                    #sub_task.main_task.category.name
+                    print(sub_task.main_task.category.name)
+                    
+                    current_data_index = 0
+                    for cat in data:
+                        for name, arr in cat.items():
+
+                            
+
+                            if sub_task.main_task.category.name == name:
+
+
+                                #check mo kung exzisting na yung task sa loob ng category
+                                current_task_index = 0
+                                found = False
+                                for tasks in data[current_data_index][name]:
+                                    
+                                    if sub_task.mfo == tasks["title"]:
+                                        found = True
+                                        data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
+                                        data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
+                                        data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
+                                        data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
+                                        data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
+                                        data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
+
+                                        data[current_data_index][name][current_task_index]["rating"]["quantity"] = PCR_Service.calculateQuantity(data[current_data_index][name][current_task_index]["summary"]["target"], data[current_data_index][name][current_task_index]["summary"]["actual"])
+                                        data[current_data_index][name][current_task_index]["rating"]["efficiency"] = PCR_Service.calculateQuantity(data[current_data_index][name][current_task_index]["corrections"]["target"], data[current_data_index][name][current_task_index]["corrections"]["actual"])
+                                        data[current_data_index][name][current_task_index]["rating"]["timeliness"] = PCR_Service.calculateTimeliness(data[current_data_index][name][current_task_index]["working_days"]["target"], data[current_data_index][name][current_task_index]["working_days"]["actual"])
+
+                                        data[current_data_index][name][current_task_index]["rating"]["average"] = PCR_Service.calculateAverage(data[current_data_index][name][current_task_index]["rating"]["quantity"], data[current_data_index][name][current_task_index]["rating"]["efficiency"], data[current_data_index][name][current_task_index]["rating"]["timeliness"])
+                                    current_task_index += 1     
+
+                                if not found:
+                                    data[current_data_index][name].append({
+                                    "title": sub_task.mfo,
+                                    "summary": {
+                                        "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                    },
+                                    "corrections": {
+                                        "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                    },
+                                    "working_days": {
+                                        "target": sub_task.target_time, "actual": sub_task.actual_time
+                                    },
+                                    "description":{
+                                        "target": sub_task.main_task.target_accomplishment,
+                                        "actual": sub_task.main_task.actual_accomplishment,
+                                        "alterations": sub_task.main_task.modification,
+                                        "time": sub_task.main_task.time_description,
+                                    },
+                                    "rating": {
+                                        "quantity": 0,
+                                        "efficiency": 0,
+                                        "timeliness": 0,
+                                        "average": 0,
+                                    }
+                                })
+                                
+
+                        current_data_index += 1
+
+        
+
+                    
+        #get the head
+        head_data = {}
+        head = User.query.filter_by(role = "president").first()
+        
+        head_data = {
+                "fullName": head.first_name + " " + head.last_name,
+                "givenName": head.first_name,
+                "middleName": head.middle_name,
+                "lastName": head.last_name,
+                "position": head.position.name,
+
+                "individuals": {
+                    "review": {
+                        "name": head.first_name + " " + head.last_name,
+                        "position": head.position.name,
+                        "date": "2025-03-10"
+                    },
+                    "approve": {
+                        "name": "Hon. Maria Elena L. Germar",
+                        "position": "PMT Chairperson",
+                        "date": "2025-03-21"
+                    },
+                    "discuss": {
+                        "name": "",
+                        "position": "",
+                        "date": "2025-03-15"
+                    },
+                    "assess": {
+                        "name": "",
+                        "position": "Municipal Administrator",
+                        "date": "2025-03-16"
+                    },
+                    "final": {
+                        "name": "Hon. Maria Elena L. Germar",
+                        "position": "PMT Chairperson",
+                        "date": "2025-03-21"
+                    },
+                    "confirm": {
+                        "name": "Hon. Maria Elena L. Germar",
+                        "position": "PMT Chairperson",
+                        "date": "2025-03-21"
+                    }
+                }
+            }      
+        
+        pprint(data)
+        file_url = ExcelHandler.createNewMasterOPCR(data = data, assigned = assigned, admin_data = head_data)
 
         return file_url
     

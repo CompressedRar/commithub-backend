@@ -96,3 +96,8 @@ def create_opcr(dept_id):
 def test_opcr(opcr_id):
     file_link = PCR_Service.generate_opcr(opcr_id=opcr_id)
     return jsonify(link = file_link), 200
+
+@pcrs.route("/master-opcr/download/", methods = ["GET"])
+def test_master_opcr():
+    file_link = PCR_Service.generate_master_opcr()
+    return jsonify(link = file_link), 200
