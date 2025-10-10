@@ -115,7 +115,6 @@ class Department_Service():
         try:
             department_head = User.query.filter_by(department_id = dept_id, role = "head").first()
 
-            print("department head info: ", department_head.info())
             if department_head:
                 return jsonify(department_head.info()), 200
             

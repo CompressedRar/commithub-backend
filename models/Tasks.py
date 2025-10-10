@@ -236,7 +236,6 @@ class Sub_Task(db.Model):
         elif calculations <= 0.699:
             rating = 1
         
-        self.quantity = rating
         return rating  
 
     def calculateEfficiency(self):
@@ -257,7 +256,6 @@ class Sub_Task(db.Model):
             rating = 2
         elif calculations <= 7:
             rating = 1
-        self.efficiency = rating
         return rating 
     
     def calculateTimeliness(self):
@@ -281,13 +279,12 @@ class Sub_Task(db.Model):
             rating = 2
         elif calculations <= 0.5:
             rating = 1
-        self.timeliness = rating
         return rating
     
     def calculateAverage(self):
+        
         calculations = self.quantity + self.efficiency + self.timeliness
         result = calculations/3
-        self.average = result
         return result
     
     def info(self):
@@ -313,10 +310,10 @@ class Sub_Task(db.Model):
             "status": self.status,
             "batch_id": self.batch_id,
 
-            "quantity": self.calculateQuantity(),
-            "efficiency": self.calculateEfficiency(),
-            "timeliness": self.calculateTimeliness(),
-            "average": self.calculateAverage(),
+            "quantity": self.quantity,
+            "efficiency": self.efficiency,
+            "timeliness": self.timeliness,
+            "average": self.average,
 
          
             "ipcr": self.ipcr.info(),
@@ -818,6 +815,81 @@ class Tasks_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+        
+    def calculateQuantity(target_acc, actual_acc):
+        rating = 0
+        target = target_acc
+        actual = actual_acc
+
+        if target == 0:
+            
+            return 0
+        
+        calculations = actual/target
+        
+        if calculations >= 1.3:
+            rating = 5
+        elif calculations >= 1.01 and calculations <= 1.299:
+            rating = 4
+        elif calculations >= 0.90 and calculations <= 1:
+            rating = 3    
+        elif calculations >= .70 and calculations <= 0.899:
+            rating = 2
+        elif calculations <= 0.699:
+            rating = 1
+        
+        return rating  
+
+    def calculateEfficiency(target_mod, actual_mod):
+        
+        target = target_mod
+        actual = actual_mod
+        rating = 0
+        
+        calculations = actual
+
+        if calculations == 0:            
+            rating = 5
+        elif calculations >= 1 and calculations <= 2:
+            rating = 4
+        elif calculations >= 3 and calculations <= 4:
+            rating = 3    
+        elif calculations >= 5 and calculations <= 6:
+            rating = 2
+        elif calculations <= 7:
+            rating = 1
+        return rating 
+    
+    def calculateTimeliness(target_time, actual_time):
+        
+        target = target_time
+        actual = actual_time
+        rating = 0
+        if target == 0:
+            return 0
+        
+        calculations = ((target - actual) / target) + 1
+        
+        if calculations >= 1.3:
+            rating = 5
+        elif calculations >= 1.15 and calculations <= 1.29:
+            rating = 4
+        elif calculations >= 0.9 and calculations <= 1.14:
+            rating = 3    
+        elif calculations >= 0.51 and calculations <= 0.89:
+            rating = 2
+        elif calculations <= 0.5:
+            rating = 1
+        return rating
+    
+    def calculateAverage(quantity, efficiency, timeliness):
+
+        q = 5 if quantity > 5 else quantity
+        e = 5 if efficiency > 5 else efficiency
+        t = 5 if timeliness > 5 else timeliness
+        calculations = q + e + t
+        result = calculations/3
+        return result
 
 
         
@@ -826,24 +898,63 @@ class Tasks_Service():
             ipcr = Sub_Task.query.get(sub_task_id)
 
             if field == "target_acc":
-                ipcr.target_acc = value
+                ipcr.target_acc = int(value)
+
+                ipcr.quantity = Tasks_Service.calculateQuantity(int(value), ipcr.actual_acc)
+                ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "target_time":
-                ipcr.target_time = value
+                ipcr.target_time = int(value)
+                ipcr.timeliness = Tasks_Service.calculateTimeliness(int(value), ipcr.actual_time)
+                ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "target_mod":
-                ipcr.target_mod = value
+                ipcr.target_mod = int(value)
+                ipcr.efficiency = Tasks_Service.calculateEfficiency(int(value), ipcr.actual_mod)
+                ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
+
 
             if field == "actual_acc":
-                ipcr.actual_acc = value
+                ipcr.actual_acc = int(value)
+                ipcr.quantity = Tasks_Service.calculateQuantity(ipcr.target_acc, int(value))
+                ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "actual_time":
-                ipcr.actual_time = value
+                ipcr.actual_time = int(value)
+                ipcr.timeliness = Tasks_Service.calculateTimeliness(ipcr.target_time, int(value))
+                ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "actual_mod":
-                ipcr.actual_mod = value
+                ipcr.actual_mod = int(value)
+                ipcr.efficiency = Tasks_Service.calculateEfficiency(ipcr.target_mod, int(value))
+                ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
+                
 
+
+
+            if field == "quantity":
+                ipcr.quantity = int(value)
+                db.session.commit()
+                ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
+
+            if field == "efficiency":
+                ipcr.efficiency = int(value)
+                db.session.commit()
+                ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
+
+            if field == "timeliness":
+                ipcr.timeliness = int(value)
+                db.session.commit()
+                ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
+
+            if field == "average":
+                ipcr.average = int(value)
+                
             db.session.commit()
+
+
+            
+
             socketio.emit("ipcr", "change")
             return jsonify(message = "Task updated"), 200
         

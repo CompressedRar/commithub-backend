@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, jsonify, request
 from app import db
 from utils.decorators import log_action
-from models.User import Users
+from models.User import Users, Notification, Notification_Service
 from models.PCR import PCR_Service
 users = Blueprint("users", __name__, url_prefix="/api/v1/users")
 
@@ -14,6 +14,9 @@ def get_users():
 def get_user(id):
     return Users.get_user(id)
 
+@users.route("/notification/<id>", methods = ["GET"])
+def get_user_notifications(id):
+    return Notification_Service.get_user_notification(id)
 
 
 @users.route("/", methods = ["PATCH"])

@@ -40,6 +40,33 @@ class Notification(db.Model):
     
 class Notification_Service():
 
+    def get_user_notification(user_id):
+        try:
+            all_notification = Notification.query.filter_by(user_id = user_id).all()
+
+            return jsonify([notif.to_dict() for notif in all_notification]), 200
+        
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e), "Integrity")
+            return jsonify(error="Task already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e), "data error")
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e), "operational")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "unknown")
+            return jsonify(error=str(e)), 500
+
     def notify_everyone(msg):
         try:
             users = User.query.all()
@@ -323,7 +350,9 @@ class User(db.Model):
             "middle_name": self.middle_name,
             "profile_picture_link": self.profile_picture_link,
             "position": self.position.info(),
-
+            "role": self.role,
+            
+            "department_id":self.department_id,
             "department": self.department.info() if self.department else "NONE",
             "department_name": self.department.info()["name"] if self.department else "NONE",
         }

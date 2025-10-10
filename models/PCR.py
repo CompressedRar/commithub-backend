@@ -56,6 +56,7 @@ class IPCR(db.Model):
     reviewed_by = db.Column(db.Text, default="")
     rev_position = db.Column(db.Text, default="")
 
+
     approved_by = db.Column(db.Text, default="")
     app_position = db.Column(db.Text, default="")
 
@@ -70,6 +71,14 @@ class IPCR(db.Model):
 
     confirmed_by = db.Column(db.Text, default="")
     con_position = db.Column(db.Text, default="")
+
+    rev_date = db.Column(db.DateTime, default = None)
+    app_date = db.Column(db.DateTime, default = None)
+    dis_date = db.Column(db.DateTime, default = None)
+    ass_date = db.Column(db.DateTime, default = None)
+    fin_date = db.Column(db.DateTime, default = None)
+    con_date = db.Column(db.DateTime, default = None)
+
     
     created_at = db.Column(db.DateTime, default=datetime.now)
 
@@ -104,6 +113,7 @@ class IPCR(db.Model):
         return {
             "id" : self.id,
             "user": self.user.info(),
+            "department_id": self.user.department_id,
             "created_at": str(self.created_at),
             "form_status": self.form_status,
             "isMain": self.isMain,
@@ -124,8 +134,8 @@ class IPCR(db.Model):
             self.approved_by = president.first_name + " " + president.last_name if president else ""
             self.app_position = president.position.name if president else ""
 
-            self.discussed_with = self.user.first_name + " " + self.user.last_name if department_head else ""
-            self.dis_position = self.user.position.name if department_head else ""
+            self.discussed_with = self.user.first_name + " " + self.user.last_name 
+            self.dis_position = self.user.position.name
 
             self.assessed_by = department_head.first_name + " " + department_head.last_name if department_head else ""
             self.ass_position = department_head.position.name if department_head else ""
@@ -135,6 +145,8 @@ class IPCR(db.Model):
 
             self.confirmed_by = "HON. MARIA ELENA L. GERMAR"
             self.con_position = "PMT Chairperson"
+            print("GEtting the user ipcr info")
+            db.session.commit()
         else:
             department_head =User.query.filter_by(department_id = self.user.department_id, role = "head").first()
 
@@ -172,27 +184,33 @@ class IPCR(db.Model):
             "status": self.status,
             "review" : {
                 "name": self.reviewed_by,
-                "position": self.rev_position
+                "position": self.rev_position,
+                "date": self.rev_date
             },
             "approve" : {
                 "name": self.approved_by,
-                "position": self.app_position
+                "position": self.app_position,
+                "date": self.app_date
             },
             "discuss" : {
                 "name": self.discussed_with,
-                "position": self.dis_position
+                "position": self.dis_position,
+                "date": self.dis_date
             },
             "assess" : {
                 "name": self.assessed_by,
-                "position": self.ass_position
+                "position": self.ass_position,
+                "date": self.ass_date
             },
             "final" : {
                 "name": self.final_rating_by,
-                "position": self.fin_position
+                "position": self.fin_position,
+                "date": self.fin_date
             },
             "confirm" : {
                 "name": self.confirmed_by,
-                "position": self.con_position
+                "position": self.con_position,
+                "date": self.con_date
             }
         }
     
@@ -229,6 +247,13 @@ class OPCR(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.now)
     assigned_pcrs = db.relationship("Assigned_PCR", back_populates = "opcr", cascade = "all, delete")
+
+    rev_date = db.Column(db.DateTime, default = None)
+    app_date = db.Column(db.DateTime, default = None)
+    dis_date = db.Column(db.DateTime, default = None)
+    ass_date = db.Column(db.DateTime, default = None)
+    fin_date = db.Column(db.DateTime, default = None)
+    con_date = db.Column(db.DateTime, default = None)
 
     def count_ipcr(self):
         return len([ipcr.to_dict() for ipcr in self.ipcrs])
@@ -267,28 +292,37 @@ class OPCR(db.Model):
             "created_at": self.created_at,
             "review" : {
                 "name": self.reviewed_by,
-                "position": self.rev_position
+                "position": self.rev_position,
+                "date": self.rev_date
             },
             "approve" : {
                 "name": self.approved_by,
-                "position": self.app_position
+                "position": self.app_position,
+                "date": self.app_date
             },
             "discuss" : {
                 "name": self.discussed_with,
-                "position": self.dis_position
+                "position": self.dis_position,
+                "date": self.dis_date
+                
             },
             "assess" : {
                 "name": self.assessed_by,
-                "position": self.ass_position
+                "position": self.ass_position,
+                "date": self.ass_date
             },
             "final" : {
                 "name": self.final_rating_by,
-                "position": self.fin_position
+                "position": self.fin_position,
+                "date": self.fin_date
             },
             "confirm" : {
                 "name": self.confirmed_by,
-                "position": self.con_position
-            }
+                "position": self.con_position,
+                "date": self.con_date
+                
+            },
+            "department": self.department.name
         }
     
 # gagawa ng output base sa id
@@ -369,12 +403,38 @@ class PCR_Service():
             
             if ipcr:
                 ipcr.form_status = "reviewed"
+                ipcr.rev_date = datetime.now()
+                ipcr.ass_date = datetime.now()
+                ipcr.dis_date = datetime.now()
                 db.session.commit()
                 socketio.emit("ipcr", "approved")
                 socketio.emit("opcr", "approved")
                 Notification_Service.notify_user(ipcr.user.id, f"Your IPCR: #{ipcr_id} has been reviewed by department head of this department.")
                 Notification_Service.notify_presidents(f"IPCR: #{ipcr_id} from {ipcr.user.department.name} has been reviewed by department head.")
                 return jsonify(message = "This IPCR is successfully reviewed."), 200
+
+            return jsonify(message = "There is no ipcr with that id"), 400
+        
+        except OperationalError as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def approve_ipcr(ipcr_id):
+        try:
+            ipcr = IPCR.query.get(ipcr_id)
+            ipcr.form_status = "approved"
+            ipcr.app_date = datetime.now()
+            ipcr.fin_date = datetime.now()
+            db.session.commit()
+            socketio.emit("ipcr", "approved")
+            socketio.emit("opcr", "approved")
+            if ipcr:
+                Notification_Service.notify_user(ipcr.user.id, f"Your IPCR: #{ipcr_id} has been reviewed by president.")
+                return jsonify(message = "This IPCR is successfully approved."), 200
 
             return jsonify(message = "There is no ipcr with that id"), 400
         
@@ -386,16 +446,39 @@ class PCR_Service():
             #db.session.rollback()
             return jsonify(error=str(e)), 500
         
-    def approve_ipcr(ipcr_id):
+    def review_opcr(opcr_id):
         try:
-            ipcr = IPCR.query.get(ipcr_id)
-            ipcr.form_status = "approved"
-            db.session.commit()
-            socketio.emit("ipcr", "approved")
-            socketio.emit("opcr", "approved")
-            if ipcr:
-                Notification_Service.notify_user(ipcr.user.id, f"Your IPCR: #{ipcr_id} has been reviewed by president.")
-                return jsonify(message = "This IPCR is successfully approved."), 200
+            opcr = OPCR.query.get(opcr_id)
+            
+            if opcr:
+                opcr.form_status = "reviewed"
+                db.session.commit()
+                socketio.emit("ipcr", "approved")
+                socketio.emit("opcr", "approved")
+                Notification_Service.notify_department_heads(opcr.department_id, f"OPCR: #{opcr.id} has been reviewed by the president.")
+                return jsonify(message = "This OPCR is successfully reviewed."), 200
+
+            return jsonify(message = "There is no ipcr with that id"), 400
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def approve_opcr(opcr_id):
+        try:
+            opcr = OPCR.query.get(opcr_id)
+            
+            if opcr:
+                opcr.form_status = "approved"
+                db.session.commit()
+                socketio.emit("ipcr", "approved")
+                socketio.emit("opcr", "approved")
+                Notification_Service.notify_department_heads(opcr.department_id, f"OPCR: #{opcr.id} has been approved by the president.")
+                return jsonify(message = "This OPCR is successfully approved."), 200
 
             return jsonify(message = "There is no ipcr with that id"), 400
         
@@ -1093,7 +1176,12 @@ class PCR_Service():
         return rating
     
     def calculateAverage(quantity, efficiency, timeliness):
-        calculations = quantity + efficiency + timeliness
+        
+        q = 5 if quantity > 5 else quantity
+        e = 5 if efficiency > 5 else efficiency
+        t = 5 if timeliness > 5 else timeliness
+
+        calculations = q + e + t
         result = calculations/3
         return result
     
@@ -1155,6 +1243,204 @@ class PCR_Service():
                 })
 
         return jsonify(data), 200
+    
+    def get_member_pendings():
+        try:
+            all_user = User.query.all()
+
+            ipcr_to_review = []
+
+            skip_roles = ["administrator", "president", "head"]
+            for user in all_user:
+                if user.role in skip_roles:
+                    print(user.first_name)
+                    continue
+
+                for ipcr in user.ipcrs:
+                    print(ipcr.status == 1 and ipcr.form_status == "pending" and ipcr.isMain == True)
+                    
+                    if ipcr.status == 1 and ipcr.form_status == "pending" and ipcr.isMain == True:
+                        ipcr_to_review.append(ipcr.department_info()) 
+
+            return jsonify(ipcr_to_review), 200
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def get_member_reviewed():
+        try:
+            all_user = User.query.all()
+
+            ipcr_to_review = []
+
+            skip_roles = ["administrator", "president", "head"]
+            for user in all_user:
+                if user.role in skip_roles:
+                    print(user.first_name)
+                    continue
+
+                for ipcr in user.ipcrs:
+                    if ipcr.status == 1 and ipcr.form_status == "reviewed" and ipcr.isMain == True:
+                        ipcr_to_review.append(ipcr.department_info()) 
+
+            return jsonify(ipcr_to_review), 200
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def get_member_approved():
+        try:
+            all_user = User.query.all()
+
+            ipcr_to_review = []
+
+            skip_roles = ["administrator", "president", "head"]
+            for user in all_user:
+                if user.role in skip_roles:
+                    print(user.first_name)
+                    continue
+
+                for ipcr in user.ipcrs:
+                    if ipcr.status == 1 and ipcr.form_status == "approved" and ipcr.isMain == True:
+                        ipcr_to_review.append(ipcr.department_info()) 
+
+            return jsonify(ipcr_to_review), 200
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def get_head_pendings():
+        try:
+            all_user = User.query.all()
+
+            ipcr_to_review = []
+
+            skip_roles = ["administrator", "president", "faculty"]
+            for user in all_user:
+                if user.role in skip_roles:
+                    print(user.first_name)
+                    continue
+
+                for ipcr in user.ipcrs:
+                    print(ipcr.status == 1 and ipcr.form_status == "pending" and ipcr.isMain == True)
+                    
+                    if ipcr.status == 1 and ipcr.form_status == "pending" and ipcr.isMain == True:
+                        ipcr_to_review.append(ipcr.department_info()) 
+
+            return jsonify(ipcr_to_review), 200
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def get_head_reviewed():
+        try:
+            all_user = User.query.all()
+
+            ipcr_to_review = []
+
+            skip_roles = ["administrator", "president", "faculty"]
+            for user in all_user:
+                if user.role in skip_roles:
+                    print(user.first_name)
+                    continue
+
+                for ipcr in user.ipcrs:
+                    if ipcr.status == 1 and ipcr.form_status == "reviewed" and ipcr.isMain == True:
+                        ipcr_to_review.append(ipcr.department_info()) 
+
+            return jsonify(ipcr_to_review), 200
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def get_head_approved():
+        try:
+            all_user = User.query.all()
+
+            ipcr_to_review = []
+
+            skip_roles = ["administrator", "president", "faculty"]
+            for user in all_user:
+                if user.role in skip_roles:
+                    print(user.first_name)
+                    continue
+
+                for ipcr in user.ipcrs:
+                    if ipcr.status == 1 and ipcr.form_status == "approved" and ipcr.isMain == True:
+                        ipcr_to_review.append(ipcr.department_info()) 
+
+            return jsonify(ipcr_to_review), 200
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    
+    def get_opcr_pendings():
+        try:
+            all_opcr = OPCR.query.filter_by(status = 1, form_status = "pending").all()
+
+
+            return jsonify([opcr.to_dict() for opcr in all_opcr]), 200
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def get_opcr_reviewed():
+        try:
+            all_opcr = OPCR.query.filter_by(status = 1, form_status = "reviewed").all()
+
+
+            return jsonify([opcr.to_dict() for opcr in all_opcr]), 200
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def get_opcr_approved():
+        try:
+            all_opcr = OPCR.query.filter_by(status = 1, form_status = "approved").all()
+
+
+            return jsonify([opcr.to_dict() for opcr in all_opcr]), 200
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
 
 
 #lagyan ng date period si ipcr

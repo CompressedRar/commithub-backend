@@ -26,6 +26,14 @@ def approve_ipcr(id):
 def review_ipcr(id):
     return PCR_Service.review_ipcr(id)
 
+@pcrs.route("/opcr/approve/<id>", methods = ["POST"])
+def approve_opcr(id):
+    return PCR_Service.approve_opcr(id)
+
+@pcrs.route("/opcr/review/<id>", methods = ["POST"])
+def review_opcr(id):
+    return PCR_Service.review_opcr(id)
+
 @pcrs.route("/ipcr/<id>", methods = ["DELETE"])
 def archiv_ipcr(id):
     return PCR_Service.archive_ipcr(id)
@@ -101,3 +109,42 @@ def test_opcr(opcr_id):
 def test_master_opcr():
     file_link = PCR_Service.generate_master_opcr()
     return jsonify(link = file_link), 200
+
+
+
+
+@pcrs.route("/ipcr/faculty/pending", methods = ["GET"])
+def get_ipcr_pending():
+    return PCR_Service.get_member_pendings()
+
+@pcrs.route("/ipcr/faculty/reviewed", methods = ["GET"])
+def get_ipcr_reviewed():
+    return PCR_Service.get_member_reviewed()
+
+@pcrs.route("/ipcr/faculty/approved", methods = ["GET"])
+def get_ipcr_approved():
+    return PCR_Service.get_member_approved()
+
+@pcrs.route("/ipcr/head/pending", methods = ["GET"])
+def get_head_pending():
+    return PCR_Service.get_head_pendings()
+
+@pcrs.route("/ipcr/head/reviewed", methods = ["GET"])
+def get_head_reviewed():
+    return PCR_Service.get_head_reviewed()
+
+@pcrs.route("/ipcr/head/approved", methods = ["GET"])
+def get_head_approved():
+    return PCR_Service.get_head_approved()
+
+@pcrs.route("/opcr/pending", methods = ["GET"])
+def get_opcr_pending():
+    return PCR_Service.get_opcr_pendings()
+
+@pcrs.route("/opcr/reviewed", methods = ["GET"])
+def get_opcr_reviewed():
+    return PCR_Service.get_opcr_reviewed()
+
+@pcrs.route("/opcr/approved", methods = ["GET"])
+def get_opcr_approved():
+    return PCR_Service.get_opcr_approved()
