@@ -292,12 +292,26 @@ class Department_Service():
     
     def get_all_department_ipcr(dept_id):
         try:
-            dept = Department.query.get(dept_id)
+            dept_members = User.query.filter_by(department_id = dept_id).all()
 
-            if dept == None:
-                return jsonify(error="Department not found"), 400
+            user_ipcr = []
+
+            if dept_members == None:
+                return jsonify([]), 200
+            
+            for members in dept_members:
+                ipcr_container = None
+
+                for ipcr in members.ipcrs:
+                    if ipcr.isMain:
+                        ipcr_container = ipcr.department_info()
+
+                user_ipcr.append({
+                    "member": members.info(),
+                    "ipcr": ipcr_container
+                })
         
-            return jsonify(dept.collect_all_ipcr()), 200
+            return jsonify(user_ipcr), 200
         except OperationalError as e:
             db.session.rollback()
             print(str(e))
