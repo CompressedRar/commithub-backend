@@ -31,7 +31,7 @@ class Log(db.Model):
             "user_id": self.user_id,
             "user_agent": self.user_agent,    
             "ip_address": self.ip_address,
-            "timestamp": self.created_at,       
+            "timestamp": str(self.created_at),       
         }
     
 class Log_Service:

@@ -35,7 +35,7 @@ class Notification(db.Model):
         return {
             "id" : self.id,
             "name": self.name,
-            "created_at": self.created_at
+            "created_at": str(self.created_at)
         }
     
 class Notification_Service():
@@ -383,6 +383,7 @@ class User(db.Model):
 
         for ipcr in self.ipcrs:
             if ipcr.status == 1:
+                pprint(ipcr.to_dict())
                 active_ipcrs.append(ipcr.to_dict())
 
         return {
@@ -858,8 +859,7 @@ class Users():
             password = login_data["password"]
 
             userCheck = Users.authenticate_if_email_exists(email)
-            print("User check: ")
-            pprint(userCheck)
+            
             if userCheck:
                 
                 ph = PasswordHasher()

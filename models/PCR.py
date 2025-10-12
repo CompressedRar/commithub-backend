@@ -48,6 +48,30 @@ class Supporting_Document(db.Model):
             "status": self.status,
             "download_url": FileStorage.get_file("documents/" + self.file_name)
         }
+    
+class OPCR_Supporting_Document(db.Model):
+    __tablename__ = "opcr_supporting_documents"
+    id = db.Column(db.Integer, primary_key=True)
+    
+    file_type = db.Column(db.Text, default="")
+    file_name = db.Column(db.Text, default="")
+    opcr_id = db.Column(db.Integer, db.ForeignKey("opcr.id"), default = None)
+    batch_id = db.Column(db.Text, default = " ")
+    status = db.Column(db.Integer, default = 1)
+
+    opcr = db.relationship("OPCR", back_populates = "supporting_documents")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "file_type": self.file_type,
+            "object_name": "documents/" + self.file_name,
+            "file_name": self.file_name,
+            "batch_id": self.batch_id,
+            "ipcr_id": self.opcr_id,
+            "status": self.status,
+            "download_url": FileStorage.get_file("documents/" + self.file_name)
+        }
 
 class IPCR(db.Model):
     __tablename__ = "ipcr"
@@ -185,32 +209,32 @@ class IPCR(db.Model):
             "review" : {
                 "name": self.reviewed_by,
                 "position": self.rev_position,
-                "date": self.rev_date
+                "date": str(self.rev_date)
             },
             "approve" : {
                 "name": self.approved_by,
                 "position": self.app_position,
-                "date": self.app_date
+                "date": str(self.app_date)
             },
             "discuss" : {
                 "name": self.discussed_with,
                 "position": self.dis_position,
-                "date": self.dis_date
+                "date": str(self.dis_date)
             },
             "assess" : {
                 "name": self.assessed_by,
                 "position": self.ass_position,
-                "date": self.ass_date
+                "date": str(self.ass_date)
             },
             "final" : {
                 "name": self.final_rating_by,
                 "position": self.fin_position,
-                "date": self.fin_date
+                "date": str(self.fin_date)
             },
             "confirm" : {
                 "name": self.confirmed_by,
                 "position": self.con_position,
-                "date": self.con_date
+                "date": str(self.con_date)
             }
         }
     
@@ -239,6 +263,8 @@ class OPCR(db.Model):
 
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id"))
     department = db.relationship("Department", back_populates="opcrs")
+
+    supporting_documents = db.relationship("OPCR_Supporting_Document", back_populates = "opcr", cascade = "all, delete")
 
     ipcrs = db.relationship("IPCR", back_populates = "opcr", cascade = "all, delete")
     isMain = db.Column(db.Boolean, default = False)
@@ -289,40 +315,41 @@ class OPCR(db.Model):
             "id" : self.id,
             "ipcr_count": self.count_ipcr(),
             "form_status": self.form_status,
-            "created_at": self.created_at,
+            "created_at": str(self.created_at),
             "review" : {
                 "name": self.reviewed_by,
                 "position": self.rev_position,
-                "date": self.rev_date
+                "date": str(self.rev_date)
             },
             "approve" : {
                 "name": self.approved_by,
                 "position": self.app_position,
-                "date": self.app_date
+                "date": str(self.app_date)
             },
             "discuss" : {
                 "name": self.discussed_with,
                 "position": self.dis_position,
-                "date": self.dis_date
+                "date": str(self.dis_date)
                 
             },
             "assess" : {
                 "name": self.assessed_by,
                 "position": self.ass_position,
-                "date": self.ass_date
+                "date": str(self.ass_date)
             },
             "final" : {
                 "name": self.final_rating_by,
                 "position": self.fin_position,
-                "date": self.fin_date
+                "date": str(self.fin_date)
             },
             "confirm" : {
                 "name": self.confirmed_by,
                 "position": self.con_position,
-                "date": self.con_date
+                "date": str(self.con_date)
                 
             },
-            "department": self.department.name
+            "department": self.department.name,
+            "status": self.status
         }
     
 # gagawa ng output base sa id
@@ -619,10 +646,35 @@ class PCR_Service():
             print(str(e))
             return jsonify(error=str(e)), 500
         
+    
+        
     def get_ipcr_supporting_document(ipcr_id):
         try:
             ipcr = IPCR.query.get(ipcr_id)
             return [docs.to_dict() for docs in ipcr.supporting_documents], 200
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+        
+
+    def get_supporting_documents(opcr_id):
+        try:
+            pcrs = Assigned_PCR.query.filter_by(opcr_id = opcr_id).all()
+            all_documents = []
+            for pcr in pcrs:
+                
+                for docs in pcr.ipcr.supporting_documents:
+
+                    all_documents.append(docs.to_dict()) 
+
+            return jsonify(all_documents), 200
 
         except OperationalError as e:
             db.session.rollback()
