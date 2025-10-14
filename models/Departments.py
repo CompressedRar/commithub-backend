@@ -38,6 +38,12 @@ class Department(db.Model):
             ipcr_count += len(user.ipcrs)            
         return ipcr_count
     
+    def is_head_occupied(self):
+        for user in self.users:
+            if user.role == "head": return True        
+        return False
+    
+    
     def info(self):
         return {
             "id" : self.id,
@@ -75,7 +81,8 @@ class Department(db.Model):
             "opcr_count": self.count_opcr(),
             "ipcr_count": self.count_ipcr(),
             "main_tasks": [main_task.info() for main_task in self.main_tasks],
-            "main_tasks_count": self.count_tasks(),            
+            "main_tasks_count": self.count_tasks(),     
+            "is_head_occupied": self.is_head_occupied()       #true or false
         }
     
 

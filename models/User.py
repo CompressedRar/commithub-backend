@@ -383,7 +383,6 @@ class User(db.Model):
 
         for ipcr in self.ipcrs:
             if ipcr.status == 1:
-                pprint(ipcr.to_dict())
                 active_ipcrs.append(ipcr.to_dict())
 
         return {
@@ -448,6 +447,23 @@ class Users():
         except Exception as e:
             #db.session.rollback()
             return False
+        
+    def does_president_exists():
+        try:
+            users  = User.query.all()
+
+            for user in users:
+                if user.role == "president": return jsonify(True), 200
+
+            return jsonify(False), 200
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
         
 
     def get_all_users():
@@ -608,9 +624,7 @@ class Users():
             
             if user:
                 new_default_password = "commithubnc"
-                msg = "Hello!, The password reset was done to this account. Your default password is: " + new_default_password 
-
-                print(msg)
+                msg = "Hello!, The password reset was done to this account. The default password is: " + new_default_password 
 
                 ph = PasswordHasher()
                 hashed_password = ph.hash(new_default_password)
@@ -701,19 +715,18 @@ class Users():
             ph = PasswordHasher()
             hashed_password = ph.hash(new_default_password)
             
-            
             res = upload_file(profile_picture)
 
             new_user = User(
-            first_name=data["first_name"],
-            last_name=data["last_name"],
-            middle_name=data["middle_name"],
-            position_id = data["position"],
-            department_id=data["department"],
-            
-            email=data["email"],
-            password= hashed_password,
-            profile_picture_link = res
+                first_name=data["first_name"],
+                last_name=data["last_name"],
+                middle_name=data["middle_name"] if data["middle_name"] else "",
+                position_id = data["position"],
+                department_id=data["department"],
+                role = data["role"],            
+                email=data["email"],
+                password= hashed_password,
+                profile_picture_link = res
             
             )
             db.session.flush()
@@ -724,7 +737,7 @@ class Users():
             
             socketio.emit("user_created", "user added")
             Notification_Service.notify_user(new_user.id, "Welcome to Commithub! Start by creating your own IPCR.")
-            Notification_Service.notify_department_heads(f"{data["first_name"] + " " + data["last_name"]} joined {new_user.department.name}.")
+            Notification_Service.notify_department_heads(data["department"],f"{data["first_name"] + " " + data["last_name"]} joined {new_user.department.name}.")
             Notification_Service.notify_administrators(f"{data["first_name"] + " " + data["last_name"]} joined {new_user.department.name}.")
             Notification_Service.notify_presidents(f"{data["first_name"] + " " + data["last_name"]} joined {new_user.department.name}.")
             

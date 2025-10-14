@@ -16,6 +16,7 @@ def create_app():
     load_dotenv()
     app = Flask(__name__)
     CORS(app, supports_credentials=True)
+        
     app.config["SECRET_KEY"] = "priscilla"
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("LOCAL_DATABASE_URL")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -59,6 +60,9 @@ def create_app():
 
     from routes.Chart import charts
     app.register_blueprint(charts)
+
+    from routes.AI import ai
+    app.register_blueprint(ai)
 
     @app.route("/test-email")
     def test_email():

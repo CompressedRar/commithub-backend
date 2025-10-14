@@ -10,6 +10,10 @@ users = Blueprint("users", __name__, url_prefix="/api/v1/users")
 def get_users():
     return Users.get_all_users()
 
+@users.route("/pres-exists", methods = ["GET"])
+def does_president_exists():
+    return Users.does_president_exists()
+
 @users.route("/<id>", methods = ["GET"])
 def get_user(id):
     return Users.get_user(id)

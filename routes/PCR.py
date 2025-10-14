@@ -120,15 +120,14 @@ def test_opcr(opcr_id):
 
 @pcrs.route("/master-opcr/download/", methods = ["GET"])
 def test_master_opcr():
-    file_link = PCR_Service.generate_master_opcr()
-    return jsonify(link = file_link), 200
+    return PCR_Service.generate_master_opcr()
 
 
 
 
-@pcrs.route("/ipcr/faculty/pending", methods = ["GET"])
-def get_ipcr_pending():
-    return PCR_Service.get_member_pendings()
+@pcrs.route("/ipcr/faculty/pending/<dept_id>", methods = ["GET"])
+def get_ipcr_pending(dept_id):
+    return PCR_Service.get_member_pendings(dept_id=dept_id)
 
 @pcrs.route("/ipcr/faculty/reviewed", methods = ["GET"])
 def get_ipcr_reviewed():

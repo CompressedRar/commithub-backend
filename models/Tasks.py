@@ -121,7 +121,11 @@ class Main_Task(db.Model):
     assigned_tasks = db.relationship("Assigned_Task", back_populates="main_task", cascade = "all, delete")
 
     def get_users(self):
-        return [output.user_info() for output in self.outputs]
+        all_user = []
+        for assigned in self.assigned_tasks:            
+            all_user.append(assigned.user_info())
+        
+        return all_user
     
     def get_users_by_dept(self, id):
         all_user = []
@@ -646,7 +650,8 @@ class Tasks_Service():
             found_task = Main_Task.query.filter_by(id = task_id).first()
             if found_task == None:
                  return jsonify(""), 200
-            converted = [user.user_info() for user in found_task.outputs] 
+            
+            converted = found_task.get_users() 
             return jsonify(converted), 200
         
         except OperationalError:
@@ -739,6 +744,7 @@ class Tasks_Service():
     def remove_task_from_dept(id):
         try:
             found_task = Main_Task.query.get(id)
+            dept_id = found_task.department_id
             
 
             if found_task == None:
@@ -748,7 +754,7 @@ class Tasks_Service():
             db.session.commit()
             socketio.emit("task_modified", "task modified")
             socketio.emit("department_assigned", "task modified")
-            Notification_Service.notify_department(f"The task: {found_task.mfo} has been removed from this department.")
+            Notification_Service.notify_department(dept_id,f"The task: {found_task.mfo} has been removed from this department.")
             Notification_Service.notify_heads(f"The task: {found_task.mfo} has been assigned as a general task.")
             Notification_Service.notify_presidents(f"The task: {found_task.mfo} has been assigned as a general task.")
             Notification_Service.notify_administrators(f"The task: {found_task.mfo} has been assigned as a general task.")

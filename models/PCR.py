@@ -171,7 +171,7 @@ class IPCR(db.Model):
             self.con_position = "PMT Chairperson"
             print("GEtting the user ipcr info")
             db.session.commit()
-        else:
+        elif self.user.role == "head":
             department_head =User.query.filter_by(department_id = self.user.department_id, role = "head").first()
 
             president = User.query.filter_by(role = "president").first()
@@ -193,6 +193,32 @@ class IPCR(db.Model):
 
             self.confirmed_by = "HON. MARIA ELENA L. GERMAR"
             self.con_position = "PMT Chairperson"
+            self.form_status = "reviewed"
+            db.session.commit()
+
+        elif self.user.role == "president":
+            department_head =User.query.filter_by(department_id = self.user.department_id, role = "head").first()
+
+            president = User.query.filter_by(role = "president").first()
+            
+            self.reviewed_by = president.first_name + " " + president.last_name if president else ""
+            self.rev_position = president.position.name if president else ""
+
+            self.approved_by = president.first_name + " " + president.last_name if president else ""
+            self.app_position = president.position.name if president else ""
+
+            self.discussed_with = department_head.first_name + " " + department_head.last_name if department_head else ""
+            self.dis_position = department_head.position.name if department_head else ""
+
+            self.assessed_by = president.first_name + " " + president.last_name if president else ""
+            self.ass_position = president.position.name if president else ""
+
+            self.final_rating_by = president.first_name + " " + president.last_name if president else ""
+            self.fin_position = president.position.name if president else ""
+
+            self.confirmed_by = "HON. MARIA ELENA L. GERMAR"
+            self.con_position = "PMT Chairperson"
+            self.form_status = "approved"
             db.session.commit()
 
         return {
@@ -269,7 +295,7 @@ class OPCR(db.Model):
     ipcrs = db.relationship("IPCR", back_populates = "opcr", cascade = "all, delete")
     isMain = db.Column(db.Boolean, default = False)
     status = db.Column(db.Integer, default = 1)
-    form_status = db.Column(db.Enum("pending", "reviewed", "approved"), default="pending")
+    form_status = db.Column(db.Enum("pending", "reviewed", "approved"), default="reviewed")
 
     created_at = db.Column(db.DateTime, default=datetime.now)
     assigned_pcrs = db.relationship("Assigned_PCR", back_populates = "opcr", cascade = "all, delete")
@@ -882,16 +908,18 @@ class PCR_Service():
                 }
             }      
         
-        pprint(data)
         file_url = ExcelHandler.createNewOPCR(data = data, assigned = assigned, admin_data = head_data)
 
         return file_url
     
     def generate_master_opcr():
 
-        opcrs = OPCR.query.filter_by(isMain = True).all()
+        opcrs = OPCR.query.filter_by(isMain = True, form_status = "approved").all()
         data = []
         categories = []
+
+        if not opcrs:
+            return jsonify(error = "There is no approved opcr to consolidate"), 400
 
         assigned = {}
 
@@ -1028,10 +1056,9 @@ class PCR_Service():
                 }
             }      
         
-        pprint(data)
         file_url = ExcelHandler.createNewMasterOPCR(data = data, assigned = assigned, admin_data = head_data)
 
-        return file_url
+        return jsonify(link = file_url), 200
     
     def get_opcr(opcr_id):
         opcr = OPCR.query.get(opcr_id)
@@ -1112,7 +1139,6 @@ class PCR_Service():
 
                     
         #get the head
-        pprint(opcr_data)
         head = User.query.filter_by(department_id = opcr.department_id, role = "head").first()
         
         head_data = {
@@ -1156,7 +1182,6 @@ class PCR_Service():
                 }
             }
         
-        pprint(head_data)
 
         return jsonify(ipcr_data = data, assigned = assigned, admin_data = head_data, form_status = opcr.form_status)
         
@@ -1296,9 +1321,9 @@ class PCR_Service():
 
         return jsonify(data), 200
     
-    def get_member_pendings():
+    def get_member_pendings(dept_id):
         try:
-            all_user = User.query.all()
+            all_user = User.query.filter_by(account_status = 1, department_id = dept_id, role = "faculty").all()
 
             ipcr_to_review = []
 
