@@ -35,6 +35,10 @@ def reset_password_user(user_id):
     
     return Users.reset_password(user_id)
 
+@users.route("/change-password/<user_id>", methods = ["PATCH"])
+def change_password_user(user_id):
+    new_pass = request.json.get("password")
+    return Users.change_password(user_id, new_pass)
 
 @users.route("/<id>", methods = ["DELETE"])
 @log_action(action = "DEACTIVATE", target="USER")

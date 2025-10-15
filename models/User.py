@@ -579,6 +579,7 @@ class Users():
                     db.session.commit()
 
                 socketio.emit("user_modified", "modified")
+                socketio.emit("user_updated", "modified")
 
                 return jsonify(message = "User successfully updated"), 200
             
@@ -634,6 +635,7 @@ class Users():
                 Notification_Service.notify_user(user.id, "The account password has been reset.")
 
                 socketio.emit("user_modified", "modified")
+                db.session.commit()
                 
 
                 return jsonify(message = "Password successfully reset."), 200
@@ -694,6 +696,21 @@ class Users():
             else: 
                 return jsonify(error= "There is no user with that id"), 400
 
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def change_password(user_id, password):
+        try:
+            user = User.query.get(user_id)
+            user.password = password
+            db.session.commit()
+            return jsonify(message = "Success"), 200
+        
         except OperationalError:
             db.session.rollback()
             return jsonify(error="Database connection error"), 500
