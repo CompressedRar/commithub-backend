@@ -3,12 +3,19 @@ from firebase_admin import credentials, firestore, storage
 from dotenv import load_dotenv
 import os
 import uuid
+import json
+from pprint import pprint
 
 from werkzeug.datastructures import FileStorage
 load_dotenv()
 
+cred_json = os.getenv("FIREBASE_CREDENTIALS")
+cred_dict = json.loads(cred_json)
+print(cred_dict)
+print(repr(cred_dict["private_key"][:100]))
+print(cred_dict["private_key"].endswith("-----END PRIVATE KEY-----\n"))
 
-cred = credentials.Certificate("FirebaseApi/qrsence-firebase-adminsdk-7k5ew-8edd4b858d.json")
+cred = credentials.Certificate(cred_dict)
 app2 = None
 try:
     app2 = firebase_admin.initialize_app(cred, {
