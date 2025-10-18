@@ -838,12 +838,12 @@ class Users():
 
             user.role = "head"
             db.session.commit()
-            Notification_Service.notify_user(user.id, f"This account is now the department head of {department.name}.")
-            Notification_Service.notify_department(department.id, f"{user.first_name + " " + user.last_name} has been assigned as the new department head of {department.name}.")
-            Notification_Service.notify_heads(msg = f"{user.first_name + " " + user.last_name} has been assigned as the new department head of {department.name}.")
-            Notification_Service.notify_presidents(msg = f"{user.first_name + " " + user.last_name} has been assigned as the new department head of {department.name}.")
-            socketio.emit("department", "department head assigned")
-            return jsonify(message = "Department head successfully assigned."), 200
+            Notification_Service.notify_user(user.id, f"This account is now the office head of {department.name}.")
+            Notification_Service.notify_department(department.id, f"{user.first_name + " " + user.last_name} has been assigned as the new office head of {department.name}.")
+            Notification_Service.notify_heads(msg = f"{user.first_name + " " + user.last_name} has been assigned as the new office head of {department.name}.")
+            Notification_Service.notify_presidents(msg = f"{user.first_name + " " + user.last_name} has been assigned as the new office head of {department.name}.")
+            socketio.emit("department", "office head assigned")
+            return jsonify(message = "Office head successfully assigned."), 200
         
         except OperationalError as e:
             db.session.rollback()
@@ -866,10 +866,10 @@ class Users():
             db.session.commit()
 
             socketio.emit("department", "department head removed")
-            Notification_Service.notify_user(user.id, "This account has been removed from being department head.")
+            Notification_Service.notify_user(user.id, "This account has been removed from being office head.")
             Notification_Service.notify_department(dept_id=user.department_id, msg = f"The head of {user.department.name} has been removed from its position.")
             Notification_Service.notify_presidents(msg = f"The head of {user.department.name} has been removed from its position.")
-            return jsonify(message = "Department head successfully removed."), 200
+            return jsonify(message = "Office head successfully removed."), 200
         
         except OperationalError as e:
             db.session.rollback()

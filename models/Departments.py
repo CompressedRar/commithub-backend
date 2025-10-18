@@ -109,7 +109,7 @@ class Department_Service():
                 dept = all_depts.to_dict()
                 return jsonify(dept), 200
             else:
-                return jsonify(message = "There is no department with that id"), 200
+                return jsonify(message = "There is no office with that id"), 200
         except OperationalError:
             #db.session.rollback()
             return jsonify(error="Database connection error"), 500
@@ -170,7 +170,7 @@ class Department_Service():
             Notification_Service.notify_presidents(f"{data["department_name"]} has been added.")
             Notification_Service.notify_administrators(f"{data["department_name"]} has been added.")
 
-            return jsonify(message = "Department successfully created."), 200
+            return jsonify(message = "Office successfully created."), 200
         except IntegrityError as e:
             db.session.rollback()
             print(str(e))
@@ -208,7 +208,7 @@ class Department_Service():
             Notification_Service.notify_presidents(f"{data["department_name"]} has been updated.")
             Notification_Service.notify_administrators(f"{data["department_name"]} has been updated.")
 
-            return jsonify(message = "Department successfully updated."), 200
+            return jsonify(message = "Office successfully updated."), 200
         except IntegrityError as e:
             db.session.rollback()
             print(str(e))
@@ -243,7 +243,7 @@ class Department_Service():
             Notification_Service.notify_heads(f"{user.first_name + " " + user.last_name} has been removed from {prev_dept}.")
             Notification_Service.notify_presidents(f"{user.first_name + " " + user.last_name} has been removed from {prev_dept}.")
             Notification_Service.notify_administrators(f"{user.first_name + " " + user.last_name} has been removed from {prev_dept}.")
-            return jsonify(message="User successfully removed."), 200
+            return jsonify(message="Member successfully removed."), 200
         
         except DataError as e:
             db.session.rollback()
@@ -266,7 +266,7 @@ class Department_Service():
             found_department = Department.query.get(id)
 
             if not found_department:
-                return jsonify({"error": "Department not found"}), 404
+                return jsonify({"error": "Office not found"}), 404
             
             found_department.status = 0
 
@@ -275,7 +275,7 @@ class Department_Service():
             Notification_Service.notify_presidents(f"{found_department.name} has been removed archived.")
             Notification_Service.notify_administrators(f"{found_department.name} has been removed archived.")
 
-            return jsonify(message = "Department successfully archived."), 200
+            return jsonify(message = "Office successfully archived."), 200
         except IntegrityError as e:
             db.session.rollback()
             print(str(e))

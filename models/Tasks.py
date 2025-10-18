@@ -373,17 +373,17 @@ class Tasks_Service():
                 category_id = int(data["id"])
             )
             print("registered task")
-            Notification_Service.notify_department(dept_id=data["department"], msg="A new task has been added to the department.")
-            Notification_Service.notify_presidents( msg="A new task has been added.")
-            Notification_Service.notify_administrators( msg="A new task has been added.")
+            Notification_Service.notify_department(dept_id=data["department"], msg="A new output has been added to the department.")
+            Notification_Service.notify_presidents( msg="A new output has been added.")
+            Notification_Service.notify_administrators( msg="A new output has been added.")
             db.session.add(new_main_task)
             db.session.commit()
-            return jsonify(message="Task successfully created."), 200
+            return jsonify(message="Output successfully created."), 200
         
         except IntegrityError as e:
             db.session.rollback()
             print(str(e), "Integrity")
-            return jsonify(error="Task already exists"), 400
+            return jsonify(error="Output already exists"), 400
         
         except DataError as e:
             db.session.rollback()
@@ -406,7 +406,7 @@ class Tasks_Service():
             found_task = Main_Task.query.get(data["id"])
 
             if found_task == None:
-                return jsonify(message="No task with that ID"), 400
+                return jsonify(message="No output with that ID"), 400
             
             if len(data) == 0:
                 return jsonify(message="You must submit data to update fields"), 400
@@ -432,7 +432,7 @@ class Tasks_Service():
 
             db.session.commit()
             Notification_Service.notify_everyone(msg=f"The task: {found_task.mfo} has been updated.")
-            return jsonify(message = "Task successfully updated."), 200
+            return jsonify(message = "Output successfully updated."), 200
         
         except IntegrityError as e:
             db.session.rollback()
@@ -475,11 +475,11 @@ class Tasks_Service():
             user = User.query.get(user_id)
             socketio.emit("user_assigned", "user assigned")
 
-            Notification_Service.notify_user(user_id, msg=f"The task: { new_assigned_task.main_task.mfo} has been assigned to this account.")
-            Notification_Service.notify_presidents( msg=f"The task: { new_assigned_task.main_task.mfo} has been assigned to {user.first_name + " " + user.last_name}.")
+            Notification_Service.notify_user(user_id, msg=f"The output: { new_assigned_task.main_task.mfo} has been assigned to this account.")
+            Notification_Service.notify_presidents( msg=f"The output: { new_assigned_task.main_task.mfo} has been assigned to {user.first_name + " " + user.last_name}.")
             
 
-            return jsonify(message = "User successfully assigned."), 200
+            return jsonify(message = "Member successfully assigned."), 200
         except DataError as e:
             db.session.rollback()
             print(str(e))
@@ -534,7 +534,7 @@ class Tasks_Service():
             db.session.commit()
             socketio.emit("ipcr_added", "user assigned")
 
-            return jsonify(message = "Task successfully added."), 200
+            return jsonify(message = "Output successfully added."), 200
         except DataError as e:
             db.session.rollback()
             print(str(e))
@@ -556,7 +556,7 @@ class Tasks_Service():
             task = Main_Task.query.get(task_id)
 
             if task == None:
-                return jsonify(message = "Task is not found."), 400
+                return jsonify(message = "Output is not found."), 400
             
             task.department_id = dept_id
 
@@ -564,13 +564,13 @@ class Tasks_Service():
             print("task id: ", task_id)
             print("dept id: ", dept_id)
 
-            Notification_Service.notify_department(dept_id=dept_id, msg=f"The task: {task.mfo} has been assigned to the department.")
-            Notification_Service.notify_administrators(msg=f"The task: {task.mfo} has been assigned to {task.department.name}.")
-            Notification_Service.notify_presidents(msg=f"The task: {task.mfo} has been assigned to {task.department.name}.")
+            Notification_Service.notify_department(dept_id=dept_id, msg=f"The output: {task.mfo} has been assigned to the office.")
+            Notification_Service.notify_administrators(msg=f"The output: {task.mfo} has been assigned to {task.department.name}.")
+            Notification_Service.notify_presidents(msg=f"The output: {task.mfo} has been assigned to {task.department.name}.")
             socketio.emit("department_assigned", "department assigned")
             socketio.emit("user_assigned", "user assigned")
 
-            return jsonify(message = "Task successfully assigned."), 200
+            return jsonify(message = "Output successfully assigned."), 200
         except DataError as e:
             db.session.rollback()
             print(str(e))
@@ -608,10 +608,10 @@ class Tasks_Service():
             task = Main_Task.query.get(task_id)
             
             socketio.emit("user_unassigned", "user assigned")
-            Notification_Service.notify_user(user_id=user_id, msg=f"A task has been unassigned from you.")
-            Notification_Service.notify_presidents(msg=f"{user.first_name + " " + user.last_name} has been removed from task: {task.mfo}.")
+            Notification_Service.notify_user(user_id=user_id, msg=f"An output has been unassigned from you.")
+            Notification_Service.notify_presidents(msg=f"{user.first_name + " " + user.last_name} has been removed from output: {task.mfo}.")
             
-            return jsonify(message = "Task successfully removed."), 200
+            return jsonify(message = "Output successfully removed."), 200
         except DataError as e:
             db.session.rollback()
             print(str(e))
@@ -712,13 +712,13 @@ class Tasks_Service():
             found_task = Main_Task.query.get(id)
 
             if found_task == None:
-                return jsonify(message="No task with that ID"), 400
+                return jsonify(message="No Output with that ID"), 400
             
             found_task.status = 0
             db.session.commit()
-            Notification_Service.notify_everyone(f"The task: {found_task.mfo} has been archived.")
+            Notification_Service.notify_everyone(f"The output: {found_task.mfo} has been archived.")
 
-            return jsonify(message = "Task successfully archived."), 200
+            return jsonify(message = "Output successfully archived."), 200
         
         except IntegrityError as e:
             db.session.rollback()
@@ -754,12 +754,12 @@ class Tasks_Service():
             db.session.commit()
             socketio.emit("task_modified", "task modified")
             socketio.emit("department_assigned", "task modified")
-            Notification_Service.notify_department(dept_id,f"The task: {found_task.mfo} has been removed from this department.")
-            Notification_Service.notify_heads(f"The task: {found_task.mfo} has been assigned as a general task.")
-            Notification_Service.notify_presidents(f"The task: {found_task.mfo} has been assigned as a general task.")
-            Notification_Service.notify_administrators(f"The task: {found_task.mfo} has been assigned as a general task.")
+            Notification_Service.notify_department(dept_id,f"The output: {found_task.mfo} has been removed from this office.")
+            Notification_Service.notify_heads(f"The output: {found_task.mfo} has been assigned as a general output.")
+            Notification_Service.notify_presidents(f"The output: {found_task.mfo} has been assigned as a general output.")
+            Notification_Service.notify_administrators(f"The output: {found_task.mfo} has been assigned as a general output.")
 
-            return jsonify(message = "Task successfully removed."), 200
+            return jsonify(message = "Output successfully removed."), 200
         
         except IntegrityError as e:
             db.session.rollback()
@@ -791,7 +791,7 @@ class Tasks_Service():
                 return jsonify(message = "There is no outputs found."), 400
             
             if assigned_task == None:
-                return jsonify(message = "There is no assigned tasks found."), 400
+                return jsonify(message = "There is no assigned outputs found."), 400
             
             db.session.delete(output)
             db.session.delete(assigned_task)
@@ -800,7 +800,7 @@ class Tasks_Service():
             socketio.emit("ipcr", "subtask removed")
             socketio.emit("ipcr_remove", "subtask removed")
 
-            return jsonify(message = "Task was successfully removed."), 200
+            return jsonify(message = "Output was successfully removed."), 200
         except IntegrityError as e:
             db.session.rollback()
             print(str(e))

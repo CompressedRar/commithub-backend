@@ -71,7 +71,7 @@ class Category_Service():
                 dept = all_depts[0].to_dict()
                 return jsonify(dept), 200
             else:
-                return jsonify(message = "There is no category with that id"), 400
+                return jsonify(message = "There is no key result area with that id"), 400
         except OperationalError:
             #db.session.rollback()
             return jsonify(error="Database connection error"), 500
@@ -88,7 +88,7 @@ class Category_Service():
             )
             db.session.add(new_category)
 
-            return jsonify(message = "Category created."), 200
+            return jsonify(message = "Key Area Result created."), 200
         except IntegrityError as e:
             db.session.rollback()
             print(str(e))
@@ -115,12 +115,12 @@ class Category_Service():
             found_category = Category.query.get(data["id"])
             
             if found_category == None:
-                return jsonify(message = "Category doesn't exists."), 400
+                return jsonify(message = "Key Result Area doesn't exists."), 400
             found_category.name = data["title"]
 
             db.session.commit()
 
-            return jsonify(message = "Category updated."), 200
+            return jsonify(message = "Key Result Area updated."), 200
         except IntegrityError as e:
             db.session.rollback()
             print(str(e))
@@ -153,7 +153,7 @@ class Category_Service():
             db.session.commit()
             socketio.emit("category", "archive")
             
-            return jsonify(message = "Category successfully archived."), 200
+            return jsonify(message = "Key Result Area successfully archived."), 200
         
         except IntegrityError as e:
             db.session.rollback()
