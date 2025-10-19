@@ -47,7 +47,7 @@ class Output(db.Model):
     
     user = db.relationship("User", back_populates = "outputs")
     ipcr = db.relationship("IPCR", back_populates = "outputs")
-    sub_task = db.relationship("Sub_Task", back_populates="output", uselist=False, cascade="all, delete-orphan")
+    sub_task = db.relationship("Sub_Task", back_populates="output", uselist=False, cascade="all, delete")
     main_task = db.relationship("Main_Task", back_populates = "outputs")
 
     status = db.Column(db.Integer, default = 1)
@@ -119,6 +119,8 @@ class Main_Task(db.Model):
     outputs = db.relationship("Output", back_populates="main_task", cascade = "all, delete")
 
     assigned_tasks = db.relationship("Assigned_Task", back_populates="main_task", cascade = "all, delete")
+
+    
 
     def get_users(self):
         all_user = []
@@ -327,6 +329,11 @@ class Sub_Task(db.Model):
  
 
 class Tasks_Service():
+
+    def test_ipcr():
+        from models.PCR import IPCR
+        ipcr = IPCR.query.get(9)
+        return jsonify(ipcr.to_dict()), 200
     def get_main_tasks():
         try:
             all_main_tasks = Main_Task.query.filter_by(status = 1).all()
@@ -555,6 +562,12 @@ class Tasks_Service():
         try:
             task = Main_Task.query.get(task_id)
 
+            #buburahin niya yung mga task na di naman nasa department
+            for output in task.outputs:
+                if not output.user.department.id == dept_id:
+                    db.session.delete(output)
+                    db.session.commit()
+
             if task == None:
                 return jsonify(message = "Output is not found."), 400
             
@@ -588,22 +601,44 @@ class Tasks_Service():
             return jsonify(error=str(e)), 500
         
         #ayusin yung mga logs mamaya
+
+    def check_if_ipcrs_have_tasks():
+        from models.PCR import IPCR, Supporting_Document
+        
+        ipcrs = IPCR.query.filter(~IPCR.sub_tasks.any()).all()
+
+        for ipcr in ipcrs:
+
+            Supporting_Document.query.filter_by(ipcr_id = ipcr.id).delete()
+
+            print(f"Deleting IPCR {ipcr.id} with no sub_tasks")
+            db.session.delete(ipcr)
+
+        db.session.commit()
+
+
+
         
     def unassign_user(task_id, user_id):
         try:
-            assigned_tasks = Assigned_Task.query.filter_by(user_id = user_id, main_task_id = task_id).all()
+            Assigned_Task.query.filter_by(user_id = user_id, main_task_id = task_id).delete()
 
             user = User.query.get(user_id)
 
-            for output in user.outputs:
-                if output.main_task_id == task_id:
-                    db.session.delete(output)
-                    db.session.commit()
+            outputs = Output.query.filter_by(user_id = user_id, main_task_id = task_id).all()
 
-            if assigned_tasks:
-                for task in assigned_tasks:
-                    db.session.delete(task)
-                    db.session.commit()
+            for output in outputs:
+                Sub_Task.query.filter_by(output_id = output.id).delete()
+                db.session.commit()
+            
+
+            Output.query.filter_by(user_id = user_id, main_task_id = task_id).delete()
+            db.session.commit()
+
+            Tasks_Service.check_if_ipcrs_have_tasks()
+
+
+
 
             task = Main_Task.query.get(task_id)
             

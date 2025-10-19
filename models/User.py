@@ -27,6 +27,7 @@ class Notification(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     user = db.relationship("User", back_populates = "notifications")
     created_at = db.Column(db.DateTime, default=datetime.now)
+    read = db.Column(db.Boolean, default=False)
     
     user = db.relationship("User", back_populates = "notifications")
 
@@ -35,10 +36,41 @@ class Notification(db.Model):
         return {
             "id" : self.id,
             "name": self.name,
-            "created_at": str(self.created_at)
+            "created_at": str(self.created_at),
+            "read":self.read
         }
     
 class Notification_Service():
+
+    def mark_as_read(id_arrays):
+        try:
+            for id in id_arrays:
+                notif = Notification.query.get(id)
+                notif.read = True
+            
+            db.session.commit()
+
+            return jsonify(message = "Success") , 200
+        except IntegrityError as e:
+            db.session.rollback()
+            print(str(e), "Integrity")
+            return jsonify(error="Task already exists"), 400
+        
+        except DataError as e:
+            db.session.rollback()
+            print(str(e), "data error")
+            
+            return jsonify(error="Invalid data format"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e), "operational")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "unknown")
+            return jsonify(error=str(e)), 500
 
     def get_user_notification(user_id):
         try:

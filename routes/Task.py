@@ -46,3 +46,8 @@ def update_sub_task_field(sub_task_id):
     value = request.args.get("value")
     print(sub_task_id, field, value)
     return Tasks_Service.update_sub_task_fields(sub_task_id, field, value)
+
+
+@task.route("/test-ipcr-get", methods = ["GET"])
+def get_IPCRs():
+    return Tasks_Service.test_ipcr()

@@ -119,7 +119,7 @@ class IPCR(db.Model):
 
     isMain = db.Column(db.Boolean, default = False)
     status = db.Column(db.Integer, default = 1)
-    form_status = db.Column(db.Enum("pending", "reviewed", "approved"), default="pending")
+    form_status = db.Column(db.Enum("draft","pending", "reviewed", "approved", "rejected", "archived"), default="draft")
 
     batch_id = db.Column(db.Text, default="")
     assigned_pcrs = db.relationship("Assigned_PCR", back_populates = "ipcr", cascade = "all, delete")
@@ -193,8 +193,7 @@ class IPCR(db.Model):
 
             self.confirmed_by = "HON. MARIA ELENA L. GERMAR"
             self.con_position = "PMT Chairperson"
-            self.form_status = "reviewed"
-            db.session.commit()
+            
 
         elif self.user.role == "president":
             department_head =User.query.filter_by(department_id = self.user.department_id, role = "head").first()
@@ -295,7 +294,7 @@ class OPCR(db.Model):
     ipcrs = db.relationship("IPCR", back_populates = "opcr", cascade = "all, delete")
     isMain = db.Column(db.Boolean, default = False)
     status = db.Column(db.Integer, default = 1)
-    form_status = db.Column(db.Enum("pending", "reviewed", "approved"), default="reviewed")
+    form_status = db.Column(db.Enum("pending", "approved", "rejected", "archived"), default="pending")
 
     created_at = db.Column(db.DateTime, default=datetime.now)
     assigned_pcrs = db.relationship("Assigned_PCR", back_populates = "opcr", cascade = "all, delete")
@@ -450,6 +449,33 @@ class PCR_Service():
             print("generate_IPCR error:", e)
             return jsonify(error=str(e)), 500
         
+    def reject_ipcr(ipcr_id):
+        try:
+            ipcr = IPCR.query.get(ipcr_id)
+            
+            if ipcr:
+                ipcr.form_status = "rejected"
+                ipcr.rev_date = datetime.now()
+                ipcr.ass_date = datetime.now()
+                ipcr.dis_date = datetime.now()
+                db.session.commit()
+                socketio.emit("ipcr", "approved")
+                socketio.emit("opcr", "approved")
+                socketio.emit("reject")
+                Notification_Service.notify_user(ipcr.user.id, f"Your IPCR: #{ipcr_id} has been rejected by department head of this department.")
+                Notification_Service.notify_presidents(f"IPCR: #{ipcr_id} from {ipcr.user.department.name} has been rejected by department head.")
+                return jsonify(message = "This IPCR is successfully rejected."), 200
+
+            return jsonify(error = "There is no ipcr with that id"), 400
+        
+        except OperationalError as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
     def review_ipcr(ipcr_id):
         try:
             ipcr = IPCR.query.get(ipcr_id)
@@ -573,6 +599,7 @@ class PCR_Service():
             
             ipcr = IPCR.query.get(ipcr_id)
             ipcr.isMain = True
+            ipcr.form_status = "pending"
 
             db.session.commit()
             Notification_Service.notify_department_heads(user.department_id, f"{user.first_name + " " + user.last_name} assigned IPCR: #{ipcr_id} as its latest IPCR.")

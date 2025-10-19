@@ -75,6 +75,14 @@ def assign_department_head(user_id):
 def remove_department_head(user_id):
     return Users.remove_department_head(user_id)
     
+@users.route("/notifications/", methods = ["PATCH"])
+def read_notifications():
+
+    data = request.get_json()
+    id_array = data.get("id", [])
+    return Notification_Service.mark_as_read(id_array)
+    
+
 
 @users.route("/<id>", methods = ["POST"])
 @log_action(action = "REACTIVATE", target="USER")

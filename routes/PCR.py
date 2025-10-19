@@ -26,6 +26,11 @@ def approve_ipcr(id):
 def review_ipcr(id):
     return PCR_Service.review_ipcr(id)
 
+@pcrs.route("/ipcr/reject/<id>", methods = ["POST"])
+def reject_ipcr(id):
+    return PCR_Service.reject_ipcr(id)
+
+
 @pcrs.route("/opcr/approve/<id>", methods = ["POST"])
 def approve_opcr(id):
     return PCR_Service.approve_opcr(id)
