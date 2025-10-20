@@ -217,7 +217,7 @@ class IPCR(db.Model):
 
             self.confirmed_by = "HON. MARIA ELENA L. GERMAR"
             self.con_position = "PMT Chairperson"
-            self.form_status = "approved"
+            
             db.session.commit()
 
         return {
@@ -294,7 +294,7 @@ class OPCR(db.Model):
     ipcrs = db.relationship("IPCR", back_populates = "opcr", cascade = "all, delete")
     isMain = db.Column(db.Boolean, default = False)
     status = db.Column(db.Integer, default = 1)
-    form_status = db.Column(db.Enum("pending", "approved", "rejected", "archived"), default="pending")
+    form_status = db.Column(db.Enum("draft","pending", "approved", "rejected", "archived"), default="draft")
 
     created_at = db.Column(db.DateTime, default=datetime.now)
     assigned_pcrs = db.relationship("Assigned_PCR", back_populates = "opcr", cascade = "all, delete")
@@ -601,11 +601,72 @@ class PCR_Service():
             ipcr.isMain = True
             ipcr.form_status = "pending"
 
+            socketio.emit("assign")
+
             db.session.commit()
             Notification_Service.notify_department_heads(user.department_id, f"{user.first_name + " " + user.last_name} assigned IPCR: #{ipcr_id} as its latest IPCR.")
             Notification_Service.notify_presidents(f"{user.first_name + " " + user.last_name} from {user.department.name} assigned IPCR: #{ipcr_id} as its latest IPCR.")
             
             return jsonify(message = "IPCR successfully assigned."), 200
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def assign_pres_ipcr(ipcr_id, user_id):
+        try:
+            user = User.query.get(user_id)
+
+            if user == None:
+                return jsonify(message = "There is no user with that id"), 400
+
+            for ipcr in user.ipcrs:
+                ipcr.isMain = False
+
+            
+            ipcr = IPCR.query.get(ipcr_id)
+            ipcr.isMain = True
+            ipcr.form_status = "approved"
+
+            socketio.emit("assign")
+
+            db.session.commit()
+            
+            return jsonify(message = "IPCR successfully assigned."), 200
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def assign_main_opcr(opcr_id, dept_id):
+        try:
+            opcrs = OPCR.query.filter_by(department_id = dept_id).all()
+            dept = Department.query.filter_by(id = dept_id).first()
+            for opcr in opcrs:
+                opcr.isMain = False
+
+            
+
+            
+            ipcr = OPCR.query.get(opcr_id)
+            ipcr.isMain = True
+            ipcr.form_status = "pending"
+
+            socketio.emit("assign")
+
+            db.session.commit()
+            Notification_Service.notify_department_heads(dept_id, f"{dept.name} submitted their latest OPCR.")
+            Notification_Service.notify_presidents(f"{dept.name}  as its latest IPCR.")
+            
+            return jsonify(message = "OPCR successfully assigned."), 200
         
         except OperationalError:
             #db.session.rollback()
