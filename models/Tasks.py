@@ -940,34 +940,27 @@ class Tasks_Service():
 
             if field == "target_acc":
                 ipcr.target_acc = int(value)
-
-                ipcr.quantity = Tasks_Service.calculateQuantity(int(value), ipcr.actual_acc)
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "target_time":
                 ipcr.target_time = int(value)
-                ipcr.timeliness = Tasks_Service.calculateTimeliness(int(value), ipcr.actual_time)
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "target_mod":
                 ipcr.target_mod = int(value)
-                ipcr.efficiency = Tasks_Service.calculateEfficiency(int(value), ipcr.actual_mod)
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
 
             if field == "actual_acc":
                 ipcr.actual_acc = int(value)
-                ipcr.quantity = Tasks_Service.calculateQuantity(ipcr.target_acc, int(value))
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "actual_time":
                 ipcr.actual_time = int(value)
-                ipcr.timeliness = Tasks_Service.calculateTimeliness(ipcr.target_time, int(value))
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "actual_mod":
                 ipcr.actual_mod = int(value)
-                ipcr.efficiency = Tasks_Service.calculateEfficiency(ipcr.target_mod, int(value))
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
                 
 

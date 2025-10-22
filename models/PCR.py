@@ -234,32 +234,32 @@ class IPCR(db.Model):
             "review" : {
                 "name": self.reviewed_by,
                 "position": self.rev_position,
-                "date": str(self.rev_date)
+                "date": ""
             },
             "approve" : {
                 "name": self.approved_by,
                 "position": self.app_position,
-                "date": str(self.app_date)
+                "date": ""
             },
             "discuss" : {
                 "name": self.discussed_with,
                 "position": self.dis_position,
-                "date": str(self.dis_date)
+                "date": ""
             },
             "assess" : {
                 "name": self.assessed_by,
                 "position": self.ass_position,
-                "date": str(self.ass_date)
+                "date": ""
             },
             "final" : {
                 "name": self.final_rating_by,
                 "position": self.fin_position,
-                "date": str(self.fin_date)
+                "date": ""
             },
             "confirm" : {
                 "name": self.confirmed_by,
                 "position": self.con_position,
-                "date": str(self.con_date)
+                "date": ""
             }
         }
     
@@ -344,33 +344,33 @@ class OPCR(db.Model):
             "review" : {
                 "name": self.reviewed_by,
                 "position": self.rev_position,
-                "date": str(self.rev_date)
+                "date": ""
             },
             "approve" : {
                 "name": self.approved_by,
                 "position": self.app_position,
-                "date": str(self.app_date)
+                "date": ""
             },
             "discuss" : {
                 "name": self.discussed_with,
                 "position": self.dis_position,
-                "date": str(self.dis_date)
+                "date": ""
                 
             },
             "assess" : {
                 "name": self.assessed_by,
                 "position": self.ass_position,
-                "date": str(self.ass_date)
+                "date": ""
             },
             "final" : {
                 "name": self.final_rating_by,
                 "position": self.fin_position,
-                "date": str(self.fin_date)
+                "date": ""
             },
             "confirm" : {
                 "name": self.confirmed_by,
                 "position": self.con_position,
-                "date": str(self.con_date)
+                "date": ""
                 
             },
             "department": self.department.name,
@@ -455,9 +455,6 @@ class PCR_Service():
             
             if ipcr:
                 ipcr.form_status = "rejected"
-                ipcr.rev_date = datetime.now()
-                ipcr.ass_date = datetime.now()
-                ipcr.dis_date = datetime.now()
                 db.session.commit()
                 socketio.emit("ipcr", "approved")
                 socketio.emit("opcr", "approved")
@@ -482,9 +479,6 @@ class PCR_Service():
             
             if ipcr:
                 ipcr.form_status = "rejected"
-                ipcr.rev_date = datetime.now()
-                ipcr.ass_date = datetime.now()
-                ipcr.dis_date = datetime.now()
                 db.session.commit()
                 socketio.emit("ipcr", "approved")
                 socketio.emit("opcr", "approved")
@@ -508,9 +502,6 @@ class PCR_Service():
             
             if ipcr:
                 ipcr.form_status = "reviewed"
-                ipcr.rev_date = datetime.now()
-                ipcr.ass_date = datetime.now()
-                ipcr.dis_date = datetime.now()
                 db.session.commit()
                 socketio.emit("ipcr", "approved")
                 socketio.emit("opcr", "approved")
@@ -532,8 +523,6 @@ class PCR_Service():
         try:
             ipcr = IPCR.query.get(ipcr_id)
             ipcr.form_status = "approved"
-            ipcr.app_date = datetime.now()
-            ipcr.fin_date = datetime.now()
             db.session.commit()
             socketio.emit("ipcr", "approved")
             socketio.emit("opcr", "approved")
@@ -579,7 +568,6 @@ class PCR_Service():
             
             if opcr:
                 opcr.form_status = "approved"
-                opcr.dis_date = datetime.now()
                 db.session.commit()
                 socketio.emit("ipcr", "approved")
                 socketio.emit("opcr", "approved")
@@ -941,9 +929,9 @@ class PCR_Service():
                                     data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
                                     data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
 
-                                    data[current_data_index][name][current_task_index]["rating"]["quantity"] = PCR_Service.calculateQuantity(data[current_data_index][name][current_task_index]["summary"]["target"], data[current_data_index][name][current_task_index]["summary"]["actual"])
-                                    data[current_data_index][name][current_task_index]["rating"]["efficiency"] = PCR_Service.calculateQuantity(data[current_data_index][name][current_task_index]["corrections"]["target"], data[current_data_index][name][current_task_index]["corrections"]["actual"])
-                                    data[current_data_index][name][current_task_index]["rating"]["timeliness"] = PCR_Service.calculateTimeliness(data[current_data_index][name][current_task_index]["working_days"]["target"], data[current_data_index][name][current_task_index]["working_days"]["actual"])
+                                    data[current_data_index][name][current_task_index]["rating"]["quantity"] = sub_task.quantity
+                                    data[current_data_index][name][current_task_index]["rating"]["efficiency"] = sub_task.efficiency
+                                    data[current_data_index][name][current_task_index]["rating"]["timeliness"] = sub_task.timeliness
 
                                     data[current_data_index][name][current_task_index]["rating"]["average"] = PCR_Service.calculateAverage(data[current_data_index][name][current_task_index]["rating"]["quantity"], data[current_data_index][name][current_task_index]["rating"]["efficiency"], data[current_data_index][name][current_task_index]["rating"]["timeliness"])
                                 current_task_index += 1     
@@ -993,32 +981,32 @@ class PCR_Service():
                     "review": {
                         "name": head.first_name + " " + head.last_name,
                         "position": head.position.name,
-                        "date": "2025-03-10"
+                        "date": ""
                     },
                     "approve": {
                         "name": opcr_data["approve"]["name"],
                         "position": opcr_data["approve"]["position"],
-                        "date": "2025-03-12"
+                        "date": ""
                     },
                     "discuss": {
                         "name": opcr_data["discuss"]["name"],
                         "position": opcr_data["discuss"]["position"],
-                        "date": "2025-03-15"
+                        "date": ""
                     },
                     "assess": {
                         "name": opcr_data["assess"]["name"],
                         "position": opcr_data["assess"]["position"],
-                        "date": "2025-03-16"
+                        "date": ""
                     },
                     "final": {
                         "name": opcr_data["final"]["name"],
                         "position": opcr_data["final"]["position"],
-                        "date": "2025-03-20"
+                        "date": ""
                     },
                     "confirm": {
                         "name": "Hon. Maria Elena L. Germar",
                         "position": "PMT Chairperson",
-                        "date": "2025-03-21"
+                        "date": ""
                     }
                 }
             }      
@@ -1087,9 +1075,9 @@ class PCR_Service():
                                         data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
                                         data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
 
-                                        data[current_data_index][name][current_task_index]["rating"]["quantity"] = PCR_Service.calculateQuantity(data[current_data_index][name][current_task_index]["summary"]["target"], data[current_data_index][name][current_task_index]["summary"]["actual"])
-                                        data[current_data_index][name][current_task_index]["rating"]["efficiency"] = PCR_Service.calculateQuantity(data[current_data_index][name][current_task_index]["corrections"]["target"], data[current_data_index][name][current_task_index]["corrections"]["actual"])
-                                        data[current_data_index][name][current_task_index]["rating"]["timeliness"] = PCR_Service.calculateTimeliness(data[current_data_index][name][current_task_index]["working_days"]["target"], data[current_data_index][name][current_task_index]["working_days"]["actual"])
+                                        data[current_data_index][name][current_task_index]["rating"]["quantity"] = sub_task.quantity
+                                        data[current_data_index][name][current_task_index]["rating"]["efficiency"] = sub_task.efficiency
+                                        data[current_data_index][name][current_task_index]["rating"]["timeliness"] = sub_task.timeliness
 
                                         data[current_data_index][name][current_task_index]["rating"]["average"] = PCR_Service.calculateAverage(data[current_data_index][name][current_task_index]["rating"]["quantity"], data[current_data_index][name][current_task_index]["rating"]["efficiency"], data[current_data_index][name][current_task_index]["rating"]["timeliness"])
                                     current_task_index += 1     
@@ -1218,9 +1206,9 @@ class PCR_Service():
                                     data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
                                     data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
 
-                                    data[current_data_index][name][current_task_index]["rating"]["quantity"] = PCR_Service.calculateQuantity(data[current_data_index][name][current_task_index]["summary"]["target"], data[current_data_index][name][current_task_index]["summary"]["actual"])
-                                    data[current_data_index][name][current_task_index]["rating"]["efficiency"] = PCR_Service.calculateQuantity(data[current_data_index][name][current_task_index]["corrections"]["target"], data[current_data_index][name][current_task_index]["corrections"]["actual"])
-                                    data[current_data_index][name][current_task_index]["rating"]["timeliness"] = PCR_Service.calculateTimeliness(data[current_data_index][name][current_task_index]["working_days"]["target"], data[current_data_index][name][current_task_index]["working_days"]["actual"])
+                                    data[current_data_index][name][current_task_index]["rating"]["quantity"] = sub_task.quantity
+                                    data[current_data_index][name][current_task_index]["rating"]["efficiency"] = sub_task.efficiency
+                                    data[current_data_index][name][current_task_index]["rating"]["timeliness"] = sub_task.timeliness
 
                                     data[current_data_index][name][current_task_index]["rating"]["average"] = PCR_Service.calculateAverage(data[current_data_index][name][current_task_index]["rating"]["quantity"], data[current_data_index][name][current_task_index]["rating"]["efficiency"], data[current_data_index][name][current_task_index]["rating"]["timeliness"])
                                 current_task_index += 1     
