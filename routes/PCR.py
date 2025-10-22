@@ -60,6 +60,10 @@ def assign_pres_ipcr(ipcr_id, user_id):
 def assign_opcr(opcr_id, dept_id):
     return PCR_Service.assign_main_opcr(opcr_id, dept_id)
 
+@pcrs.route("/opcr/reject/<opcr_id>", methods = ["PATCH"])
+def reject_opcr(opcr_id):
+    return PCR_Service.reject_opcr(opcr_id)
+
 
 @pcrs.route("/ipcr/task/<main_task_id>&<batch_id>", methods = ["DELETE"])
 def remove_task_from_ipcr(main_task_id, batch_id):

@@ -82,30 +82,34 @@ class Category_Service():
         
     def create_category(data):
         try:
-            print(data)
-            new_category = Category(
-                name = data["category_name"]
-            )
-            db.session.add(new_category)
+            category_name = data.get("category_name", "").strip()
 
-            return jsonify(message = "Key Area Result created."), 200
-        except IntegrityError as e:
-            db.session.rollback()
-            print(str(e))
-            return jsonify(error="Category already exists"), 400
-        
+            if not category_name:
+                return jsonify(error="Category name is required."), 400
+
+            # Check if the category already exists
+            existing_category = Category.query.filter_by(name=category_name).first()
+            if existing_category:
+                return jsonify(error="Category name already exists."), 400
+
+            # Create new category
+            new_category = Category(name=category_name)
+            db.session.add(new_category)
+            db.session.commit()  # Make sure to commit!
+
+            return jsonify(message="Category created successfully."), 200
+
         except DataError as e:
             db.session.rollback()
             print(str(e))
-            
-            return jsonify(error="Invalid data format"), 400
+            return jsonify(error="Invalid data format."), 400
 
         except OperationalError as e:
             db.session.rollback()
             print(str(e))
-            return jsonify(error="Database connection error"), 500
+            return jsonify(error="Database connection error."), 500
 
-        except Exception as e:  # fallback for unknown errors
+        except Exception as e:
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500

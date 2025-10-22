@@ -766,12 +766,14 @@ class Users():
             
             res = upload_file(profile_picture)
 
+            dept_id = data["department"]
+
             new_user = User(
                 first_name=data["first_name"],
                 last_name=data["last_name"],
                 middle_name=data["middle_name"] if data["middle_name"] else "",
                 position_id = data["position"],
-                department_id=data["department"],
+                department_id=dept_id,
                 role = data["role"],            
                 email=data["email"],
                 password= hashed_password,

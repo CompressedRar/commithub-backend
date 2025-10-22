@@ -476,6 +476,32 @@ class PCR_Service():
             #db.session.rollback()
             return jsonify(error=str(e)), 500
         
+    def reject_opcr(opcr_id):
+        try:
+            ipcr = OPCR.query.get(opcr_id)
+            
+            if ipcr:
+                ipcr.form_status = "rejected"
+                ipcr.rev_date = datetime.now()
+                ipcr.ass_date = datetime.now()
+                ipcr.dis_date = datetime.now()
+                db.session.commit()
+                socketio.emit("ipcr", "approved")
+                socketio.emit("opcr", "approved")
+                socketio.emit("reject")
+                Notification_Service.notify_department(ipcr.department_id ,f"The OPCR from this department has been rejected by department head.")
+                return jsonify(message = "This OPCR is successfully rejected."), 200
+
+            return jsonify(error = "There is no opcr with that id"), 400
+        
+        except OperationalError as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
     def review_ipcr(ipcr_id):
         try:
             ipcr = IPCR.query.get(ipcr_id)
@@ -553,6 +579,7 @@ class PCR_Service():
             
             if opcr:
                 opcr.form_status = "approved"
+                opcr.dis_date = datetime.now()
                 db.session.commit()
                 socketio.emit("ipcr", "approved")
                 socketio.emit("opcr", "approved")

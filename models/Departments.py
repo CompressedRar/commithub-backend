@@ -163,31 +163,49 @@ class Department_Service():
     def create_department(data):
         try:
             print("department data:", data)
-            new_department = Department(name = data["department_name"], icon = data["icon"])
+
+            department_name = data.get("department_name", "").strip()
+            icon = data.get("icon", "").strip()
+
+            if not department_name:
+                return jsonify(error="Department name is required."), 400
+
+            # Check for duplicate department name (case-insensitive)
+            existing_department = Department.query.filter(
+                func.lower(Department.name) == department_name.lower()
+            ).first()
+
+            if existing_department:
+                return jsonify(error="Department name already exists."), 400
+
+            # Create the new department
+            new_department = Department(name=department_name, icon=icon)
             db.session.add(new_department)
             db.session.commit()
-            Notification_Service.notify_heads(f"{data["department_name"]} has been added.")
-            Notification_Service.notify_presidents(f"{data["department_name"]} has been added.")
-            Notification_Service.notify_administrators(f"{data["department_name"]} has been added.")
 
-            return jsonify(message = "Office successfully created."), 200
+            # Send notifications (use single quotes in f-strings to avoid syntax issues)
+            Notification_Service.notify_heads(f"{department_name} has been added.")
+            Notification_Service.notify_presidents(f"{department_name} has been added.")
+            Notification_Service.notify_administrators(f"{department_name} has been added.")
+
+            return jsonify(message="Office successfully created."), 200
+
         except IntegrityError as e:
             db.session.rollback()
             print(str(e))
-            return jsonify(error="Email already exists"), 400
-        
+            return jsonify(error="Department name already exists."), 400
+
         except DataError as e:
             db.session.rollback()
             print(str(e))
-            
-            return jsonify(error="Invalid data format"), 400
+            return jsonify(error="Invalid data format."), 400
 
         except OperationalError as e:
             db.session.rollback()
             print(str(e))
-            return jsonify(error="Database connection error"), 500
+            return jsonify(error="Database connection error."), 500
 
-        except Exception as e:  # fallback for unknown errors
+        except Exception as e:
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
