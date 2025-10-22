@@ -195,7 +195,7 @@ class IPCR(db.Model):
             self.con_position = "PMT Chairperson"
             
 
-        elif self.user.role == "president":
+        elif self.user.role == "president" or self.user.role == "administrator":
             department_head =User.query.filter_by(department_id = self.user.department_id, role = "head").first()
 
             president = User.query.filter_by(role = "president").first()
