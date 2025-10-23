@@ -289,7 +289,10 @@ class Sub_Task(db.Model):
     
     def calculateAverage(self):
         
-        calculations = self.quantity + self.efficiency + self.timeliness
+        q = 5 if self.quantity > 5 else self.quantity
+        e = 5 if self.efficiency > 5 else self.efficiency
+        t = 5 if self.timeliness > 5 else self.timeliness
+        calculations = q + e + t
         result = calculations/3
         return result
     
@@ -319,7 +322,7 @@ class Sub_Task(db.Model):
             "quantity": self.quantity,
             "efficiency": self.efficiency,
             "timeliness": self.timeliness,
-            "average": self.average,
+            "average": self.calculateAverage(),
 
          
             "ipcr": self.ipcr.info(),
@@ -965,24 +968,25 @@ class Tasks_Service():
                 
 
 
-
-            if field == "quantity":
+            
+            if field == "quantity editable-field":
+                
                 ipcr.quantity = int(value)
                 db.session.commit()
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
-            if field == "efficiency":
+            if field == "efficiency editable-field":
                 ipcr.efficiency = int(value)
                 db.session.commit()
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
-            if field == "timeliness":
+            if field == "timeliness editable-field":
                 ipcr.timeliness = int(value)
                 db.session.commit()
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "average":
-                ipcr.average = int(value)
+                ipcr.average = float(value)
                 
             db.session.commit()
 

@@ -328,7 +328,7 @@ class Department_Service():
                 ipcr_container = None
 
                 for ipcr in members.ipcrs:
-                    if ipcr.isMain:
+                    if ipcr.isMain and ipcr.status == 1:
                         ipcr_container = ipcr.department_info()
 
                 user_ipcr.append({

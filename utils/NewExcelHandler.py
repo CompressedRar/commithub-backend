@@ -127,12 +127,12 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
 
     # If individuals not provided, try to fill from ipcr text fields; otherwise use blanks
     individuals={
-        "review": {"name": ipcr.reviewed_by, "position": ipcr.rev_position, "date": datetime.datetime(2025, 1, 15) },
-        "approve": {"name": ipcr.approved_by, "position": ipcr.app_position, "date": datetime.datetime(2025, 1, 15) },
-        "discuss": {"name": ipcr.discussed_with, "position": ipcr.dis_position, "date": datetime.datetime(2025, 1, 15) },
-        "assess": {"name": ipcr.assessed_by, "position": ipcr.ass_position, "date": datetime.datetime(2025, 1, 15) },
-        "final": {"name": ipcr.final_rating_by, "position": ipcr.fin_position, "date": datetime.datetime(2025, 1, 15) },
-        "confirm": {"name": ipcr.confirmed_by, "position": ipcr.con_position, "date": datetime.datetime(2025, 1, 15) }
+        "review": {"name": ipcr.reviewed_by, "position": ipcr.rev_position, "date": ""},
+        "approve": {"name": ipcr.approved_by, "position": ipcr.app_position, "date": "" },
+        "discuss": {"name": ipcr.discussed_with, "position": ipcr.dis_position, "date": "" },
+        "assess": {"name": ipcr.assessed_by, "position": ipcr.ass_position, "date": "" },
+        "final": {"name": ipcr.final_rating_by, "position": ipcr.fin_position, "date": "" },
+        "confirm": {"name": ipcr.confirmed_by, "position": ipcr.con_position, "date": "" }
     }
 
     if individuals is None:
@@ -191,20 +191,20 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     ws["A7"] = f"the following targets in accordance with the indicated measures for the period of {period}."
     ws["N8"] = name
     ws["N9"] = position
-    ws["N10"] = formatDate(ipcr.created_at)
+    ws["N10"] = ""
     ws["N10"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["N10"].font = Font(bold=True, name="Calibri", size="11")
 
     # individuals: review / approve
     ws["A13"] = individuals.get("review", {}).get("name", "")
     ws["A14"] = individuals.get("review", {}).get("position", "")
-    ws["H13"] = formatDate(individuals.get("review", {}).get("date", None))
+    ws["H13"] = ""
     ws["H13"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["H13"].font = Font(bold=True, name="Calibri", size="11")
 
     ws["J13"] = individuals.get("approve", {}).get("name", "")
     ws["J14"] = individuals.get("approve", {}).get("position", "")
-    ws["R13"] = formatDate(individuals.get("approve", {}).get("date", None))
+    ws["R13"] = ""
     ws["R13"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["R13"].font = Font(bold=True, name="Calibri", size="11")
 
@@ -398,7 +398,7 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     ws[f"A{row}"].font = Font(bold=True, name="Calibri", size="11")
 
     prepareCells(ws, f"E{row}", f"F{row+2}")
-    ws[f"E{row}"] = formatDate(individuals.get('discuss', {}).get('date', None))
+    ws[f"E{row}"] = ""
     ws[f"E{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws[f"E{row}"].font = Font(bold=True, name="Calibri", size="11")
 
@@ -408,7 +408,7 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     ws[f"G{row}"].font = Font(bold=True, name="Calibri", size="11")
 
     prepareCells(ws, f"K{row}", f"L{row+2}")
-    ws[f"K{row}"] = formatDate(individuals.get('assess', {}).get('date', None))
+    ws[f"K{row}"] = ""
     ws[f"K{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws[f"K{row}"].font = Font(bold=True, name="Calibri", size="11")
 
@@ -418,7 +418,7 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     ws[f"M{row}"].font = Font(bold=True, name="Calibri", size="11")
 
     prepareCells(ws, f"Q{row}", f"S{row+2}")
-    ws[f"Q{row}"] = formatDate(individuals.get('final', {}).get('date', None))
+    ws[f"Q{row}"] = ""
     ws[f"Q{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws[f"Q{row}"].font = Font(bold=True, name="Calibri", size="11")
 
@@ -439,7 +439,7 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     ws[f"G{row}"].font = Font(bold=True, name="Calibri", size="11")
 
     prepareCells(ws, f"K{row}", f"L{row+2}")
-    ws[f"K{row}"] = formatDate(individuals.get('confirm', {}).get('date', None))
+    ws[f"K{row}"] = ""
     ws[f"K{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws[f"K{row}"].font = Font(bold=True, name="Calibri", size="11")
 

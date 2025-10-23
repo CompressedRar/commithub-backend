@@ -18,6 +18,10 @@ def get_ipcr(id):
 def get_opcr(id):
     return PCR_Service.get_opcr(id)
 
+@pcrs.route("/master-opcr/", methods = ["GET"])
+def get_master_opcr():
+    return PCR_Service.get_master_opcr()
+
 @pcrs.route("/ipcr/approve/<id>", methods = ["POST"])
 def approve_ipcr(id):
     return PCR_Service.approve_ipcr(id)
@@ -80,12 +84,12 @@ def add_task_to_ipcr(main_task_id, batch_id, user_id, ipcr_id):
 def download_ipcr(ipcr_id):
 
     file_url = NewExcelHandler.createNewIPCR_from_db(ipcr_id=ipcr_id, individuals={
-        "review": {"name": "Arman Bitancur", "position": "Librarian II", "date": datetime.datetime(2025, 1, 15) },
-        "approve": {"name": "Arman Bitancur", "position": "Librarian II", "date": datetime.datetime(2025, 1, 15) },
-        "discuss": {"name": "Arman Bitancur", "position": "Librarian II", "date": datetime.datetime(2025, 1, 15) },
-        "assess": {"name": "Arman Bitancur", "position": "Librarian II", "date": datetime.datetime(2025, 1, 15) },
-        "final": {"name": "Arman Bitancur", "position": "Librarian II", "date": datetime.datetime(2025, 1, 15) },
-        "confirm": {"name": "Arman Bitancur", "position": "Librarian II", "date": datetime.datetime(2025, 1, 15) }
+        "review": {"name": "Arman Bitancur", "position": "Librarian II", "date": ""},
+        "approve": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" },
+        "discuss": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" },
+        "assess": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" },
+        "final": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" },
+        "confirm": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" }
     })
 
     return jsonify(link = file_url), 200

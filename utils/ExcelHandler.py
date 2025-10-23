@@ -63,13 +63,13 @@ def createNewOPCR(data, assigned, admin_data):
     ws["A7"] = f"the following targets in accordance with the indicated measures for the period of {period}."
     ws["N8"] = name
     ws["N9"] = admin_data["position"]
-    ws["N10"] = formatDate(date.today())
+    ws["N10"] = ""
     ws["N10"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["N10"].font = Font(bold=True, name="Calibri", size="11")
     
     ws["A13"] = "Name: " + admin_data["individuals"]["approve"]["name"]
     ws["A14"] = "Position: " +  admin_data["individuals"]["approve"]["position"]
-    ws["A15"] = "Date: " + formatDate(admin_data["individuals"]["approve"]["date"])
+    ws["A15"] = "Date: " + ""
     
     
     row = 26
@@ -284,7 +284,7 @@ def createNewOPCR(data, assigned, admin_data):
     ws["A"+str(row)].font = Font(bold=True, name="Calibri", size="11")
     
     prepareCells(ws, str("E"+str(row)), str("F"+str(row+2)))
-    ws["E"+str(row)] = formatDate(admin_data["individuals"]["discuss"]["date"])
+    ws["E"+str(row)] = ""
     ws["E"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["E"+str(row)].font = Font(bold=True, name="Calibri", size="11")
     
@@ -294,7 +294,7 @@ def createNewOPCR(data, assigned, admin_data):
     ws["G"+str(row)].font = Font(bold=True, name="Calibri", size="11")
     
     prepareCells(ws, str("K"+str(row)), str("L"+str(row+2)))
-    ws["K"+str(row)] = formatDate(admin_data["individuals"]["assess"]["date"])
+    ws["K"+str(row)] = ""
     ws["K"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["K"+str(row)].font = Font(bold=True, name="Calibri", size="11")
     
@@ -304,7 +304,7 @@ def createNewOPCR(data, assigned, admin_data):
     ws["M"+str(row)].font = Font(bold=True, name="Calibri", size="11")
     
     prepareCells(ws, str("Q"+str(row)), str("S"+str(row+2)))
-    ws["Q"+str(row)] = formatDate(admin_data["individuals"]["final"]["date"])
+    ws["Q"+str(row)] = ""
     ws["Q"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["Q"+str(row)].font = Font(bold=True, name="Calibri", size="11")
     
@@ -326,7 +326,7 @@ def createNewOPCR(data, assigned, admin_data):
     ws["G"+str(row)].font = Font(bold=True, name="Calibri", size="11")
     
     prepareCells(ws, str("K"+str(row)), str("L"+str(row+2)))
-    ws["K"+str(row)] = formatDate(admin_data["individuals"]["confirm"]["date"])
+    ws["K"+str(row)] = ""
     ws["K"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["K"+str(row)].font = Font(bold=True, name="Calibri", size="11")
     
@@ -379,13 +379,13 @@ def createNewMasterOPCR(data, assigned, admin_data):
     ws["A7"] = f"the following targets in accordance with the indicated measures for the period of {period}."
     ws["N8"] = name
     ws["N9"] = admin_data["position"]
-    ws["N10"] = formatDate(date.today())
+    ws["N10"] = ""
     ws["N10"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["N10"].font = Font(bold=True, name="Calibri", size="11")
     
     ws["A13"] = "Name: " + admin_data["individuals"]["approve"]["name"]
     ws["A14"] = "Position: " +  admin_data["individuals"]["approve"]["position"]
-    ws["A15"] = "Date: " + formatDate(admin_data["individuals"]["approve"]["date"])
+    ws["A15"] = "Date: " + ""
     
     
     row = 26
@@ -593,7 +593,6 @@ def createNewMasterOPCR(data, assigned, admin_data):
     ws["A"+str(row)].font = Font(bold=True, name="Calibri", size="11")
     
     prepareCells(ws, str("G"+str(row)), str("H"+str(row+2)))
-    ws["G"+str(row)] = formatDate(admin_data["individuals"]["assess"]["date"])
     ws["G"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["G"+str(row)].font = Font(bold=True, name="Calibri", size="11")
     
@@ -603,7 +602,6 @@ def createNewMasterOPCR(data, assigned, admin_data):
     ws["I"+str(row)].font = Font(bold=True, name="Calibri", size="11")
     
     prepareCells(ws, str("P"+str(row)), str("S"+str(row+2)))
-    ws["P"+str(row)] = formatDate(admin_data["individuals"]["final"]["date"])
     ws["P"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["P"+str(row)].font = Font(bold=True, name="Calibri", size="11")
     
