@@ -1050,7 +1050,7 @@ class PCR_Service():
         categories = []
 
         if not opcrs:
-            return jsonify(error = "There is no approved opcr to consolidate"), 400
+            return jsonify(error = "There is no opcr to consolidate"), 400
 
         assigned = {}
 

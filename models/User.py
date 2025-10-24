@@ -739,7 +739,9 @@ class Users():
     def change_password(user_id, password):
         try:
             user = User.query.get(user_id)
-            user.password = password
+            ph = PasswordHasher()
+            hashed_password = ph.hash(password)
+            user.password = hashed_password
             db.session.commit()
             return jsonify(message = "Success"), 200
         
