@@ -11,7 +11,7 @@ from sqlalchemy import func, outerjoin
 class Department(db.Model):
     __tablename__ = "departments"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.Text, nullable=False)
+    name = db.Column(db.String(50), nullable=False, unique = True)
     icon = db.Column(db.String(50), default = "")
 
     manager_id = db.Column(db.Integer, default = 0)
