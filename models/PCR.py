@@ -13,6 +13,25 @@ from sqlalchemy import func, outerjoin
 from pprint import pprint
 import uuid
 
+class OPCR_Rating(db.Model):
+    __tablename__ = "opcr_ratings"
+    id = db.Column(db.Integer, primary_key=True)
+    mfo = db.Column(db.Text, default="")
+    opcr_id = db.Column(db.Integer, db.ForeignKey("opcr.id"), default = None)
+    opcr = db.relationship("OPCR", back_populates = "opcr")
+
+    quantity = db.Column(db.Integer, default = 0)
+    efficiency = db.Column(db.Integer, default = 0)
+    timeliness = db.Column(db.Integer, default = 0)
+    average = db.Column(db.Integer, default = 0)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "mfo": self.mfo,
+            "opcr_id": self.opcr_id,
+        }
+
 class Assigned_PCR(db.Model):
     __tablename__ = "assigned_pcrs"
     id = db.Column(db.Integer, primary_key=True)
@@ -315,6 +334,7 @@ class OPCR(db.Model):
     department = db.relationship("Department", back_populates="opcrs")
 
     supporting_documents = db.relationship("OPCR_Supporting_Document", back_populates = "opcr", cascade = "all, delete")
+    opcr_ratings = db.relationship("OPCR_Rating", back_populates = "opcr", cascade = "all, delete")
 
     ipcrs = db.relationship("IPCR", back_populates = "opcr", cascade = "all, delete")
     isMain = db.Column(db.Boolean, default = False)
@@ -876,9 +896,19 @@ class PCR_Service():
             new_opcr = OPCR(department_id = dept_id, isMain = True)
             db.session.add(new_opcr)
             db.session.flush()
+
+            all_tasks = []
+            
             
             for ipcr_id in ipcr_ids:
                 ipcr = IPCR.query.get(ipcr_id)
+
+                for sub_task in ipcr.sub_tasks:
+                    if sub_task.main_task.mfo not in all_tasks:
+                        all_tasks.append(sub_task.main_task.mfo)
+                        new_opcr_rating = OPCR_Rating(mfo = sub_task.main_task.mfo, opcr_id = new_opcr.id)
+            
+
                 new_assigned_pcr = Assigned_PCR(opcr_id = new_opcr.id, ipcr_id = ipcr_id, department_id = dept_id)
                 Notification_Service.notify_user(ipcr.user.id, f"Your IPCR: #{ipcr_id} has been consolidated to OPCR: #{new_opcr.id}.")
                 Notification_Service.notify_presidents(f"{ipcr.user.department.name} created a new OPCR.")
@@ -907,93 +937,63 @@ class PCR_Service():
         opcr_data = opcr.to_dict()
         data = []
         categories = []
-
         assigned = {}
 
+        # 🟢 Build a quick lookup for ratings by MFO
+        rating_lookup = {r.mfo: r for r in opcr.opcr_ratings}
+
+        # Collect users assigned per MFO
         for assigned_pcr in opcr.assigned_pcrs:
-            
             for sub_task in assigned_pcr.ipcr.sub_tasks:
-                
                 if sub_task.main_task.category.name not in categories:
                     categories.append(sub_task.main_task.category.name)
-                    #print(sub_task.main_task.mfo)
-                if sub_task.main_task.mfo in assigned.keys():
-                    assigned[sub_task.main_task.mfo].append(f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}")
-                else:
-                    assigned[sub_task.main_task.mfo] = [f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}"]
+                assigned.setdefault(sub_task.main_task.mfo, []).append(
+                    f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}"
+                )
 
-        
         for cat in categories:
-            data.append({
-                cat:[]
-            })
+            data.append({cat: []})
 
         for assigned_pcr in opcr.assigned_pcrs:
-
-
             for sub_task in assigned_pcr.ipcr.sub_tasks:
-                #sub_task.main_task.category.name
-                print(sub_task.main_task.category.name)
-                
                 current_data_index = 0
                 for cat in data:
                     for name, arr in cat.items():
-
-                        
-
                         if sub_task.main_task.category.name == name:
-
-
-                            #check mo kung exzisting na yung task sa loob ng category
-                            current_task_index = 0
                             found = False
-                            for tasks in data[current_data_index][name]:
-                                
-                                if sub_task.mfo == tasks["title"]:
+                            for task_data in data[current_data_index][name]:
+                                if sub_task.mfo == task_data["title"]:
                                     found = True
-                                    data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
-                                    data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
-                                    data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
-                                    data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
-                                    data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
-                                    data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
-
-                                    data[current_data_index][name][current_task_index]["rating"]["quantity"] = sub_task.quantity
-                                    data[current_data_index][name][current_task_index]["rating"]["efficiency"] = sub_task.efficiency
-                                    data[current_data_index][name][current_task_index]["rating"]["timeliness"] = sub_task.timeliness
-
-                                    data[current_data_index][name][current_task_index]["rating"]["average"] = PCR_Service.calculateAverage(data[current_data_index][name][current_task_index]["rating"]["quantity"], data[current_data_index][name][current_task_index]["rating"]["efficiency"], data[current_data_index][name][current_task_index]["rating"]["timeliness"])
-                                current_task_index += 1     
-
+                                    # Aggregate numeric values
+                                    task_data["summary"]["target"] += sub_task.target_acc
+                                    task_data["summary"]["actual"] += sub_task.actual_acc
+                                    task_data["corrections"]["target"] += sub_task.target_mod
+                                    task_data["corrections"]["actual"] += sub_task.actual_mod
+                                    task_data["working_days"]["target"] += sub_task.target_time
+                                    task_data["working_days"]["actual"] += sub_task.actual_time
+                                    break
                             if not found:
+                                # 🟢 Retrieve rating info from OPCR_Rating
+                                rating = rating_lookup.get(sub_task.main_task.mfo)
+                                if rating:
+                                    rating_data = rating.to_dict()
+                                else:
+                                    rating_data = {"quantity": 0, "efficiency": 0, "timeliness": 0, "average": 0}
+
                                 data[current_data_index][name].append({
-                                "title": sub_task.mfo,
-                                "summary": {
-                                    "target": sub_task.target_acc, "actual": sub_task.actual_acc
-                                },
-                                "corrections": {
-                                    "target": sub_task.target_mod, "actual": sub_task.actual_mod
-                                },
-                                "working_days": {
-                                    "target": sub_task.target_time, "actual": sub_task.actual_time
-                                },
-                                "description":{
-                                    "target": sub_task.main_task.target_accomplishment,
-                                    "actual": sub_task.main_task.actual_accomplishment,
-                                    "alterations": sub_task.main_task.modification,
-                                    "time": sub_task.main_task.time_description,
-                                },
-                                "rating": {
-                                    "quantity": 0,
-                                    "efficiency": 0,
-                                    "timeliness": 0,
-                                    "average": 0,
-                                }
-                            })
-                            
-
-                    current_data_index += 1
-
+                                    "title": sub_task.mfo,
+                                    "summary": {"target": sub_task.target_acc, "actual": sub_task.actual_acc},
+                                    "corrections": {"target": sub_task.target_mod, "actual": sub_task.actual_mod},
+                                    "working_days": {"target": sub_task.target_time, "actual": sub_task.actual_time},
+                                    "description": {
+                                        "target": sub_task.main_task.target_accomplishment,
+                                        "actual": sub_task.main_task.actual_accomplishment,
+                                        "alterations": sub_task.main_task.modification,
+                                        "time": sub_task.main_task.time_description,
+                                    },
+                                    "rating": rating_data  # 🟢 Use rating from OPCR_Rating
+                                })
+                current_data_index += 1
                     
         #get the head
         head_data = {}
@@ -1229,6 +1229,10 @@ class PCR_Service():
                             current_task_index = 0
                             found = False
                             for tasks in data[current_data_index][name]:
+                                rating = next((r for r in opcr.opcr_ratings if r.mfo == sub_task.main_task.mfo), None)
+                                rating_data = rating.to_dict() if rating else {"quantity": 0, "efficiency": 0, "timeliness": 0, "average": 0}
+
+
                                 if sub_task.mfo == tasks["title"]:
                                     found = True
                                     data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
@@ -1238,14 +1242,13 @@ class PCR_Service():
                                     data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
                                     data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
 
-                                    data[current_data_index][name][current_task_index]["rating"]["quantity"] = sub_task.quantity
-                                    data[current_data_index][name][current_task_index]["rating"]["efficiency"] = sub_task.efficiency
-                                    data[current_data_index][name][current_task_index]["rating"]["timeliness"] = sub_task.timeliness
-
-                                    data[current_data_index][name][current_task_index]["rating"]["average"] = PCR_Service.calculateAverage(data[current_data_index][name][current_task_index]["rating"]["quantity"], data[current_data_index][name][current_task_index]["rating"]["efficiency"], data[current_data_index][name][current_task_index]["rating"]["timeliness"])
+                                    data[current_data_index][name][current_task_index]["rating"] = rating_data
                                 current_task_index += 1     
 
                             if not found:
+                                rating = next((r for r in opcr.opcr_ratings if r.mfo == sub_task.main_task.mfo), None)
+                                rating_data = rating.to_dict() if rating else {"quantity": 0, "efficiency": 0, "timeliness": 0, "average": 0}
+
                                 data[current_data_index][name].append({
                                 "title": sub_task.mfo,
                                 "summary": {
@@ -1263,12 +1266,7 @@ class PCR_Service():
                                     "alterations": sub_task.main_task.modification,
                                     "time": sub_task.main_task.time_description,
                                 },
-                                "rating": {
-                                    "quantity": 0,
-                                    "efficiency": 0,
-                                    "timeliness": 0,
-                                    "average": 0,
-                                }
+                                "rating": rating_data
                             })
                     current_data_index += 1
 
