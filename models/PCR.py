@@ -1443,7 +1443,7 @@ class PCR_Service():
             }    
         
 
-        return jsonify(ipcr_data = data, assigned = assigned, admin_data = head_data, form_status = opcr.form_status)
+        return jsonify(ipcr_data = data, assigned = assigned, admin_data = head_data, form_status = "")
         
 
     def calculateQuantity(target_acc, actual_acc):
