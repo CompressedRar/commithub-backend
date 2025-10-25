@@ -699,6 +699,8 @@ class PCR_Service():
                 rating.timeliness = value
                 db.session.commit()
             socketio.emit("rating", "change")
+
+            
             return jsonify(message = "Rating updated"), 200
         except OperationalError:
             #db.session.rollback()
@@ -976,62 +978,89 @@ class PCR_Service():
         categories = []
         assigned = {}
 
-        # 🟢 Build a quick lookup for ratings by MFO
-        rating_lookup = {r.mfo: r for r in opcr.opcr_ratings}
-
-        # Collect users assigned per MFO
         for assigned_pcr in opcr.assigned_pcrs:
+            
             for sub_task in assigned_pcr.ipcr.sub_tasks:
+                
                 if sub_task.main_task.category.name not in categories:
                     categories.append(sub_task.main_task.category.name)
-                assigned.setdefault(sub_task.main_task.mfo, []).append(
-                    f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}"
-                )
+                    #print(sub_task.main_task.mfo)
+                if sub_task.main_task.mfo in assigned.keys():
+                    assigned[sub_task.main_task.mfo].append(f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}")
+                else:
+                    assigned[sub_task.main_task.mfo] = [f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}"]
 
+        
         for cat in categories:
-            data.append({cat: []})
+            data.append({
+                cat:[]
+            })
 
         for assigned_pcr in opcr.assigned_pcrs:
+
+
             for sub_task in assigned_pcr.ipcr.sub_tasks:
+                #sub_task.main_task.category.name
+                print(sub_task.main_task.category.name)
+                
                 current_data_index = 0
                 for cat in data:
                     for name, arr in cat.items():
-                        if sub_task.main_task.category.name == name:
-                            found = False
-                            for task_data in data[current_data_index][name]:
-                                if sub_task.mfo == task_data["title"]:
-                                    found = True
-                                    # Aggregate numeric values
-                                    task_data["summary"]["target"] += sub_task.target_acc
-                                    task_data["summary"]["actual"] += sub_task.actual_acc
-                                    task_data["corrections"]["target"] += sub_task.target_mod
-                                    task_data["corrections"]["actual"] += sub_task.actual_mod
-                                    task_data["working_days"]["target"] += sub_task.target_time
-                                    task_data["working_days"]["actual"] += sub_task.actual_time
-                                    break
-                            if not found:
-                                # 🟢 Retrieve rating info from OPCR_Rating
-                                rating = rating_lookup.get(sub_task.main_task.mfo)
-                                if rating:
-                                    rating_data = rating.to_dict()
-                                else:
-                                    rating_data = {"quantity": 0, "efficiency": 0, "timeliness": 0, "average": 0}
 
+                        
+
+                        if sub_task.main_task.category.name == name:
+
+
+                            #check mo kung exzisting na yung task sa loob ng category
+                            current_task_index = 0
+                            found = False
+                            for tasks in data[current_data_index][name]:
+                                
+                                if sub_task.mfo == tasks["title"]:
+                                    found = True
+                                    data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
+                                    data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
+                                    data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
+                                    data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
+                                    data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
+                                    data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
+
+                                    data[current_data_index][name][current_task_index]["rating"]["quantity"] = sub_task.quantity
+                                    data[current_data_index][name][current_task_index]["rating"]["efficiency"] = sub_task.efficiency
+                                    data[current_data_index][name][current_task_index]["rating"]["timeliness"] = sub_task.timeliness
+
+                                    data[current_data_index][name][current_task_index]["rating"]["average"] = PCR_Service.calculateAverage(data[current_data_index][name][current_task_index]["rating"]["quantity"], data[current_data_index][name][current_task_index]["rating"]["efficiency"], data[current_data_index][name][current_task_index]["rating"]["timeliness"])
+                                current_task_index += 1     
+
+                            if not found:
                                 data[current_data_index][name].append({
-                                    "title": sub_task.mfo,
-                                    "summary": {"target": sub_task.target_acc, "actual": sub_task.actual_acc},
-                                    "corrections": {"target": sub_task.target_mod, "actual": sub_task.actual_mod},
-                                    "working_days": {"target": sub_task.target_time, "actual": sub_task.actual_time},
-                                    "description": {
-                                        "target": sub_task.main_task.target_accomplishment,
-                                        "actual": sub_task.main_task.actual_accomplishment,
-                                        "alterations": sub_task.main_task.modification,
-                                        "time": sub_task.main_task.time_description,
-                                    },
-                                    "rating": rating_data  # 🟢 Use rating from OPCR_Rating
-                                })
-                current_data_index += 1
-                    
+                                "title": sub_task.mfo,
+                                "summary": {
+                                    "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                },
+                                "corrections": {
+                                    "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                },
+                                "working_days": {
+                                    "target": sub_task.target_time, "actual": sub_task.actual_time
+                                },
+                                "description":{
+                                    "target": sub_task.main_task.target_accomplishment,
+                                    "actual": sub_task.main_task.actual_accomplishment,
+                                    "alterations": sub_task.main_task.modification,
+                                    "time": sub_task.main_task.time_description,
+                                },
+                                "rating": {
+                                    "quantity": 0,
+                                    "efficiency": 0,
+                                    "timeliness": 0,
+                                    "average": 0,
+                                }
+                            })
+                            
+
+                    current_data_index += 1
         #get the head
         head_data = {}
         head = User.query.filter_by(department_id = opcr.department_id, role = "head").first()
