@@ -464,7 +464,7 @@ class Users():
 
     def authenticate_if_email_exists(email):
         try:
-            all_users = User.query.filter_by(email = email, status = 1).all()
+            all_users = User.query.filter_by(email = email, account_status = 1).all()
             
             if all_users:
                 return all_users[0].to_dict()
