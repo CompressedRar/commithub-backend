@@ -904,10 +904,14 @@ class PCR_Service():
                 ipcr = IPCR.query.get(ipcr_id)
 
                 for sub_task in ipcr.sub_tasks:
+                    print("mfpo: ", sub_task.main_task.mfo)
                     if sub_task.main_task.mfo not in all_tasks:
+                        
                         all_tasks.append(sub_task.main_task.mfo)
                         new_opcr_rating = OPCR_Rating(mfo = sub_task.main_task.mfo, opcr_id = new_opcr.id)
                         db.session.add(new_opcr_rating)
+                        print("mfp true: ", sub_task.main_task.mfo, sub_task.main_task.mfo not in all_tasks)
+
 
                     
             
