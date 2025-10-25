@@ -1270,47 +1270,89 @@ class PCR_Service():
                     
         #get the head
         head = User.query.filter_by(department_id = opcr.department_id, role = "head").first()
-        
-        head_data = {
-                "fullName": head.first_name + " " + head.last_name,
-                "givenName": head.first_name,
-                "middleName": head.middle_name,
-                "lastName": head.last_name,
-                "position": head.position.name,
+        head_data = {}
+        if head:
+            head_data = {
+                    "fullName": head.first_name + " " + head.last_name,
+                    "givenName": head.first_name,
+                    "middleName": head.middle_name,
+                    "lastName": head.last_name,
+                    "position": head.position.name,
 
-                "individuals": {
-                    "review": {
-                        "name": head.first_name + " " + head.last_name,
-                        "position": head.position.name,
-                        "date": ""
-                    },
-                    "approve": {
-                        "name": opcr_data["approve"]["name"],
-                        "position": opcr_data["approve"]["position"],
-                        "date": ""
-                    },
-                    "discuss": {
-                        "name": opcr_data["discuss"]["name"],
-                        "position": opcr_data["discuss"]["position"],
-                        "date": ""
-                    },
-                    "assess": {
-                        "name": opcr_data["assess"]["name"],
-                        "position": opcr_data["assess"]["position"],
-                        "date": ""
-                    },
-                    "final": {
-                        "name": opcr_data["final"]["name"],
-                        "position": opcr_data["final"]["position"],
-                        "date": ""
-                    },
-                    "confirm": {
-                        "name": "Hon. Maria Elena L. Germar",
-                        "position": "PMT Chairperson",
-                        "date": ""
+                    "individuals": {
+                        "review": {
+                            "name": head.first_name + " " + head.last_name,
+                            "position": head.position.name,
+                            "date": ""
+                        },
+                        "approve": {
+                            "name": opcr_data["approve"]["name"],
+                            "position": opcr_data["approve"]["position"],
+                            "date": ""
+                        },
+                        "discuss": {
+                            "name": opcr_data["discuss"]["name"],
+                            "position": opcr_data["discuss"]["position"],
+                            "date": ""
+                        },
+                        "assess": {
+                            "name": opcr_data["assess"]["name"],
+                            "position": opcr_data["assess"]["position"],
+                            "date": ""
+                        },
+                        "final": {
+                            "name": opcr_data["final"]["name"],
+                            "position": opcr_data["final"]["position"],
+                            "date": ""
+                        },
+                        "confirm": {
+                            "name": "Hon. Maria Elena L. Germar",
+                            "position": "PMT Chairperson",
+                            "date": ""
+                        }
                     }
                 }
-            }
+        else:
+            head_data = {
+                    "fullName": "",
+                    "givenName": "",
+                    "middleName": "",
+                    "lastName": "",
+                    "position": "",
+
+                    "individuals": {
+                        "review": {
+                            "name": "",
+                            "position": "",
+                            "date": ""
+                        },
+                        "approve": {
+                            "name": opcr_data["approve"]["name"],
+                            "position": opcr_data["approve"]["position"],
+                            "date": ""
+                        },
+                        "discuss": {
+                            "name": opcr_data["discuss"]["name"],
+                            "position": opcr_data["discuss"]["position"],
+                            "date": ""
+                        },
+                        "assess": {
+                            "name": opcr_data["assess"]["name"],
+                            "position": opcr_data["assess"]["position"],
+                            "date": ""
+                        },
+                        "final": {
+                            "name": opcr_data["final"]["name"],
+                            "position": opcr_data["final"]["position"],
+                            "date": ""
+                        },
+                        "confirm": {
+                            "name": "Hon. Maria Elena L. Germar",
+                            "position": "PMT Chairperson",
+                            "date": ""
+                        }
+                    }
+                }
         
 
         return jsonify(ipcr_data = data, assigned = assigned, admin_data = head_data, form_status = opcr.form_status)
