@@ -14,6 +14,10 @@ def get_users():
 def does_president_exists():
     return Users.does_president_exists()
 
+@users.route("/admin-exists", methods = ["GET"])
+def does_admin_exists():
+    return Users.does_admin_exists()
+
 @users.route("/<id>", methods = ["GET"])
 def get_user(id):
     return Users.get_user(id)

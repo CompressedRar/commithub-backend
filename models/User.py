@@ -464,7 +464,7 @@ class Users():
 
     def authenticate_if_email_exists(email):
         try:
-            all_users = User.query.filter_by(email = email).all()
+            all_users = User.query.filter_by(email = email, status = 0).all()
             
             if all_users:
                 return all_users[0].to_dict()
@@ -486,6 +486,23 @@ class Users():
 
             for user in users:
                 if user.role == "president": return jsonify(True), 200
+
+            return jsonify(False), 200
+        
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def does_admin_exists():
+        try:
+            users  = User.query.all()
+
+            for user in users:
+                if user.role == "administrator": return jsonify(True), 200
 
             return jsonify(False), 200
         
