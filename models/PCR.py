@@ -903,6 +903,7 @@ class PCR_Service():
             for ipcr_id in ipcr_ids:
                 ipcr = IPCR.query.get(ipcr_id)
 
+                print([st.to_dict() for st in ipcr.sub_tasks])
                 for sub_task in ipcr.sub_tasks:
                     print("mfpo: ", sub_task.main_task.mfo)
                     if sub_task.main_task.mfo not in all_tasks:
