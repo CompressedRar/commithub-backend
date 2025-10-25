@@ -1200,6 +1200,8 @@ class PCR_Service():
         assigned = {}
 
         for assigned_pcr in opcr.assigned_pcrs:
+            if assigned_pcr.ipcr.status == 0:
+                continue
             for sub_task in assigned_pcr.ipcr.sub_tasks:
                 if sub_task.main_task.category.name not in categories:
                     categories.append(sub_task.main_task.category.name)
