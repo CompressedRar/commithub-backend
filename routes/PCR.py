@@ -55,6 +55,12 @@ def archiv_opcr(id):
 def assign_ipcr(ipcr_id, user_id):
     return PCR_Service.assign_main_ipcr(ipcr_id, user_id)
 
+@pcrs.route("/rating/<rating_id>", methods = ["PATCH"])
+def update_rating(rating_id):
+    field = request.args.get("field")
+    value = request.args.get("value")
+    return PCR_Service.update_rating(rating_id, field, value)
+
 @pcrs.route("/ipcr-pres/<ipcr_id>&<user_id>", methods = ["PATCH"])
 def assign_pres_ipcr(ipcr_id, user_id):
     return PCR_Service.assign_pres_ipcr(ipcr_id, user_id)

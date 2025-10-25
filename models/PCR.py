@@ -683,6 +683,29 @@ class PCR_Service():
             #db.session.rollback()
             return jsonify(error=str(e)), 500
         
+    def update_rating(rating_id, field, value):
+        try:
+            rating = OPCR_Rating.query.get(rating_id)
+            
+            if field == "quantity":
+                rating.quantity = value
+                db.session.commit()
+
+            if field == "efficiency":
+                rating.efficiency = value
+                db.session.commit()
+
+            if field == "timeliness":
+                rating.timeliness = value
+                db.session.commit()
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
     def assign_pres_ipcr(ipcr_id, user_id):
         try:
             user = User.query.get(user_id)
