@@ -11,6 +11,7 @@ from utils.Generate import generate_default_password
 from utils.Email import send_email, send_reset_email
 from models.Logs import Log_Service
 
+import uuid
 from argon2 import PasswordHasher
 import jwt
 
@@ -581,61 +582,65 @@ class Users():
             return jsonify(error=str(e)), 500
         
     def update_user(id, data, rq):
-        print("form data" ,data)
+        from models.Tasks import Main_Task, Sub_Task, Output
+        print("form data", data)
         try:
             user = User.query.get(id)
-            
-            if user:
-                profile = rq.files.get("profile_picture_link")
-                if profile:
-                    res = upload_file(profile)
-                    print(res)
-                    user.profile_picture_link = res 
-                    db.session.commit()
 
-                if "first_name" in data:
-                    user.first_name = data["first_name"] 
-                    db.session.commit()
+            if not user:
+                return jsonify(error="There is no user with that ID"), 400
 
-                if "last_name" in data:
-                    user.last_name = data["last_name"] 
-                    db.session.commit()
+            # Handle profile picture upload
+            profile = rq.files.get("profile_picture_link")
+            if profile:
+                res = upload_file(profile)
+                user.profile_picture_link = res
 
-                if "middle_name" in data:
-                    user.middle_name = data["middle_name"] 
-                    db.session.commit()
+            # Basic info updates
+            fields = ["first_name", "last_name", "middle_name", "email", "password", "position", "role"]
+            for field in fields:
+                if field in data:
+                    setattr(user, field, data[field])
 
-                if "email" in data:
-                    user.email = data["email"] 
-                    db.session.commit()
+            # ✅ Handle department change logic
+            if "department" in data:
+                new_department_id = int(data["department"])
+                old_department_id = user.department_id
 
-                if "password" in data:
-                    user.password = data["password"] 
-                    db.session.commit()
+                if new_department_id != old_department_id:
+                    print(f"Changing department: {old_department_id} → {new_department_id}")
 
-                
-                
-                if "department" in data:
-                    user.department_id = data["department"] 
-                    db.session.commit()
+                    # Get user's active IPCR (if any)
+                    active_ipcr = next((ipcr for ipcr in user.ipcrs if ipcr.status == 1), None)
 
-                if "position" in data:
-                    user.position_id = data["position"] 
-                    db.session.commit()
-                
-                if "role" in data:
-                    user.role = data["role"] 
-                    db.session.commit()
+                    # 🗑️ Delete outputs tied to old department tasks
+                    for output in list(user.outputs):
+                        if output.main_task and output.main_task.department_id == old_department_id:
+                            db.session.delete(output)
 
-                socketio.emit("user_modified", "modified")
-                socketio.emit("user_updated", "modified")
+                    # ➕ Add new department tasks (if active IPCR exists)
+                    if active_ipcr:
+                        new_tasks = Main_Task.query.filter_by(department_id=new_department_id, status=1).all()
+                        for task in new_tasks:
+                            new_output = Output(
+                                user_id=user.id,
+                                main_task_id=task.id,
+                                ipcr_id=active_ipcr.id,
+                                batch_id=str(uuid.uuid4())
+                            )
+                            db.session.add(new_output)
 
-                return jsonify(message = "User successfully updated"), 200
-            
+                    # Update user's department
+                    user.department_id = new_department_id
 
-            
-            else: 
-                return jsonify(error= "There is no user with that id"), 400
+            # ✅ Commit once for all changes
+            db.session.commit()
+
+            # Notify connected clients
+            socketio.emit("user_modified", "modified")
+            socketio.emit("user_updated", "modified")
+
+            return jsonify(message="User successfully updated"), 200
 
         except OperationalError:
             db.session.rollback()
@@ -643,6 +648,7 @@ class Users():
 
         except Exception as e:
             db.session.rollback()
+            print("Update user error:", e)
             return jsonify(error=str(e)), 500
     
     def delete_user(id):
