@@ -18,7 +18,7 @@ class OPCR_Rating(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     mfo = db.Column(db.Text, default="")
     opcr_id = db.Column(db.Integer, db.ForeignKey("opcr.id"), default = None)
-    opcr = db.relationship("OPCR", back_populates = "opcr")
+    opcr = db.relationship("OPCR", back_populates = "opcr_ratings")
 
     quantity = db.Column(db.Integer, default = 0)
     efficiency = db.Column(db.Integer, default = 0)
