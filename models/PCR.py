@@ -698,6 +698,8 @@ class PCR_Service():
             if field == "timeliness":
                 rating.timeliness = value
                 db.session.commit()
+            socketio.emit("rating", "change")
+            return jsonify(message = "Rating updated"), 200
         except OperationalError:
             #db.session.rollback()
             return jsonify(error="Database connection error"), 500
