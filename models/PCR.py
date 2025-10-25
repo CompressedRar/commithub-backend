@@ -907,6 +907,9 @@ class PCR_Service():
                     if sub_task.main_task.mfo not in all_tasks:
                         all_tasks.append(sub_task.main_task.mfo)
                         new_opcr_rating = OPCR_Rating(mfo = sub_task.main_task.mfo, opcr_id = new_opcr.id)
+                        db.session.add(new_opcr_rating)
+
+                    
             
 
                 new_assigned_pcr = Assigned_PCR(opcr_id = new_opcr.id, ipcr_id = ipcr_id, department_id = dept_id)
