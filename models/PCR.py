@@ -30,6 +30,10 @@ class OPCR_Rating(db.Model):
             "id": self.id,
             "mfo": self.mfo,
             "opcr_id": self.opcr_id,
+            "quantity": self.quantity,
+            "efficiency": self.efficiency,
+            "timeliness": self.timeliness,
+            "average": (self.quantity + self.efficiency + self.timeliness)/ 3
         }
 
 class Assigned_PCR(db.Model):
