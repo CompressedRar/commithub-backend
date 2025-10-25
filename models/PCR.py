@@ -887,6 +887,7 @@ class PCR_Service():
             db.session.commit()
 
             socketio.emit("opcr", "created")
+            socketio.emit("opcr_created", "created")
             Notification_Service.notify_department(dept_id, f"A new OPCR has been created for this department.")
 
             return jsonify(message="OPCR successfully created."), 200
