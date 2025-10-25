@@ -97,6 +97,8 @@ class Category_Service():
             db.session.add(new_category)
             db.session.commit()  # Make sure to commit!
 
+            socketio.emit("category")
+
             return jsonify(message="Category created successfully."), 200
 
         except DataError as e:

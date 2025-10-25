@@ -597,10 +597,14 @@ class Users():
                 user.profile_picture_link = res
 
             # Basic info updates
-            fields = ["first_name", "last_name", "middle_name", "email", "password", "position", "role"]
+            fields = ["first_name", "last_name", "middle_name", "email", "password", "role"]
             for field in fields:
                 if field in data:
                     setattr(user, field, data[field])
+
+            # Handle position (since it's likely a foreign key)
+            if "position" in data:
+                user.position_id = int(data["position"])
 
             # ✅ Handle department change logic
             if "department" in data:
