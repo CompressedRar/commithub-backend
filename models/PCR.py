@@ -928,7 +928,7 @@ class PCR_Service():
             else:
                 new_opcr = existing_opcr
 
-            # Ensure all existing OPCRs for this dept are marked non-main except the one in use
+            # Ensure all existing OPCRs for this dept are marked properly
             all_opcr = OPCR.query.filter_by(department_id=dept_id).all()
             for opcr in all_opcr:
                 opcr.isMain = (opcr.id == new_opcr.id)
@@ -952,17 +952,28 @@ class PCR_Service():
                         db.session.add(new_rating)
                         existing_mfos.add(sub_task.main_task.mfo)
 
-                # Always create new Assigned_PCR linking IPCR to the single OPCR
-                assigned_pcr = Assigned_PCR(
+                # Check if Assigned_PCR already exists to avoid duplicates
+                existing_assignment = Assigned_PCR.query.filter_by(
                     opcr_id=new_opcr.id,
                     ipcr_id=ipcr_id,
                     department_id=dept_id
-                )
-                db.session.add(assigned_pcr)
+                ).first()
 
-                # Notifications
-                Notification_Service.notify_user(ipcr.user.id, f"Your IPCR #{ipcr_id} has been consolidated to OPCR #{new_opcr.id}.")
-                Notification_Service.notify_presidents(f"{ipcr.user.department.name} updated OPCR #{new_opcr.id} with new IPCR(s).")
+                if not existing_assignment:
+                    assigned_pcr = Assigned_PCR(
+                        opcr_id=new_opcr.id,
+                        ipcr_id=ipcr_id,
+                        department_id=dept_id
+                    )
+                    db.session.add(assigned_pcr)
+
+                    # Notifications only for new assignments
+                    Notification_Service.notify_user(
+                        ipcr.user.id, f"Your IPCR #{ipcr_id} has been consolidated to OPCR #{new_opcr.id}."
+                    )
+                    Notification_Service.notify_presidents(
+                        f"{ipcr.user.department.name} updated OPCR #{new_opcr.id} with new IPCR(s)."
+                    )
 
             db.session.commit()
 
@@ -971,6 +982,17 @@ class PCR_Service():
             Notification_Service.notify_department(dept_id, f"OPCR for this department has been created or updated.")
 
             return jsonify(message="OPCR successfully created or updated."), 200
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
+
 
         except OperationalError as e:
             db.session.rollback()
