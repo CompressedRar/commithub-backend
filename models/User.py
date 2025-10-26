@@ -868,11 +868,11 @@ class Users():
             
             dept = user["department"]["name"]
             print(dept)
-            if dept == "Computing Studies":
+            if dept == "College of Computing Studies ":
                 ccs_count += 1
-            elif dept == "Education":
+            elif dept == "College of Education ":
                 educ_count += 1
-            elif dept == "Hospitality Management":
+            elif dept == "College of Hospitality Management":
                 hm_count += 1
             else:
                 other_count += 1
