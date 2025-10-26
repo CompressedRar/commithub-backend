@@ -1017,7 +1017,8 @@ class PCR_Service():
                             current_task_index = 0
                             found = False
                             for tasks in data[current_data_index][name]:
-                                
+                                rating = next((r for r in opcr.opcr_ratings if r.mfo == sub_task.main_task.mfo), None)
+                                rating_data = rating.to_dict() if rating else {"quantity": 0, "efficiency": 0, "timeliness": 0, "average": 0}
                                 if sub_task.mfo == tasks["title"]:
                                     found = True
                                     data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
@@ -1027,11 +1028,7 @@ class PCR_Service():
                                     data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
                                     data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
 
-                                    data[current_data_index][name][current_task_index]["rating"]["quantity"] = sub_task.quantity
-                                    data[current_data_index][name][current_task_index]["rating"]["efficiency"] = sub_task.efficiency
-                                    data[current_data_index][name][current_task_index]["rating"]["timeliness"] = sub_task.timeliness
-
-                                    data[current_data_index][name][current_task_index]["rating"]["average"] = PCR_Service.calculateAverage(data[current_data_index][name][current_task_index]["rating"]["quantity"], data[current_data_index][name][current_task_index]["rating"]["efficiency"], data[current_data_index][name][current_task_index]["rating"]["timeliness"])
+                                    data[current_data_index][name][current_task_index]["rating"] = rating_data
                                 current_task_index += 1     
 
                             if not found:
