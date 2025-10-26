@@ -1156,7 +1156,7 @@ class PCR_Service():
     
     def generate_master_opcr():
 
-        opcrs = OPCR.query.filter_by(isMain = True, form_status = "draft").all()
+        opcrs = OPCR.query.filter_by(isMain = True, status = 1).all()
         data = []
         categories = []
 
