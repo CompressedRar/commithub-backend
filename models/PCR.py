@@ -1485,6 +1485,7 @@ class PCR_Service():
 
             for assigned_pcr in opcr.assigned_pcrs:
                 for sub_task in assigned_pcr.ipcr.sub_tasks:
+                    if sub_task.status == 0: continue
                     #sub_task.main_task.category.name
                     print(sub_task.main_task.category.name)
                     current_data_index = 0
