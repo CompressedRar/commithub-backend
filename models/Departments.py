@@ -289,6 +289,7 @@ class Department_Service():
 
             # Unassign users and remove their tasks
             for user in dept.users:
+                user.role = "faculty"
                 user.department_id = None  # unassign
 
                 # Delete outputs and related subtasks
