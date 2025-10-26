@@ -751,19 +751,31 @@ class Tasks_Service():
             if not main_task:
                 return jsonify(message="No main task with that ID"), 400
 
+            # Archive main task
             main_task.status = 0
+
+            # Archive all subtasks
             for sub_task in main_task.sub_tasks:
-                sub_task.status = 0  # ensure Sub_Task has status column
-                db.session.delete(sub_task)  # optional: delete instead of archive
+                sub_task.status = 0
+
+            # Delete all outputs linked to this main task
+            for output in main_task.outputs:
+                db.session.delete(output)
+
+            # Delete all assigned tasks linked to this main task
+            for assigned_task in main_task.assigned_tasks:
+                db.session.delete(assigned_task)
 
             db.session.commit()
             socketio.emit("main_task", "archived")
+
             return jsonify(message="Output successfully archived."), 200
 
         except Exception as e:
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+
         
     def remove_task_from_dept(id):
         try:
