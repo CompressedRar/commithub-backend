@@ -1167,6 +1167,7 @@ class PCR_Service():
 
         for opcr in opcrs:
             for assigned_pcr in opcr.assigned_pcrs:
+                
                 if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft": continue
 
                 for sub_task in assigned_pcr.ipcr.sub_tasks:
@@ -1187,7 +1188,7 @@ class PCR_Service():
 
             for assigned_pcr in opcr.assigned_pcrs:
 
-
+                if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft": continue
                 for sub_task in assigned_pcr.ipcr.sub_tasks:
                     #sub_task.main_task.category.name
                     print(sub_task.main_task.category.name)
@@ -1484,8 +1485,10 @@ class PCR_Service():
 
             for assigned_pcr in opcr.assigned_pcrs:
                 if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft": continue
-                
+
                 for sub_task in assigned_pcr.ipcr.sub_tasks:
+                    if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft": continue
+
                     if sub_task.main_task.category.name not in categories:
                         categories.append(sub_task.main_task.category.name)
                     if sub_task.main_task.mfo in assigned.keys():
@@ -1504,7 +1507,6 @@ class PCR_Service():
                 for sub_task in assigned_pcr.ipcr.sub_tasks:
                     
                     if sub_task.status == 0: continue
-                    #sub_task.main_task.category.name
                     print(sub_task.main_task.category.name)
                     current_data_index = 0
                     for cat in data:
