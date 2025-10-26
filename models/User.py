@@ -384,6 +384,7 @@ class User(db.Model):
             "profile_picture_link": self.profile_picture_link,
             "position": self.position.info(),
             "role": self.role,
+            "account_status": self.account_status,
             
             "department_id":self.department_id,
             "department": self.department.info() if self.department else "NONE",
