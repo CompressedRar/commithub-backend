@@ -72,7 +72,7 @@ class Department(db.Model):
         collected_user = []
         for user in self.users:
             if user.account_status == 1:
-                collected_user.append(user)
+                collected_user.append(user.to_dict())
 
         return collected_user
 
