@@ -405,6 +405,7 @@ class User(db.Model):
         all_output_total = 0
         total = 0
         for output in self.outputs:
+            if output.status == 0: continue
             total += 1
             all_output_total += output.sub_task.calculateAverage()
         
