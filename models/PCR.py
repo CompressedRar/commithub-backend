@@ -687,17 +687,18 @@ class PCR_Service():
         try:
             rating = OPCR_Rating.query.get(rating_id)
             
-            if field == "quantity":
+            if "quantity" in field.split(" "):
                 rating.quantity = value
                 db.session.commit()
 
-            if field == "efficiency":
+            if "efficiency" in field.split(" "):
                 rating.efficiency = value
                 db.session.commit()
 
-            if field == "timeliness":
+            if "timeliness" in field.split(" "):
                 rating.timeliness = value
                 db.session.commit()
+
             socketio.emit("rating", "change")
 
             
