@@ -917,58 +917,71 @@ class PCR_Service():
     #fix the creation of opcr
     def create_opcr(dept_id, ipcr_ids):
         try:
-            all_opcr = OPCR.query.filter_by(department_id = dept_id).all()
+            # Check if there's already an existing OPCR for this department
+            existing_opcr = OPCR.query.filter_by(department_id=dept_id, isMain=True).first()
 
+            # If no OPCR exists, create one
+            if not existing_opcr:
+                new_opcr = OPCR(department_id=dept_id, isMain=True)
+                db.session.add(new_opcr)
+                db.session.flush()  # Get new_opcr.id
+            else:
+                new_opcr = existing_opcr
+
+            # Ensure all existing OPCRs for this dept are marked non-main except the one in use
+            all_opcr = OPCR.query.filter_by(department_id=dept_id).all()
             for opcr in all_opcr:
-                db.session.delete(opcr)
-                db.session.commit()
+                opcr.isMain = (opcr.id == new_opcr.id)
+                opcr.status = 1 if opcr.isMain else 0
 
+            # Track MFOs already added to avoid duplicates
+            existing_mfos = {r.mfo for r in new_opcr.opcr_ratings}
 
-            new_opcr = OPCR(department_id = dept_id, isMain = True)
-            db.session.add(new_opcr)
-            db.session.flush()
-
-            all_tasks = []
-            
-            
             for ipcr_id in ipcr_ids:
                 ipcr = IPCR.query.get(ipcr_id)
+                if not ipcr:
+                    continue
 
-                print([st.to_dict() for st in ipcr.sub_tasks])
+                # For each subtask of the IPCR, ensure the MFO exists in OPCR_Rating
                 for sub_task in ipcr.sub_tasks:
-                    print("mfpo: ", sub_task.main_task.mfo)
-                    if sub_task.main_task.mfo not in all_tasks:
-                        
-                        all_tasks.append(sub_task.main_task.mfo)
-                        new_opcr_rating = OPCR_Rating(mfo = sub_task.main_task.mfo, opcr_id = new_opcr.id)
-                        db.session.add(new_opcr_rating)
-                        print("mfp true: ", sub_task.main_task.mfo, sub_task.main_task.mfo not in all_tasks)
+                    if sub_task.main_task.mfo not in existing_mfos:
+                        new_rating = OPCR_Rating(
+                            mfo=sub_task.main_task.mfo,
+                            opcr_id=new_opcr.id
+                        )
+                        db.session.add(new_rating)
+                        existing_mfos.add(sub_task.main_task.mfo)
 
+                # Always create new Assigned_PCR linking IPCR to the single OPCR
+                assigned_pcr = Assigned_PCR(
+                    opcr_id=new_opcr.id,
+                    ipcr_id=ipcr_id,
+                    department_id=dept_id
+                )
+                db.session.add(assigned_pcr)
 
-                    
-            
+                # Notifications
+                Notification_Service.notify_user(ipcr.user.id, f"Your IPCR #{ipcr_id} has been consolidated to OPCR #{new_opcr.id}.")
+                Notification_Service.notify_presidents(f"{ipcr.user.department.name} updated OPCR #{new_opcr.id} with new IPCR(s).")
 
-                new_assigned_pcr = Assigned_PCR(opcr_id = new_opcr.id, ipcr_id = ipcr_id, department_id = dept_id)
-                Notification_Service.notify_user(ipcr.user.id, f"Your IPCR: #{ipcr_id} has been consolidated to OPCR: #{new_opcr.id}.")
-                Notification_Service.notify_presidents(f"{ipcr.user.department.name} created a new OPCR.")
-                db.session.add(new_assigned_pcr)
-            
             db.session.commit()
 
             socketio.emit("opcr", "created")
             socketio.emit("opcr_created", "created")
-            Notification_Service.notify_department(dept_id, f"A new OPCR has been created for this department.")
+            Notification_Service.notify_department(dept_id, f"OPCR for this department has been created or updated.")
 
-            return jsonify(message="OPCR successfully created."), 200
+            return jsonify(message="OPCR successfully created or updated."), 200
+
         except OperationalError as e:
             db.session.rollback()
             print(str(e))
             return jsonify(error="Database connection error"), 500
 
-        except Exception as e:  # fallback for unknown errors
+        except Exception as e:
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+
         
     def generate_opcr(opcr_id):
 
