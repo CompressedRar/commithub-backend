@@ -1017,6 +1017,7 @@ class PCR_Service():
         assigned = {}
 
         for assigned_pcr in opcr.assigned_pcrs:
+            if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft": continue
             
             for sub_task in assigned_pcr.ipcr.sub_tasks:
                 
@@ -1035,6 +1036,7 @@ class PCR_Service():
             })
 
         for assigned_pcr in opcr.assigned_pcrs:
+            if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft": continue
 
 
             for sub_task in assigned_pcr.ipcr.sub_tasks:
@@ -1324,7 +1326,7 @@ class PCR_Service():
             })
 
         for assigned_pcr in opcr.assigned_pcrs:
-            if assigned_pcr.ipcr.status == 0:
+            if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft":
                 continue
             for sub_task in assigned_pcr.ipcr.sub_tasks:
                 #sub_task.main_task.category.name
