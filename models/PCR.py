@@ -1018,7 +1018,10 @@ class PCR_Service():
                             found = False
                             for tasks in data[current_data_index][name]:
                                 rating = next((r for r in opcr.opcr_ratings if r.mfo == sub_task.main_task.mfo), None)
+                                print("Rating:", rating)
                                 rating_data = rating.to_dict() if rating else {"quantity": 0, "efficiency": 0, "timeliness": 0, "average": 0}
+                                print("Rating data:", rating_data)
+                                
                                 if sub_task.mfo == tasks["title"]:
                                     found = True
                                     data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
