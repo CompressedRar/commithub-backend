@@ -26,6 +26,9 @@ class OPCR_Rating(db.Model):
     average = db.Column(db.Integer, default = 0)
 
     def to_dict(self):
+        normalized_q = 5 if self.quantity > 5 else self.quantity
+        normalized_e = 5 if self.efficiency > 5 else self.efficiency
+        normalized_t = 5 if self.timeliness > 5 else self.timeliness
         return {
             "id": self.id,
             "mfo": self.mfo,
@@ -33,7 +36,7 @@ class OPCR_Rating(db.Model):
             "quantity": self.quantity,
             "efficiency": self.efficiency,
             "timeliness": self.timeliness,
-            "average": (self.quantity + self.efficiency + self.timeliness)/ 3
+            "average": (normalized_q + normalized_e + normalized_t)/ 3
         }
 
 class Assigned_PCR(db.Model):

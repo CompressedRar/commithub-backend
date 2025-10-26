@@ -395,12 +395,21 @@ class Department_Service():
             { "name": "Registrar", "value": 4.1 },
             ...
         ]
+        Dynamically calculates each sub-task's average rating.
         """
-        # Join Department → User → Output → Sub_Task
+
+        # Calculate average rating dynamically per subtask
         results = (
             db.session.query(
                 Department.name.label("name"),
-                func.avg(Sub_Task.average).label("value")
+                func.avg(
+                    (
+                        (func.coalesce(Sub_Task.quantity, 0) +
+                        func.coalesce(Sub_Task.efficiency, 0) +
+                        func.coalesce(Sub_Task.timeliness, 0)
+                        ) / 3.0
+                    )
+                ).label("value")
             )
             .join(User, User.department_id == Department.id)
             .join(Output, Output.user_id == User.id)
@@ -418,6 +427,7 @@ class Department_Service():
             data.append({"name": dept.name, "value": avg_value})
 
         return jsonify(data), 200
+
     
     def get_user_performance_by_department_id(department_id):
         """
