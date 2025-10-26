@@ -886,6 +886,7 @@ class Users():
         }), 200
     
     def assign_department_head(user_id, dept_id):
+        from models.Departments import Department
         try:
             department = Department.query.get(dept_id)
 
