@@ -154,25 +154,31 @@ class Category_Service():
             if not category:
                 return jsonify(message="No category with that ID"), 400
 
-            # Archive category
+            # Archive category itself
             category.status = 0
 
             # Archive all main tasks under this category
             for main_task in category.main_tasks:
                 main_task.status = 0
+
+                # Archive subtasks of each main task
                 for sub_task in main_task.sub_tasks:
-                    sub_task.status = 0  # if sub_task has status
-                    # optional: if you prefer to delete subtasks
-                    # db.session.delete(sub_task)
+                    sub_task.status = 0
+
+                # Remove outputs related to this main task
+                for output in main_task.outputs:
+                    db.session.delete(output)
 
             db.session.commit()
             socketio.emit("category", "archived")
+
             return jsonify(message="Key Result Area successfully archived."), 200
 
         except Exception as e:
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+
 
         
     
