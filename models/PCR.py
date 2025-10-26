@@ -36,7 +36,7 @@ class OPCR_Rating(db.Model):
             "quantity": self.quantity,
             "efficiency": self.efficiency,
             "timeliness": self.timeliness,
-            "average": (normalized_q + normalized_e + normalized_t)/ 3
+            "average": round((normalized_q + normalized_e + normalized_t)/ 3)
         }
 
 class Assigned_PCR(db.Model):
