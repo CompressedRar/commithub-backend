@@ -1168,6 +1168,7 @@ class PCR_Service():
         for opcr in opcrs:
             for assigned_pcr in opcr.assigned_pcrs:
                 if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft": continue
+
                 for sub_task in assigned_pcr.ipcr.sub_tasks:
                     
                     if sub_task.main_task.category.name not in categories:
@@ -1482,6 +1483,8 @@ class PCR_Service():
             opcr_data = opcr.to_dict()
 
             for assigned_pcr in opcr.assigned_pcrs:
+                if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft": continue
+                
                 for sub_task in assigned_pcr.ipcr.sub_tasks:
                     if sub_task.main_task.category.name not in categories:
                         categories.append(sub_task.main_task.category.name)
@@ -1497,7 +1500,7 @@ class PCR_Service():
 
             for assigned_pcr in opcr.assigned_pcrs:
                 if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft": continue
-                
+
                 for sub_task in assigned_pcr.ipcr.sub_tasks:
                     
                     if sub_task.status == 0: continue
