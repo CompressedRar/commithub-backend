@@ -146,7 +146,7 @@ class Department_Service():
     def get_members(dept_id, offset = 0, limit = 10):
         try:
             print("finding members of dept id:", dept_id)
-            users = User.query.filter_by(department_id = dept_id).order_by(User.id.asc()).offset(offset).limit(limit).all()
+            users = User.query.filter_by(department_id = dept_id, account_status = 1).order_by(User.id.asc()).offset(offset).limit(limit).all()
 
 
             converted_user = [user.to_dict() for user in users]
