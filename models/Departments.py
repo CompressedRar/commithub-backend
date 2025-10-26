@@ -281,39 +281,31 @@ class Department_Service():
     
     def archive_department(id):
         try:
-            found_department = Department.query.get(id)
+            dept = Department.query.get(id)
+            if not dept:
+                return jsonify(message="No department with that ID"), 400
 
-            if not found_department:
-                return jsonify({"error": "Office not found"}), 404
-            
-            found_department.status = 0
+            dept.status = 0
+
+            # Unassign users and remove their tasks
+            for user in dept.users:
+                user.department_id = None  # unassign
+
+                # Delete outputs and related subtasks
+                for output in user.outputs:
+                    for sub_task in output.sub_tasks:
+                        db.session.delete(sub_task)
+                    db.session.delete(output)
 
             db.session.commit()
-            Notification_Service.notify_heads(f"{found_department.name} has been removed archived.")
-            Notification_Service.notify_presidents(f"{found_department.name} has been removed archived.")
-            Notification_Service.notify_administrators(f"{found_department.name} has been removed archived.")
+            socketio.emit("department", "archived")
+            return jsonify(message="Office successfully archived."), 200
 
-            return jsonify(message = "Office successfully archived."), 200
-        except IntegrityError as e:
-            db.session.rollback()
-            print(str(e))
-            return jsonify(error="Email already exists"), 400
-        
-        except DataError as e:
-            db.session.rollback()
-            print(str(e))
-            
-            return jsonify(error="Invalid data format"), 400
-
-        except OperationalError as e:
-            db.session.rollback()
-            print(str(e))
-            return jsonify(error="Database connection error"), 500
-
-        except Exception as e:  # fallback for unknown errors
+        except Exception as e:
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+
     
     def get_all_department_ipcr(dept_id):
         try:

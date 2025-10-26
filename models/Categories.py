@@ -150,37 +150,30 @@ class Category_Service():
     
     def archive_category(id):
         try:
-            found_task = Category.query.get(id)
-
-            if found_task == None:
+            category = Category.query.get(id)
+            if not category:
                 return jsonify(message="No category with that ID"), 400
-            
-            found_task.status = 0
+
+            # Archive category
+            category.status = 0
+
+            # Archive all main tasks under this category
+            for main_task in category.main_tasks:
+                main_task.status = 0
+                for sub_task in main_task.sub_tasks:
+                    sub_task.status = 0  # if sub_task has status
+                    # optional: if you prefer to delete subtasks
+                    # db.session.delete(sub_task)
+
             db.session.commit()
-            socketio.emit("category", "archive")
-            
-            return jsonify(message = "Key Result Area successfully archived."), 200
-        
-        except IntegrityError as e:
-            db.session.rollback()
-            print(str(e))
-            return jsonify(error="Data does not exists"), 400
-        
-        except DataError as e:
-            db.session.rollback()
-            print(str(e))
-            
-            return jsonify(error="Invalid data format"), 400
+            socketio.emit("category", "archived")
+            return jsonify(message="Key Result Area successfully archived."), 200
 
-        except OperationalError as e:
-            db.session.rollback()
-            print(str(e))
-            return jsonify(error="Database connection error"), 500
-
-        except Exception as e:  # fallback for unknown errors
+        except Exception as e:
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+
         
     
     def get_category_count():

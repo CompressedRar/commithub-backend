@@ -747,34 +747,20 @@ class Tasks_Service():
         
     def archive_task(id):
         try:
-            found_task = Main_Task.query.get(id)
+            main_task = Main_Task.query.get(id)
+            if not main_task:
+                return jsonify(message="No main task with that ID"), 400
 
-            if found_task == None:
-                return jsonify(message="No Output with that ID"), 400
-            
-            found_task.status = 0
+            main_task.status = 0
+            for sub_task in main_task.sub_tasks:
+                sub_task.status = 0  # ensure Sub_Task has status column
+                db.session.delete(sub_task)  # optional: delete instead of archive
+
             db.session.commit()
-            Notification_Service.notify_everyone(f"The output: {found_task.mfo} has been archived.")
+            socketio.emit("main_task", "archived")
+            return jsonify(message="Output successfully archived."), 200
 
-            return jsonify(message = "Output successfully archived."), 200
-        
-        except IntegrityError as e:
-            db.session.rollback()
-            print(str(e))
-            return jsonify(error="Data does not exists"), 400
-        
-        except DataError as e:
-            db.session.rollback()
-            print(str(e))
-            
-            return jsonify(error="Invalid data format"), 400
-
-        except OperationalError as e:
-            db.session.rollback()
-            print(str(e))
-            return jsonify(error="Database connection error"), 500
-
-        except Exception as e:  # fallback for unknown errors
+        except Exception as e:
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500

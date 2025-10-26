@@ -1098,7 +1098,14 @@ class PCR_Service():
                     current_data_index += 1
         #get the head
         head_data = {}
-        head = User.query.filter_by(department_id = opcr.department_id, role = "head").first()
+        head = head = (
+    User.query
+    .filter(
+        User.department_id == opcr.department_id,
+        User.role.in_(["head", "president", "administrator"])
+    )
+    .first()
+)
         
         head_data = {
                 "fullName": head.first_name + " " + head.last_name,
