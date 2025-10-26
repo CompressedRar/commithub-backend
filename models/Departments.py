@@ -67,15 +67,24 @@ class Department(db.Model):
                 all_ipcr.append(opcr.to_dict())
 
         return all_ipcr
+    
+    def active_users(self):
+        collected_user = []
+        for user in self.users:
+            if user.account_status == 1:
+                collected_user.append(user)
 
+        return collected_user
 
     def to_dict(self):
+        
+
         return {
             "id" : self.id,
             "name": self.name,
             "manager": self.manager_id,
             "icon": self.icon,
-            "users": [user.to_dict() for user in self.users],
+            "users": self.active_users(),
             "opcrs":[opcr.to_dict() for opcr in self.opcrs],
             "user_count": self.count_users(),
             "opcr_count": self.count_opcr(),
@@ -120,7 +129,7 @@ class Department_Service():
         
     def get_department_head(dept_id):
         try:
-            department_head = User.query.filter_by(department_id = dept_id, role = "head").first()
+            department_head = User.query.filter_by(department_id = dept_id, role = "head", account_status = 1).first()
 
             if department_head:
                 return jsonify(department_head.info()), 200
@@ -146,7 +155,7 @@ class Department_Service():
     def get_members(dept_id, offset = 0, limit = 10):
         try:
             print("finding members of dept id:", dept_id)
-            users = User.query.filter_by(department_id = dept_id).order_by(User.id.asc()).offset(offset).limit(limit).all()
+            users = User.query.filter_by(department_id = dept_id, account_status = 1).order_by(User.id.asc()).offset(offset).limit(limit).all()
 
 
             converted_user = [user.to_dict() for user in users]
@@ -309,7 +318,7 @@ class Department_Service():
     
     def get_all_department_ipcr(dept_id):
         try:
-            dept_members = User.query.filter_by(department_id = dept_id).all()
+            dept_members = User.query.filter_by(department_id = dept_id, status = 1).all()
 
             user_ipcr = []
 
