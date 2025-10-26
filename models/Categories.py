@@ -154,20 +154,24 @@ class Category_Service():
             if not category:
                 return jsonify(message="No category with that ID"), 400
 
-            # Archive category itself
+            # Archive the category
             category.status = 0
 
-            # Archive all main tasks under this category
             for main_task in category.main_tasks:
+                # Archive the main task
                 main_task.status = 0
 
-                # Archive subtasks of each main task
+                # Archive all subtasks under this main task
                 for sub_task in main_task.sub_tasks:
                     sub_task.status = 0
 
-                # Remove outputs related to this main task
+                # Delete all outputs linked to this main task
                 for output in main_task.outputs:
                     db.session.delete(output)
+
+                # Delete all assigned tasks linked to this main task
+                for assigned_task in main_task.assigned_tasks:
+                    db.session.delete(assigned_task)
 
             db.session.commit()
             socketio.emit("category", "archived")
@@ -178,6 +182,7 @@ class Category_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
+
 
 
         
