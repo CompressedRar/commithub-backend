@@ -43,18 +43,22 @@ def approve_opcr(id):
 def review_opcr(id):
     return PCR_Service.review_opcr(id)
 
+@log_action(action = "ARCHIVE", target="IPCR")
 @pcrs.route("/ipcr/<id>", methods = ["DELETE"])
 def archiv_ipcr(id):
     return PCR_Service.archive_ipcr(id)
 
+@log_action(action = "ARCHIVE", target="OPCR")
 @pcrs.route("/opcr/<id>", methods = ["DELETE"])
 def archiv_opcr(id):
     return PCR_Service.archive_opcr(id)
 
+@log_action(action = "SUBMIT", target="IPCR")
 @pcrs.route("/ipcr/<ipcr_id>&<user_id>", methods = ["PATCH"])
 def assign_ipcr(ipcr_id, user_id):
     return PCR_Service.assign_main_ipcr(ipcr_id, user_id)
 
+@log_action(action = "UPDATE", target="RATING")
 @pcrs.route("/rating/<rating_id>", methods = ["PATCH"])
 def update_rating(rating_id):
     field = request.args.get("field")
@@ -66,6 +70,7 @@ def assign_pres_ipcr(ipcr_id, user_id):
     return PCR_Service.assign_pres_ipcr(ipcr_id, user_id)
 
 
+@log_action(action = "SUBMIT", target="OPCR")
 @pcrs.route("/opcr/<opcr_id>&<dept_id>", methods = ["PATCH"])
 def assign_opcr(opcr_id, dept_id):
     return PCR_Service.assign_main_opcr(opcr_id, dept_id)
@@ -85,7 +90,7 @@ def add_task_to_ipcr(main_task_id, batch_id, user_id, ipcr_id):
     return Tasks_Service.create_task_for_ipcr(task_id=main_task_id, current_batch_id=batch_id , user_id=user_id, ipcr_id=ipcr_id)
 
 
-
+@log_action(action = "DOWNLOAD", target="IPCR")
 @pcrs.route("/ipcr/download/<ipcr_id>", methods = ["GET"])
 def download_ipcr(ipcr_id):
 
@@ -108,6 +113,7 @@ def get_supporting_documents(ipcr_id):
 def get_supporting_documents_for_opcr(opcr_id):
     return PCR_Service.get_supporting_documents(opcr_id=opcr_id)
 
+@log_action(action = "ARCHIVE", target="SUPPORTING_DOCS")
 @pcrs.route("/ipcr/documents/<document_id>", methods = ["DELETE"])
 def archive_supporting_documents(document_id):
     return PCR_Service.archive_document(document_id=document_id)
@@ -118,6 +124,7 @@ def generate_presigned_url():
     file_type = request.json["fileType"]
     return FileStorage.generate_presigned_url(file_name = file_name, file_type = file_type)
 
+@log_action(action = "CREATE", target="SUPPORTING_DOCS")
 @pcrs.route("/record", methods = ["POST"])
 def record_supporting_document():
     file_name = request.json["fileName"]
@@ -136,17 +143,20 @@ def record_supporting_document_for_opcr():
 
     return PCR_Service.record_supporting_document(file_name=file_name, file_type=file_type, ipcr_id=ipcr_id, batch_id=batch_id)
 
+@log_action(action = "CREATE", target="OPCR")
 @pcrs.route("/opcr/<dept_id>", methods = ["POST"])
 def create_opcr(dept_id):
     ipcr_ids = request.json["ipcr_ids"]
 
     return PCR_Service.create_opcr(dept_id=dept_id, ipcr_ids=ipcr_ids)
 
+@log_action(action = "DOWNLOAD", target="OPCR")
 @pcrs.route("/opcr/download/<opcr_id>", methods = ["GET"])
 def test_opcr(opcr_id):
     file_link = PCR_Service.generate_opcr(opcr_id=opcr_id)
     return jsonify(link = file_link), 200
 
+@log_action(action = "DOWNLOAD", target="MASTER OPCR")
 @pcrs.route("/master-opcr/download/", methods = ["GET"])
 def test_master_opcr():
     return PCR_Service.generate_master_opcr()

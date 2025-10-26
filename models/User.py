@@ -3,8 +3,8 @@ from app import socketio
 from pprint import pprint
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
+from flask import request, jsonify
 
-from flask import jsonify
 from models.Positions import Positions, Position
 from FirebaseApi.config import upload_file
 from utils.Generate import generate_default_password
@@ -963,6 +963,10 @@ class Users():
                 print(result)
 
                 if result:
+                    ip_address = request.remote_addr
+                    user_agent = request.headers.get("User-Agent")
+                    
+                    res = Log_Service.add_logs(userCheck["id"], userCheck["first_name"] + " " + userCheck["last_name"], userCheck["department"]["name"], "LOGIN", "LOGIN", ip=ip_address, agent=user_agent)
                     token = Users.generate_token(userCheck)
                     return jsonify(message ="Authenticated.", token = token), 200
                 

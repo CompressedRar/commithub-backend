@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, jsonify, request
 from app import db
-
+from utils.decorators import log_action
 from models.Departments import Department_Service
 from models.Tasks import Tasks_Service
 
@@ -46,10 +46,13 @@ def get_assigned_users_tasks(dept_id, task_id):
 def get_general_assigned_users_tasks(task_id):
     return Tasks_Service.get_general_assigned_users(task_id)
 
+@log_action(action = "ASSIGN", target="TASK")
 @department.route("/assigned/<user_id>&<task_id>", methods = ["POST"])
 def assign_user_task(user_id, task_id):
     return Tasks_Service.assign_user(task_id, user_id)
 
+
+@log_action(action = "UNASSIGN", target="TASK")
 @department.route("/unassign/<user_id>&<task_id>", methods = ["POST"])
 def unassign_user_task(user_id, task_id):
     return Tasks_Service.unassign_user(task_id, user_id)
@@ -61,26 +64,30 @@ def get_department_members(id):
     print("this trigger")
     return Department_Service.get_members(id, offset, limit)
 
+@log_action(action = "CREATE", target="DEPARTMENT")
 @department.route("/create", methods = ["POST"])
 def create_department():
     data = request.form
     return Department_Service.create_department(data)
 
+@log_action(action = "REMOVE", target="USER")
 @department.route("/remove/<id>", methods = ["POST"])
 def remove_user_from_department(id):
     
     return Department_Service.remove_user_from_department(id)
 
+@log_action(action = "UPDATE", target="DEPARTMENT")
 @department.route("/update", methods = ["POST"])
 def update_department():
     data = request.form
     return Department_Service.update_department(data["id"],data)
     
-
+@log_action(action = "ARCHIVE", target="DEPARTMENT")
 @department.route("/<id>", methods = ["DELETE"])
 def archive_department(id):
     return Department_Service.archive_department(id)
 
+@log_action(action = "REMOVE", target="TASK")
 @department.route("/remove/<id>", methods = ["DELETE"])
 def remove_task_department(id):
     return Tasks_Service.remove_task_from_dept(id)
