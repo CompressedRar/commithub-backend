@@ -13,7 +13,6 @@ from utils.decorators import log_enter
 auth = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 
 @auth.route("/login", methods = ["POST"])
-@log_enter(action="LOGIN")
 def authenticate_user():
     data = request.form
     print("Data received: ", data.keys())

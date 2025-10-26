@@ -920,8 +920,7 @@ class PCR_Service():
             all_opcr = OPCR.query.filter_by(department_id = dept_id).all()
 
             for opcr in all_opcr:
-                opcr.isMain = False
-                opcr.status = 0
+                db.session.delete(opcr)
                 db.session.commit()
 
 
