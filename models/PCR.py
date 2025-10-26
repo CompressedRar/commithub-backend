@@ -1459,140 +1459,134 @@ class PCR_Service():
         return jsonify(ipcr_data = data, assigned = assigned, admin_data = head_data, form_status = opcr.form_status)
     
     def get_master_opcr():
-        try:
-            data = []
-            assigned = {}
-            categories = []
+        
+        data = []
+        categories = []
+        assigned = {}
 
-            # Get all active and main OPCRs (one per department)
-            opcrs = OPCR.query.filter_by(status=1, isMain=True).all()
+        opcrs = OPCR.query.filter_by(status = 1, isMain = True).all()
 
-            for opcr in opcrs:
-                department_name = opcr.department.name if opcr.department else "Unknown Department"
-                opcr_data = {"department": department_name, "categories": []}
-                cat_map = {}
+        for opcr in opcrs:
+            opcr_data = opcr.to_dict()
 
-                # Iterate through all Assigned_PCRs under this OPCR
-                for assigned_pcr in opcr.assigned_pcrs:
-                    ipcr = assigned_pcr.ipcr
-                    if not ipcr:
-                        continue
+            for assigned_pcr in opcr.assigned_pcrs:
+                for sub_task in assigned_pcr.ipcr.sub_tasks:
+                    if sub_task.main_task.category.name not in categories:
+                        categories.append(sub_task.main_task.category.name)
+                    if sub_task.main_task.mfo in assigned.keys():
+                        assigned[sub_task.main_task.mfo].append(f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}")
+                    else:
+                        assigned[sub_task.main_task.mfo] = [f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}"]
 
-                    user_fullname = f"{ipcr.user.first_name} {ipcr.user.last_name}"
+            for cat in categories:
+                data.append({
+                    cat:[]
+                })
 
-                    # Go through all subtasks in the IPCR
-                    for sub_task in ipcr.sub_tasks:
-                        category_name = sub_task.main_task.category.name
-                        mfo = sub_task.main_task.mfo
+            for assigned_pcr in opcr.assigned_pcrs:
+                for sub_task in assigned_pcr.ipcr.sub_tasks:
+                    #sub_task.main_task.category.name
+                    print(sub_task.main_task.category.name)
+                    current_data_index = 0
+                    for cat in data:
+                        for name, arr in cat.items():
+                            if sub_task.main_task.category.name == name:
+                                #check mo kung exzisting na yung task sa loob ng category
+                                current_task_index = 0
+                                found = False
+                                for tasks in data[current_data_index][name]:
+                                    if sub_task.mfo == tasks["title"]:
+                                        found = True
+                                        data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
+                                        data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
+                                        data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
+                                        data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
+                                        data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
+                                        data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
 
-                        # Track categories globally
-                        if category_name not in categories:
-                            categories.append(category_name)
+                                        data[current_data_index][name][current_task_index]["rating"]["quantity"] = sub_task.quantity
+                                        data[current_data_index][name][current_task_index]["rating"]["efficiency"] = sub_task.efficiency
+                                        data[current_data_index][name][current_task_index]["rating"]["timeliness"] = sub_task.timeliness
 
-                        # Track assigned individuals by MFO (for department-wide summary)
-                        assigned.setdefault(mfo, []).append(user_fullname)
+                                        data[current_data_index][name][current_task_index]["rating"]["average"] = PCR_Service.calculateAverage(data[current_data_index][name][current_task_index]["rating"]["quantity"], data[current_data_index][name][current_task_index]["rating"]["efficiency"], data[current_data_index][name][current_task_index]["rating"]["timeliness"])
+                                    current_task_index += 1     
 
-                        # Initialize category if not exists
-                        if category_name not in cat_map:
-                            cat_map[category_name] = []
+                                if not found:
+                                    data[current_data_index][name].append({
+                                    "title": sub_task.mfo,
+                                    "summary": {
+                                        "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                    },
+                                    "corrections": {
+                                        "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                    },
+                                    "working_days": {
+                                        "target": sub_task.target_time, "actual": sub_task.actual_time
+                                    },
+                                    "description":{
+                                        "target": sub_task.main_task.target_accomplishment,
+                                        "actual": sub_task.main_task.actual_accomplishment,
+                                        "alterations": sub_task.main_task.modification,
+                                        "time": sub_task.main_task.time_description,
+                                    },
+                                    "rating": {
+                                        "quantity": 0,
+                                        "efficiency": 0,
+                                        "timeliness": 0,
+                                        "average": 0,
+                                    }
+                                })
+                        current_data_index += 1
 
-                        # Check if this MFO already exists in the category (aggregate)
-                        found = next((task for task in cat_map[category_name] if task["title"] == mfo), None)
+                    
+        #get the head
 
-                        if found:
-                            # Aggregate values
-                            found["summary"]["target"] += sub_task.target_acc
-                            found["summary"]["actual"] += sub_task.actual_acc
-                            found["corrections"]["target"] += sub_task.target_mod
-                            found["corrections"]["actual"] += sub_task.actual_mod
-                            found["working_days"]["target"] += sub_task.target_time
-                            found["working_days"]["actual"] += sub_task.actual_time
-                        else:
-                            # Add new task entry
-                            cat_map[category_name].append({
-                                "title": mfo,
-                                "summary": {
-                                    "target": sub_task.target_acc,
-                                    "actual": sub_task.actual_acc
-                                },
-                                "corrections": {
-                                    "target": sub_task.target_mod,
-                                    "actual": sub_task.actual_mod
-                                },
-                                "working_days": {
-                                    "target": sub_task.target_time,
-                                    "actual": sub_task.actual_time
-                                },
-                                "description": {
-                                    "target": sub_task.main_task.target_accomplishment,
-                                    "actual": sub_task.main_task.actual_accomplishment,
-                                    "alterations": sub_task.main_task.modification,
-                                    "time": sub_task.main_task.time_description
-                                },
-                                "rating": {
-                                    "quantity": sub_task.quantity,
-                                    "efficiency": sub_task.efficiency,
-                                    "timeliness": sub_task.timeliness,
-                                    "average": PCR_Service.calculateAverage(
-                                        sub_task.quantity,
-                                        sub_task.efficiency,
-                                        sub_task.timeliness
-                                    ),
-                                },
-                            })
+        head_data = {}
+        head = User.query.filter_by(role = "president").first()
+        
+        head_data = {
+                "fullName": head.first_name + " " + head.last_name,
+                "givenName": head.first_name,
+                "middleName": head.middle_name,
+                "lastName": head.last_name,
+                "position": head.position.name,
 
-                # Convert category map to structured list for this department
-                for cat_name, tasks in cat_map.items():
-                    opcr_data["categories"].append({cat_name: tasks})
-
-                data.append(opcr_data)
-
-            # Get president / head data
-            head = User.query.filter_by(role="president").first()
-            head_data = {}
-            if head:
-                head_data = {
-                    "fullName": f"{head.first_name} {head.last_name}",
-                    "givenName": head.first_name,
-                    "middleName": head.middle_name,
-                    "lastName": head.last_name,
-                    "position": head.position.name,
-                    "individuals": {
-                        "review": {
-                            "name": f"{head.first_name} {head.last_name}",
-                            "position": head.position.name,
-                            "date": ""
-                        },
-                        "approve": {
-                            "name": "Hon. Maria Elena L. Germar",
-                            "position": "PMT Chairperson",
-                            "date": ""
-                        },
-                        "discuss": {"name": "", "position": "", "date": ""},
-                        "assess": {
-                            "name": "",
-                            "position": "Municipal Administrator",
-                            "date": ""
-                        },
-                        "final": {
-                            "name": "Hon. Maria Elena L. Germar",
-                            "position": "PMT Chairperson",
-                            "date": ""
-                        },
-                        "confirm": {
-                            "name": "Hon. Maria Elena L. Germar",
-                            "position": "PMT Chairperson",
-                            "date": ""
-                        },
+                "individuals": {
+                    "review": {
+                        "name": head.first_name + " " + head.last_name,
+                        "position": head.position.name,
+                        "date": ""
                     },
+                    "approve": {
+                        "name": "Hon. Maria Elena L. Germar",
+                        "position": "PMT Chairperson",
+                        "date": ""
+                    },
+                    "discuss": {
+                        "name": "",
+                        "position": "",
+                        "date": ""
+                    },
+                    "assess": {
+                        "name": "",
+                        "position": "Municipal Administrator",
+                        "date": ""
+                    },
+                    "final": {
+                        "name": "Hon. Maria Elena L. Germar",
+                        "position": "PMT Chairperson",
+                        "date": ""
+                    },
+                    "confirm": {
+                        "name": "Hon. Maria Elena L. Germar",
+                        "position": "PMT Chairperson",
+                        "date": ""
+                    }
                 }
+            }    
+        
 
-            return jsonify(ipcr_data=data, assigned=assigned, admin_data=head_data, form_status="")
-
-        except Exception as e:
-            print("Error in get_master_opcr:", str(e))
-            return jsonify(error=str(e)), 500
-
+        return jsonify(ipcr_data = data, assigned = assigned, admin_data = head_data, form_status = "")
         
 
     def calculateQuantity(target_acc, actual_acc):
