@@ -64,6 +64,9 @@ def create_app():
     from routes.AI import ai
     app.register_blueprint(ai)
 
+    from routes.Positions import positions
+    app.register_blueprint(positions)
+
     @app.route("/test-email")
     def test_email():
         res = send_email("qwertythanzip@gmail.com")

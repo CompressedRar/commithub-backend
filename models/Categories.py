@@ -13,6 +13,7 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False, unique = True )
     status = db.Column(db.Integer, default = 1)
+    type = db.Column(db.String(50), default = "Core Function" )
 
     main_tasks = db.relationship("Main_Task", back_populates = "category")
 
@@ -20,7 +21,8 @@ class Category(db.Model):
         return {
             "id" : self.id,
             "name": self.name,
-            "status": self.status
+            "status": self.status,
+            "type":self.type
         }
 
     def to_dict(self):
@@ -28,7 +30,8 @@ class Category(db.Model):
             "id" : self.id,
             "name": self.name,
             "main_tasks": [main_task.info() for main_task in self.main_tasks],
-            "status": self.status
+            "status": self.status,
+            "type":self.type
         }
     
 
@@ -83,6 +86,7 @@ class Category_Service():
     def create_category(data):
         try:
             category_name = data.get("category_name", "").strip()
+            category_type = data.get("category_type", "").strip()
 
             if not category_name:
                 return jsonify(error="Category name is required."), 400
@@ -93,7 +97,7 @@ class Category_Service():
                 return jsonify(error="Category name already exists."), 400
 
             # Create new category
-            new_category = Category(name=category_name)
+            new_category = Category(name=category_name, type = category_type)
             db.session.add(new_category)
             db.session.commit()  # Make sure to commit!
 
