@@ -14,7 +14,7 @@ def get_positions():
 def get_positions_info():
     return Positions.get_position_info()
 
-@positions.route("/update", methods = ["PATCH"])
+@positions.route("/", methods = ["PATCH"])
 def update_positions_info():
     data = loads(request.data)
     return Positions.update_position(data)

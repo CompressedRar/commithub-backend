@@ -20,6 +20,10 @@ class Position(db.Model):
         return {
             "id" : self.id,
             "name": self.name,
+            "core_weight": self.core_weight,
+            "strategic_weight": self.strategic_weight,
+            "support_weight": self.support_weight,
+            "status": self.status
         }
 
     def to_dict(self):
