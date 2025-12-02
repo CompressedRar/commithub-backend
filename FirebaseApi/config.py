@@ -11,6 +11,8 @@ load_dotenv()
 
 cred_json = os.getenv("FIREBASE_CREDENTIALS")
 cred_dict = json.loads(cred_json)
+cred_dict['private_key'] = cred_dict['private_key'].replace('\\n', '\n')
+
 
 cred = credentials.Certificate(cred_dict)
 app2 = None
