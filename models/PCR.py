@@ -25,6 +25,8 @@ class OPCR_Rating(db.Model):
     timeliness = db.Column(db.Integer, default = 0)
     average = db.Column(db.Integer, default = 0)
 
+    period = db.Column(db.String(100), nullable=True)
+
     def to_dict(self):
         normalized_q = 5 if self.quantity > 5 else self.quantity
         normalized_e = 5 if self.efficiency > 5 else self.efficiency
@@ -36,6 +38,7 @@ class OPCR_Rating(db.Model):
             "quantity": self.quantity,
             "efficiency": self.efficiency,
             "timeliness": self.timeliness,
+            "period_id": self.period,
             "average": round((normalized_q + normalized_e + normalized_t)/ 3)
         }
 
@@ -51,6 +54,8 @@ class Assigned_PCR(db.Model):
     opcr = db.relationship("OPCR", back_populates = "assigned_pcrs")
     department = db.relationship("Department", back_populates = "assigned_pcrs")
 
+    period = db.Column(db.String(100), nullable=True)
+
 class Supporting_Document(db.Model):
     __tablename__ = "supporting_documents"
     id = db.Column(db.Integer, primary_key=True)
@@ -58,11 +63,16 @@ class Supporting_Document(db.Model):
     file_type = db.Column(db.Text, default="")
     file_name = db.Column(db.Text, default="")
     ipcr_id = db.Column(db.Integer, db.ForeignKey("ipcr.id"), default = None)
-    batch_id = db.Column(db.Text, default = " ")
+    batch_id = db.Column(db.Text, default = "")
     status = db.Column(db.Integer, default = 1)
 
     ipcr = db.relationship("IPCR", back_populates = "supporting_documents")
+    sub_task_id = db.Column(db.Integer, db.ForeignKey("sub_tasks.id"), default = None)
 
+    sub_task = db.relationship("Sub_Task", back_populates = "supporting_documents")
+
+    period = db.Column(db.String(100), nullable=True)
+    
     def to_dict(self):
         return {
             "id": self.id,
@@ -70,9 +80,13 @@ class Supporting_Document(db.Model):
             "object_name": "documents/" + self.file_name,
             "file_name": self.file_name,
             "batch_id": self.batch_id,
+            "period_id": self.period,
             "ipcr_id": self.ipcr_id,
             "status": self.status,
-            "download_url": FileStorage.get_file("documents/" + self.file_name)
+            "download_url": FileStorage.get_file("documents/" + self.file_name),
+            "task_name": self.sub_task.main_task.mfo if self.sub_task else "",
+            "task_id": self.sub_task.id if self.sub_task else ""
+
         }
     
 class OPCR_Supporting_Document(db.Model):
@@ -87,10 +101,13 @@ class OPCR_Supporting_Document(db.Model):
 
     opcr = db.relationship("OPCR", back_populates = "supporting_documents")
 
+    period = db.Column(db.String(100), nullable=True)
+
     def to_dict(self):
         return {
             "id": self.id,
             "file_type": self.file_type,
+            "period_id": self.period,
             "object_name": "documents/" + self.file_name,
             "file_name": self.file_name,
             "batch_id": self.batch_id,
@@ -129,7 +146,6 @@ class IPCR(db.Model):
     fin_date = db.Column(db.DateTime, default = None)
     con_date = db.Column(db.DateTime, default = None)
 
-    
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     #one ipcr to one user
@@ -150,13 +166,18 @@ class IPCR(db.Model):
     batch_id = db.Column(db.Text, default="")
     assigned_pcrs = db.relationship("Assigned_PCR", back_populates = "ipcr", cascade = "all, delete")
 
+    period = db.Column(db.String(100), nullable=True)
+
     def count_sub_tasks(self):
-        return len([main_task.to_dict() for main_task in self.sub_tasks])
+        return len([main_task for main_task in self.sub_tasks])
     
     def info(self):
         return {
             "id" : self.id,
-            "user": self.user_id
+            "user": self.user_id,
+            "core_weight": self.user.position.core_weight,
+            "strategic_weight": self.user.position.strategic_weight,
+            "support_weight": self.user.position.support_weight
         }
     
     def department_info(self):
@@ -282,6 +303,7 @@ class IPCR(db.Model):
             "isMain": self.isMain,
             "batch_id": self.batch_id,
             "status": self.status,
+            "period_id": self.period,
             "review" : {
                 "name": self.reviewed_by,
                 "position": self.rev_position,
@@ -358,8 +380,9 @@ class OPCR(db.Model):
     fin_date = db.Column(db.DateTime, default = None)
     con_date = db.Column(db.DateTime, default = None)
 
+    period = db.Column(db.String(100), nullable=True)
     def count_ipcr(self):
-        return len([ipcr.to_dict() for ipcr in self.ipcrs])
+        return len([ipcr for ipcr in self.ipcrs])
     
     
     def to_dict(self):
@@ -393,6 +416,7 @@ class OPCR(db.Model):
             "ipcr_count": self.count_ipcr(),
             "form_status": self.form_status,
             "created_at": str(self.created_at),
+            "period_id": self.period,
             "review" : {
                 "name": self.reviewed_by,
                 "position": self.rev_position,
@@ -439,20 +463,31 @@ class OPCR(db.Model):
 class PCR_Service():
     def generate_IPCR(user_id, main_task_id_array):
         try:
+            from models.System_Settings import System_Settings
+
+            current_period = System_Settings.query.first().current_period_id
+
+            current_period_ipcr = IPCR.query.filter_by(user_id=user_id, period=current_period).first()
+
+            if current_period_ipcr:
+                return jsonify(message="An IPCR for the current period already exists."), 400
+
+
             # start batch
             current_batch_id = str(uuid.uuid4())
 
             # create IPCR and flush so id is available
-            new_ipcr = IPCR(user_id=user_id, batch_id=current_batch_id)
+            new_ipcr = IPCR(user_id=user_id, batch_id=current_batch_id, form_status="submitted", period=current_period)
             db.session.add(new_ipcr)
             db.session.flush()   # <-- new_ipcr.id now available
 
             # For each main task, create batch-scoped Assigned_Task (if not exist)
             # and create Output (which will create Sub_Task inside Output.__init__)
+
             for mt_id in main_task_id_array:
                 # skip if there's already an output for same user/task/batch
                 existing_output = Output.query.filter_by(
-                    user_id=user_id, main_task_id=mt_id, batch_id=current_batch_id
+                    user_id=user_id, main_task_id=mt_id, batch_id=current_batch_id, period=current_period
                 ).first()
 
                 if existing_output:
@@ -461,7 +496,7 @@ class PCR_Service():
 
                 # create batch-scoped Assigned_Task if it doesn't exist for this batch
                 existing_assigned = Assigned_Task.query.filter_by(
-                    user_id=user_id, main_task_id=mt_id, batch_id=current_batch_id
+                    user_id=user_id, main_task_id=mt_id, batch_id=current_batch_id, period=current_period
                 ).first()
 
                 if not existing_assigned:
@@ -469,7 +504,8 @@ class PCR_Service():
                         user_id=user_id,
                         main_task_id=mt_id,
                         is_assigned=False,
-                        batch_id=current_batch_id
+                        batch_id=current_batch_id,
+                        period=current_period
                     )
                     db.session.add(new_assigned)
 
@@ -478,7 +514,8 @@ class PCR_Service():
                     user_id=user_id,
                     main_task_id=mt_id,
                     batch_id=current_batch_id,
-                    ipcr_id=new_ipcr.id
+                    ipcr_id=new_ipcr.id,
+                    period=current_period
                 )
                 db.session.add(new_output)
 
@@ -827,10 +864,13 @@ class PCR_Service():
             #db.session.rollback()
             return jsonify(error=str(e)), 500
 
-    def record_supporting_document(file_type, file_name, ipcr_id, batch_id):
+    def record_supporting_document(file_type, file_name, ipcr_id, batch_id, sub_task_id = None):
         try:
+            from models.System_Settings import System_Settings            
+            current_settings = System_Settings.query.first()
+
             ipcr = IPCR.query.get(ipcr_id)
-            new_supporting_document = Supporting_Document(file_type = file_type, file_name = file_name, ipcr_id = ipcr_id, batch_id = batch_id)
+            new_supporting_document = Supporting_Document(file_type = file_type, file_name = file_name, ipcr_id = ipcr_id, batch_id = batch_id, sub_task_id = sub_task_id, period = current_settings.current_period_id)
             db.session.add(new_supporting_document)
             db.session.commit()
             socketio.emit("document", "document")
@@ -921,11 +961,14 @@ class PCR_Service():
     def create_opcr(dept_id, ipcr_ids):
         try:
             # Check if there's already an existing OPCR for this department
-            existing_opcr = OPCR.query.filter_by(department_id=dept_id, isMain=True).first()
+            from models.System_Settings import System_Settings            
+            current_settings = System_Settings.query.first()
+
+            existing_opcr = OPCR.query.filter_by(department_id=dept_id, isMain=True, period = current_settings.current_period_id).first()
 
             # If no OPCR exists, create one
             if not existing_opcr:
-                new_opcr = OPCR(department_id=dept_id, isMain=True)
+                new_opcr = OPCR(department_id=dept_id, isMain=True, period = current_settings.current_period_id if current_settings else None)
                 db.session.add(new_opcr)
                 db.session.flush()  # Get new_opcr.id
             else:
@@ -950,7 +993,8 @@ class PCR_Service():
                     if sub_task.main_task.mfo not in existing_mfos:
                         new_rating = OPCR_Rating(
                             mfo=sub_task.main_task.mfo,
-                            opcr_id=new_opcr.id
+                            opcr_id=new_opcr.id,
+                            period = current_settings.current_period_id if current_settings else None
                         )
                         db.session.add(new_rating)
                         existing_mfos.add(sub_task.main_task.mfo)
@@ -959,14 +1003,17 @@ class PCR_Service():
                 existing_assignment = Assigned_PCR.query.filter_by(
                     opcr_id=new_opcr.id,
                     ipcr_id=ipcr_id,
-                    department_id=dept_id
+                    department_id=dept_id,
+                    period = current_settings.current_period_id
+
                 ).first()
 
                 if not existing_assignment:
                     assigned_pcr = Assigned_PCR(
                         opcr_id=new_opcr.id,
                         ipcr_id=ipcr_id,
-                        department_id=dept_id
+                        department_id=dept_id,
+                        period = current_settings.current_period_id if current_settings else None
                     )
                     db.session.add(assigned_pcr)
 

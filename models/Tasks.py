@@ -22,6 +22,10 @@ class Assigned_Task(db.Model):
 
     status = db.Column(db.Integer, default = 1)
 
+    period = db.Column(db.String(100), nullable=True)
+
+
+
     
 
     def user_info(self):
@@ -32,6 +36,7 @@ class Assigned_Task(db.Model):
     
     def assigned_task_info(self):
         return {
+            "period_id": self.period,
             "tasks": self.main_task.info(),
             "is_assigned": self.is_assigned
         }
@@ -49,6 +54,8 @@ class Output(db.Model):
     ipcr = db.relationship("IPCR", back_populates = "outputs")
     sub_task = db.relationship("Sub_Task", back_populates="output", uselist=False, cascade="all, delete")
     main_task = db.relationship("Main_Task", back_populates = "outputs")
+
+    period = db.Column(db.String(100), nullable=True)
 
     status = db.Column(db.Integer, default = 1)
 
@@ -108,6 +115,8 @@ class Main_Task(db.Model):
     time_editable = db.Column(db.Boolean, default=False)
     modification_editable = db.Column(db.Boolean, default=False)
 
+    require_documents = db.Column(db.Boolean, default=False)
+
     #one category and one department
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id"), default = None)
     department = db.relationship("Department", back_populates = "main_tasks")
@@ -119,6 +128,8 @@ class Main_Task(db.Model):
     outputs = db.relationship("Output", back_populates="main_task", cascade = "all, delete")
 
     assigned_tasks = db.relationship("Assigned_Task", back_populates="main_task", cascade = "all, delete")
+
+    period = db.Column(db.String(100), nullable=True)
 
     
 
@@ -152,7 +163,7 @@ class Main_Task(db.Model):
             "status": self.status,
             "time": self.time_description,
             "modification": self.modification,
-
+            "period_id": self.period,
             "category": self.category.info()
         }
 
@@ -169,13 +180,16 @@ class Main_Task(db.Model):
             "users": [assigned.user_info() for assigned in self.assigned_tasks],
             "status": self.status,
             "category": self.category.info() if self.category else "NONE",
+            "period_id": self.period,
             "sub_tasks": [sub.info() for sub in self.sub_tasks]
+            
         }
 
     def to_dict(self):
         return {
             "id": self.id,
             "title": self.mfo,
+            "period_id": self.period,
             "target_acc": self.target_accomplishment,
             "actual_acc": self.actual_accomplishment,
             "created_at": str(self.created_at),
@@ -214,77 +228,85 @@ class Sub_Task(db.Model):
     main_task = db.relationship("Main_Task", back_populates="sub_tasks")
 
     ipcr_id = db.Column(db.Integer, db.ForeignKey("ipcr.id"), default = None)
-    ipcr = db.relationship("IPCR", back_populates="sub_tasks")    
+    ipcr = db.relationship("IPCR", back_populates="sub_tasks")   
+
+    supporting_documents = db.relationship("Supporting_Document", back_populates="sub_task") 
 
     
-
+    period = db.Column(db.String(100), nullable=True)
     batch_id = db.Column(db.Text, nullable=False)
 
+    def compute_rating(self, formula, target, actual):
+        expression = formula["expression"]
+
+        # Replacing formula variables safely
+        calc = eval(expression, {"__builtins__": None}, {
+            "target": target,
+            "actual": actual
+        })
+
+        for rating, condition in formula["rating_scale"].items():
+            if eval(condition, {"__builtins__": None}, {"calc": calc}):
+                return int(rating)
+
+        return 0
+
     def calculateQuantity(self):
-        rating = 0
+        print("calculating quantity")
         target = self.target_acc
         actual = self.actual_acc
 
-        if target == 0:
-            self.quantity = 0
-            return 0
-        
-        calculations = actual/target
-        
-        if calculations >= 1.3:
-            rating = 5
-        elif calculations >= 1.01 and calculations <= 1.299:
-            rating = 4
-        elif calculations >= 0.90 and calculations <= 1:
-            rating = 3    
-        elif calculations >= .70 and calculations <= 0.899:
-            rating = 2
-        elif calculations <= 0.699:
-            rating = 1
-        
-        return rating  
+        from models.System_Settings import System_Settings
+
+        setting = System_Settings.query.first()
+
+        rating = self.compute_rating(
+            setting.quantity_formula,
+            target,
+            actual
+        )
+
+        self.quantity = rating
+
+        return rating
 
     def calculateEfficiency(self):
+        print("calculating efficiency")
         
         target = self.target_mod
         actual = self.actual_mod
-        rating = 0
-        
-        calculations = actual
 
-        if calculations == 0:            
-            rating = 5
-        elif calculations >= 1 and calculations <= 2:
-            rating = 4
-        elif calculations >= 3 and calculations <= 4:
-            rating = 3    
-        elif calculations >= 5 and calculations <= 6:
-            rating = 2
-        elif calculations <= 7:
-            rating = 1
-        return rating 
+        from models.System_Settings import System_Settings
+
+        setting = System_Settings.query.first()
+
+        rating = self.compute_rating(
+            setting.efficiency_formula,
+            target,
+            actual
+        )
+
+        self.efficiency = rating
+
+        return rating
     
     def calculateTimeliness(self):
-        
+        print("calculating timeliness")
         target = self.target_time
         actual = self.actual_time
-        rating = 0
-        if target == 0:
-            self.timeliness = 0
-            return 0
-        
-        calculations = ((target - actual) / target) + 1
-        
-        if calculations >= 1.3:
-            rating = 5
-        elif calculations >= 1.15 and calculations <= 1.29:
-            rating = 4
-        elif calculations >= 0.9 and calculations <= 1.14:
-            rating = 3    
-        elif calculations >= 0.51 and calculations <= 0.89:
-            rating = 2
-        elif calculations <= 0.5:
-            rating = 1
+
+        from models.System_Settings import System_Settings
+
+        setting = System_Settings.query.first()
+
+        rating = self.compute_rating(
+            setting.timeliness_formula,
+            target,
+            actual
+        )
+    
+        self.timeliness = rating
+
         return rating
     
     def calculateAverage(self):
@@ -304,10 +326,24 @@ class Sub_Task(db.Model):
             "status": self.status,
             "batch_id": self.batch_id
         }
+    
+    def getPositionWeights(self):
+        return self.ipcr.user.position.info()
+    
+    def getWeight(self):
+        weights = self.getPositionWeights()
+        if self.main_task.category.type == "Core Function":
+            return weights["core_weight"]
+        elif self.main_task.category.type == "Support Function":
+            return weights["support_weight"]
+        elif self.main_task.category.type == "Strategic Function":
+            return weights["strategic_weight"]
+
 
     def to_dict(self):
         return {
             "id": self.id,
+            "period_id": self.period,
             "title": self.mfo,
             "target_acc": self.target_acc,
             "target_time": self.target_time,
@@ -319,14 +355,15 @@ class Sub_Task(db.Model):
             "status": self.status,
             "batch_id": self.batch_id,
 
-            "quantity": self.quantity,
-            "efficiency": self.efficiency,
-            "timeliness": self.timeliness,
-            "average": self.calculateAverage(),
+            "quantity": self.calculateQuantity(),
+            "efficiency": self.calculateEfficiency(),
+            "timeliness": self.calculateTimeliness(),
+            "average": self.calculateAverage(),        
 
-         
             "ipcr": self.ipcr.info(),
-            "main_task": self.main_task.ipcr_info()
+            "main_task": self.main_task.ipcr_info(),
+            "name":self.mfo,
+            "required_documents": self.main_task.require_documents
         }
   
  
@@ -370,6 +407,9 @@ class Tasks_Service():
     def create_main_task(data):
         try:
             print("creating task right now")
+            from models.System_Settings import System_Settings            
+            current_settings = System_Settings.query.first()
+            
             new_main_task = Main_Task(
                 mfo = data["task_name"],
                 department_id  = int(data["department"]) if int(data["department"]) != 0 else None,
@@ -380,7 +420,9 @@ class Tasks_Service():
                 modification_editable =  int(data["modification_editable"]),
                 time_description = data["time_measurement"],
                 modification =  data["modification"],
-                category_id = int(data["id"])
+                category_id = int(data["id"]),
+                require_documents = data["require_documents"] if "require_documents" in data else False,
+                period = current_settings.current_period_id if current_settings else None
             )
             print("registered task")
             Notification_Service.notify_department(dept_id=data["department"], msg="A new output has been added to the department.")
@@ -474,8 +516,11 @@ class Tasks_Service():
     def assign_user(task_id, user_id):
         try:
             #search ko muna lahat ng assigned task kung existing na siya
+            from models.System_Settings import System_Settings            
+            current_settings = System_Settings.query.first()
 
-            new_assigned_task = Assigned_Task(user_id = user_id, main_task_id = task_id, is_assigned = True)
+
+            new_assigned_task = Assigned_Task(user_id = user_id, main_task_id = task_id, is_assigned = True, period = current_settings.current_period_id if current_settings else None)
             
 
             db.session.add(new_assigned_task)
@@ -508,7 +553,11 @@ class Tasks_Service():
         
     def create_user_output(task_id, user_id, current_batch_id, ipcr_id):
         try:
-            new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = current_batch_id, ipcr_id=ipcr_id)
+
+            from models.System_Settings import System_Settings            
+            current_settings = System_Settings.query.first()
+
+            new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = current_batch_id, ipcr_id=ipcr_id, period = current_settings.current_period_id if current_settings else None)
             print("new output", new_output.batch_id)
                         
             db.session.add(new_output)
@@ -534,8 +583,11 @@ class Tasks_Service():
         
     def create_task_for_ipcr(task_id, user_id, current_batch_id, ipcr_id):
         try:
-            new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = current_batch_id, ipcr_id=ipcr_id)
-            new_assigned_tasks = Assigned_Task(user_id=user_id, main_task_id = task_id, batch_id = current_batch_id)
+            from models.System_Settings import System_Settings            
+            current_settings = System_Settings.query.first()
+
+            new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = current_batch_id, ipcr_id=ipcr_id, period = current_settings.current_period_id if current_settings else None)
+            new_assigned_tasks = Assigned_Task(user_id=user_id, main_task_id = task_id, batch_id = current_batch_id, period = current_settings.current_period_id if current_settings else None, is_assigned=True)
             
             print("new output", new_output.batch_id)
                         

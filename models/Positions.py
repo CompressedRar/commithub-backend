@@ -37,7 +37,7 @@ class Position(db.Model):
 class Positions():
     def get_all_positions():
         try:
-            positions = Position.query.all()
+            positions = Position.query.filter_by(status = 1).all()
             return jsonify([pos.to_dict() for pos in positions]), 200
         
         except OperationalError:
@@ -50,7 +50,7 @@ class Positions():
         
     def get_position_info():
         try:
-            positions = Position.query.all()
+            positions = Position.query.filter_by(status = 1).all()
             return jsonify([pos.info() for pos in positions]), 200
         
         except OperationalError:
@@ -142,7 +142,7 @@ class Positions():
         
     def archive_position(id):
         try:
-            pos = Positions.query.get(id)
+            pos = Position.query.get(id)
 
             if not pos:
                 return jsonify(error="No position with that ID."), 400
@@ -172,7 +172,7 @@ class Positions():
         
     def restore_position(id):
         try:
-            pos = Positions.query.get(id)
+            pos = Position.query.get(id)
 
             if not pos:
                 return jsonify(error="No position with that ID."), 400
@@ -183,7 +183,7 @@ class Positions():
 
             socketio.emit("position")
 
-            return jsonify(message="Position archived successfully."), 200
+            return jsonify(message="Position restored successfully."), 200
 
         except DataError as e:
             db.session.rollback()

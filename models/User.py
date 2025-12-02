@@ -436,10 +436,9 @@ class User(db.Model):
 
             "position":self.position.info() if self.position else "NONE",
             "department": self.department.info() if self.department else "NONE",
-            "ipcrs": active_ipcrs,
+            "ipcrs": [ipcr.to_dict() for ipcr in self.ipcrs],
             "ipcrs_count": len([ipcr.to_dict() for ipcr in self.ipcrs]),
             "main_tasks_count": len(self.outputs),
-            "avg_performance": self.calculatePerformance()
         }
 
 

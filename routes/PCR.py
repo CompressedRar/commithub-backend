@@ -131,8 +131,9 @@ def record_supporting_document():
     file_type = request.json["fileType"]
     ipcr_id = request.json["ipcrID"]
     batch_id = request.json["batchID"]
+    sub_task_id = request.json.get("subTaskID", None)
 
-    return PCR_Service.record_supporting_document(file_name=file_name, file_type=file_type, ipcr_id=ipcr_id, batch_id=batch_id)
+    return PCR_Service.record_supporting_document(file_name=file_name, file_type=file_type, ipcr_id=ipcr_id, batch_id=batch_id, sub_task_id=sub_task_id)
 
 @pcrs.route("/record-opcr", methods = ["POST"])
 def record_supporting_document_for_opcr():

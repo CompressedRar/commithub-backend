@@ -17,12 +17,19 @@ class Category(db.Model):
 
     main_tasks = db.relationship("Main_Task", back_populates = "category")
 
+    period = db.Column(db.String(100), nullable=True)
+
+
     def info(self):
         return {
             "id" : self.id,
             "name": self.name,
             "status": self.status,
-            "type":self.type
+            "type":self.type,
+            "period_id": self.period,
+
+            "task_count": len(self.main_tasks)
+            
         }
 
     def to_dict(self):
@@ -31,7 +38,9 @@ class Category(db.Model):
             "name": self.name,
             "main_tasks": [main_task.info() for main_task in self.main_tasks],
             "status": self.status,
-            "type":self.type
+            "type":self.type,
+            "period_id": self.period,
+            "task_count": len(self.main_tasks)
         }
     
 
@@ -85,6 +94,9 @@ class Category_Service():
         
     def create_category(data):
         try:
+            from models.System_Settings import System_Settings            
+            current_settings = System_Settings.query.first()
+
             category_name = data.get("category_name", "").strip()
             category_type = data.get("category_type", "").strip()
 
@@ -97,7 +109,7 @@ class Category_Service():
                 return jsonify(error="Category name already exists."), 400
 
             # Create new category
-            new_category = Category(name=category_name, type = category_type)
+            new_category = Category(name=category_name, type = category_type, period = current_settings.current_period_id if current_settings else None)
             db.session.add(new_category)
             db.session.commit()  # Make sure to commit!
 
