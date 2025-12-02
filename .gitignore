@@ -1,2 +1,6 @@
 FirebaseApi/qrsence-firebase-adminsdk-7k5ew-8edd4b858d.json
 .env
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
