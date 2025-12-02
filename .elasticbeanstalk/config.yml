@@ -1,9 +1,9 @@
 branch-defaults:
   main:
-    environment: null
+    environment: flask-env
 global:
   application_name: CommitHub - Backend
-  branch: main
+  branch: null
   default_ec2_keyname: aws-eb
   default_platform: Python 3.14 running on 64bit Amazon Linux 2023
   default_region: ap-southeast-2
@@ -12,6 +12,6 @@ global:
   platform_name: null
   platform_version: null
   profile: eb-cli
-  repository: origin
+  repository: null
   sc: git
   workspace_type: Application
