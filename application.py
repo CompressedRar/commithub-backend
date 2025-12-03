@@ -1,5 +1,3 @@
-import eventlet
-eventlet.monkey_patch()
 
 from app import create_app  # or your app module
 application = create_app()

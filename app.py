@@ -18,7 +18,7 @@ def create_app():
     CORS(app, supports_credentials=True)
         
     app.config["SECRET_KEY"] = "priscilla"
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("AWS_DATABASE_URL")
+    app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://admin:qwertythanzip@commithub-db.ch4kwk2w6drk.ap-southeast-2.rds.amazonaws.com/commithub_production"
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'
     app.config['MAIL_PORT'] = 587
