@@ -6,11 +6,12 @@ from sqlalchemy.exc import IntegrityError, OperationalError, DataError, Programm
 from flask import request, jsonify
 
 from models.Positions import Positions, Position
-from FirebaseApi.config import upload_file
+from utils.FileStorage import upload_file, upload_profile_pic, get_file
 from utils.Generate import generate_default_password
 from utils.Email import send_email, send_reset_email
 from models.Logs import Log_Service
-
+from werkzeug.utils import secure_filename
+import os
 import uuid
 from argon2 import PasswordHasher
 import jwt
@@ -350,7 +351,7 @@ class User(db.Model):
 
     email = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(250), nullable=False, default="commithubnc")
-    profile_picture_link = db.Column(db.String(200), nullable=True)
+    profile_picture_link = db.Column(db.Text, nullable=True)
 
     
     created_at = db.Column(db.DateTime, default=datetime.now)
@@ -429,7 +430,7 @@ class User(db.Model):
             "role": self.role,
             "email": self.email,
             "password": self.password,
-            "profile_picture_link": self.profile_picture_link,
+            "profile_picture_link": get_file(self.profile_picture_link),
             "active_status": self.active_status,
             "account_status": self.account_status,
             "created_at": str(self.created_at),
@@ -443,10 +444,6 @@ class User(db.Model):
 
 
 class Users():
-
-    
-
-
     def check_email_if_exists(email):
         try:
             all_users = User.query.filter_by(email = email).all()
@@ -594,7 +591,11 @@ class Users():
             # Handle profile picture upload
             profile = rq.files.get("profile_picture_link")
             if profile:
-                res = upload_file(profile)
+                filename = secure_filename(profile.filename)
+                filepath = os.path.join("profile_pics", filename)
+                profile.save(filepath)
+                
+                res = upload_profile_pic(filepath, "commithub-bucket", f"profile_pictures/{data["first_name"]+data["last_name"]+str(uuid.uuid4())}.png")
                 user.profile_picture_link = res
 
             # Basic info updates
@@ -793,8 +794,12 @@ class Users():
 
             ph = PasswordHasher()
             hashed_password = ph.hash(new_default_password)
+
+            filename = secure_filename(profile_picture.filename)
+            filepath = os.path.join("profile_pics", filename)
+            profile_picture.save(filepath)
             
-            res = upload_file(profile_picture)
+            res = upload_profile_pic(filepath, "commithub-bucket", f"profile_pictures/{data["first_name"]+data["last_name"]+str(uuid.uuid4())}.png")
 
             dept_id = data["department"]
 
