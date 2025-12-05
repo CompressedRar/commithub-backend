@@ -520,6 +520,67 @@ class PCR_Service():
         
         # Default calculation
         return PCR_Service.calculateTimeliness(target_time, actual_time)
+    
+    def generate_IPCR_from_tasks(user_id, main_task_id, assigned_quantity):
+        try:
+            from models.System_Settings import System_Settings
+            current_batch_id = str(uuid.uuid4())
+
+            current_period = System_Settings.query.first().current_period_id
+
+            new_ipcr = IPCR(user_id=user_id, batch_id=current_batch_id, form_status="submitted", period=current_period, isMain=True)
+            db.session.add(new_ipcr)
+            db.session.flush()   # <-- new_ipcr.id now available
+
+            # For each main task, create batch-scoped Assigned_Task (if not exist)
+            # and create Output (which will create Sub_Task inside Output.__init__)
+
+
+                # create batch-scoped Assigned_Task if it doesn't exist for this batch
+            existing_assigned = Assigned_Task.query.filter_by(
+                    user_id=user_id, main_task_id=main_task_id, batch_id=current_batch_id, period=current_period
+            ).first()
+
+            if not existing_assigned:
+                new_assigned = Assigned_Task(
+                        user_id=user_id,
+                        main_task_id=main_task_id,
+                        is_assigned=False,
+                        batch_id=current_batch_id,
+                        period=current_period,
+                        assigned_quantity = assigned_quantity
+                    )
+                db.session.add(new_assigned)
+
+                # create new Output (this will create Sub_Task in Output.__init__)
+            new_output = Output(
+                    user_id=user_id,
+                    main_task_id=main_task_id,
+                    batch_id=current_batch_id,
+                    ipcr_id=new_ipcr.id,
+                    period=current_period,
+                    assigned_quantity= assigned_quantity 
+                )
+            db.session.add(new_output)
+
+            # commit all at once
+            db.session.commit()
+
+            # emit one structured event
+            socketio.emit("ipcr_create", {
+                "ipcr_id": new_ipcr.id,
+                "batch_id": current_batch_id,
+                "user_id": user_id,
+                "task_count": len(main_task_id)
+            })
+            Notification_Service.notify_presidents(f"A new IPCR has been submitted from {new_ipcr.user.department.name}.")
+
+            return jsonify(message="IPCR successfully created"), 200
+
+        except Exception as e:
+            db.session.rollback()
+            print("generate_IPCR error:", e)
+            return jsonify(error=str(e)), 500
 
     def generate_IPCR(user_id, main_task_id_array):
         try:
@@ -566,7 +627,8 @@ class PCR_Service():
                         main_task_id=mt_id,
                         batch_id=current_period_ipcr.batch_id,
                         ipcr_id=current_period_ipcr.id,
-                        period=current_period
+                        period=current_period,
+                        assigned_quantity=existing_assigned.assigned_quantity if existing_assigned else 0
                     )
 
                     db.session.add(new_output)
@@ -617,7 +679,8 @@ class PCR_Service():
                     main_task_id=mt_id,
                     batch_id=current_batch_id,
                     ipcr_id=new_ipcr.id,
-                    period=current_period
+                    period=current_period,
+                    assigned_quantity=existing_assigned.assigned_quantity if existing_assigned else 0
                 )
                 db.session.add(new_output)
 

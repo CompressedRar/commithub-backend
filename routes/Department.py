@@ -47,9 +47,9 @@ def get_general_assigned_users_tasks(task_id):
     return Tasks_Service.get_general_assigned_users(task_id)
 
 @log_action(action = "ASSIGN", target="TASK")
-@department.route("/assigned/<user_id>&<task_id>", methods = ["POST"])
-def assign_user_task(user_id, task_id):
-    return Tasks_Service.assign_user(task_id, user_id)
+@department.route("/assigned/<user_id>&<task_id>&<assigned_quantity>", methods = ["POST"])
+def assign_user_task(user_id, task_id, assigned_quantity):
+    return Tasks_Service.assign_user(task_id, user_id, assigned_quantity)
 
 
 @log_action(action = "UNASSIGN", target="TASK")

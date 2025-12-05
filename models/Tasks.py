@@ -24,9 +24,7 @@ class Assigned_Task(db.Model):
 
     period = db.Column(db.String(100), nullable=True)
 
-
-
-    
+    assigned_quantity = db.Column(db.Integer, default = 0)
 
     def user_info(self):
         return self.user.info()
@@ -59,20 +57,26 @@ class Output(db.Model):
 
     status = db.Column(db.Integer, default = 1)
 
-    def __init__(self, user_id, main_task_id, batch_id, ipcr_id, period):
+    assigned_quantity = db.Column(db.Integer, default = 0)
+
+    def __init__(self, user_id, main_task_id, batch_id, ipcr_id, period, assigned_quantity):
         super().__init__()
         self.user_id = user_id
         self.batch_id = batch_id
         self.ipcr_id = ipcr_id
         self.main_task = Main_Task.query.get(main_task_id)
         self.period = period
+        self.assigned_quantity = assigned_quantity
+        
 
         # Create subtask automatically by copying from main task
         new_sub_task = Sub_Task(
             mfo=self.main_task.mfo,
             main_task=self.main_task,
             batch_id = batch_id,
-            ipcr_id = self.ipcr_id
+            ipcr_id = self.ipcr_id,
+            assigned_quantity = assigned_quantity,
+            target_acc=assigned_quantity
         )             
        
 
@@ -166,7 +170,12 @@ class Main_Task(db.Model):
             "time": self.time_description,
             "modification": self.modification,
             "period_id": self.period,
-            "category": self.category.info()
+            "category": self.category.info(),
+            "target_quantity": self.target_quantity,
+            "target_efficiency": self.target_efficiency,
+            "target_timeframe": self.target_timeframe,
+            "timeliness_mode": self.timeliness_mode,
+            "target_deadline": str(self.target_deadline) if self.target_deadline else None,
         }
 
     def info(self):
@@ -183,7 +192,13 @@ class Main_Task(db.Model):
             "status": self.status,
             "category": self.category.info() if self.category else "NONE",
             "period_id": self.period,
-            "sub_tasks": [sub.info() for sub in self.sub_tasks]
+            "sub_tasks": [sub.info() for sub in self.sub_tasks],
+            "require_documents": self.require_documents,
+            "target_quantity": self.target_quantity,
+            "target_efficiency": self.target_efficiency,
+            "target_timeframe": self.target_timeframe,
+            "timeliness_mode": self.timeliness_mode,
+            "target_deadline": str(self.target_deadline) if self.target_deadline else None
             
         }
 
@@ -196,6 +211,11 @@ class Main_Task(db.Model):
             "actual_acc": self.actual_accomplishment,
             "created_at": str(self.created_at),
             "status": self.status,
+            "target_quantity": self.target_quantity,
+            "target_efficiency": self.target_efficiency,
+            "target_timeframe": self.target_timeframe,
+            "timeliness_mode": self.timeliness_mode,
+            "target_deadline": str(self.target_deadline) if self.target_deadline else None,
 
             "category": self.category_id,
             "sub_tasks": [sub_task.to_dict() for sub_task in self.sub_tasks],
@@ -237,6 +257,10 @@ class Sub_Task(db.Model):
     
     period = db.Column(db.String(100), nullable=True)
     batch_id = db.Column(db.Text, nullable=False)
+    assigned_quantity = db.Column(db.Integer, default = 0)
+
+
+    actual_deadline = db.Column(db.DateTime, nullable=True)
 
     def compute_rating(self, formula, target, actual):
         expression = formula["expression"]
@@ -298,6 +322,26 @@ class Sub_Task(db.Model):
 
         setting = System_Settings.query.first()
 
+
+        if self.main_task.timeliness_mode == "deadline" and self.actual_deadline and self.main_task.target_deadline:
+
+            from datetime import datetime
+
+            # Positive if actual submission is AFTER target (late)
+            days_late = (self.actual_deadline - self.main_task.target_deadline).days
+
+            if days_late <= 0:
+                # On time or early
+                actual = 0
+            else:
+                # Late by X days
+                actual = days_late
+
+            target = 1  # 1 = "no late days expected"
+
+            print("Deadline mode values -> target:", target, "actual:", actual)
+
+
         rating = self.compute_rating(
             setting.timeliness_formula,
             target,
@@ -350,6 +394,7 @@ class Sub_Task(db.Model):
             "actual_acc": self.actual_acc,
             "actual_time": self.actual_time,
             "actual_mod": self.actual_mod,
+            "actual_deadline": str(self.actual_deadline) if self.actual_deadline else None,
             "created_at": str(self.created_at),
             "status": self.status,
             "batch_id": self.batch_id,
@@ -362,12 +407,14 @@ class Sub_Task(db.Model):
             "ipcr": self.ipcr.info(),
             "main_task": self.main_task.ipcr_info(),
             "name":self.mfo,
+            "assigned_quantity": self.assigned_quantity,
             "required_documents": self.main_task.require_documents
         }
   
  
 
 class Tasks_Service():
+
 
     def test_ipcr():
         from models.PCR import IPCR
@@ -426,6 +473,7 @@ class Tasks_Service():
                 target_quantity = data["target_quantity"] if "target_quantity" in data else 0,
                 target_efficiency = data["target_efficiency"] if "target_efficiency" in data else 0,
                 target_timeframe = data["target_timeframe"] if "target_timeframe" in data else 0,
+                target_deadline = datetime.strptime(data["target_deadline"], "%Y-%m-%d") if "target_deadline" in data and data["target_deadline"] != "" else None,
                 timeliness_mode = data["timeliness_mode"] if "timeliness_mode" in data else "timeframe"                
             )
             print("registered task")
@@ -469,6 +517,7 @@ class Tasks_Service():
 
             if "name" in data:
                 found_task.mfo = data["name"]
+
 
             if "target_accomplishment" in data:
                 found_task.target_accomplishment = data["target_accomplishment"]
@@ -517,18 +566,26 @@ class Tasks_Service():
             "count":tasks_count
         })
     
-    def assign_user(task_id, user_id):
+    def assign_user(task_id, user_id, assigned_quantity):
         try:
             #search ko muna lahat ng assigned task kung existing na siya
             from models.System_Settings import System_Settings            
             current_settings = System_Settings.query.first()
 
+            from models.PCR import IPCR, PCR_Service
 
-            new_assigned_task = Assigned_Task(user_id = user_id, main_task_id = task_id, is_assigned = True, period = current_settings.current_period_id if current_settings else None)
-            
-
+            existing_ipcr = IPCR.query.filter_by(user_id=user_id, period=current_settings.current_period_id if current_settings else None).first()            
+            new_assigned_task = Assigned_Task(user_id = user_id, main_task_id = task_id, is_assigned = True, period = current_settings.current_period_id if current_settings else None, assigned_quantity = assigned_quantity)
             db.session.add(new_assigned_task)
             db.session.flush()
+
+            if existing_ipcr:
+                new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = existing_ipcr.batch_id if current_settings else "", ipcr_id=existing_ipcr.id, period = current_settings.current_period_id if current_settings else None, assigned_quantity = assigned_quantity)
+                print("new output", new_output.batch_id)                            
+                db.session.add(new_output)
+
+            else:
+                PCR_Service.generate_IPCR_from_tasks(user_id=user_id, main_task_id = task_id, assigned_quantity = assigned_quantity)
 
             db.session.commit()
             user = User.query.get(user_id)
@@ -1007,6 +1064,9 @@ class Tasks_Service():
                 ipcr.target_mod = int(value)
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
+            if field == "actual_deadline":
+                ipcr.actual_deadline = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "actual_acc":
                 ipcr.actual_acc = int(value)

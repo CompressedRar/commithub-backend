@@ -571,8 +571,9 @@ class Users():
             else: 
                 return jsonify(error= "There is no user with that id"), 400
 
-        except OperationalError:
+        except OperationalError as e:
             #db.session.rollback()
+            print(e)
             return jsonify(error="Database connection error"), 500
 
         except Exception as e:
