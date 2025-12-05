@@ -410,7 +410,6 @@ class OPCR(db.Model):
         self.con_position = "PMT Chairperson"
         db.session.commit()
 
-        print("eto si president: ", self.approved_by)  
         return {
             "id" : self.id,
             "ipcr_count": self.count_ipcr(),
@@ -461,23 +460,126 @@ class OPCR(db.Model):
 
 #si subtask yung target, kasse pag may output may sub_task din,eh si sub task kailangan ng ipcr id
 class PCR_Service():
+
+    @staticmethod
+    def _calculate_quantity_with_formula(target_acc, actual_acc, settings):
+        """Calculate quantity using formula from settings or default"""
+        if settings and settings.quantity_formula and settings.quantity_formula.get("expression"):
+            expression = settings.quantity_formula.get("expression", "")
+            safe_dict = {
+                "target": target_acc,
+                "actual": actual_acc,
+                "target_acc": target_acc,
+                "actual_acc": actual_acc
+            }
+            try:
+                result = eval(expression, {"__builtins__": {}}, safe_dict)
+                return int(result) if result <= 5 else 5
+            except:
+                pass
+        
+        # Default calculation
+        return PCR_Service.calculateQuantity(target_acc, actual_acc)
+
+    @staticmethod
+    def _calculate_efficiency_with_formula(target_mod, actual_mod, settings):
+        """Calculate efficiency using formula from settings or default"""
+        if settings and settings.efficiency_formula and settings.efficiency_formula.get("expression"):
+            expression = settings.efficiency_formula.get("expression", "")
+            safe_dict = {
+                "target": target_mod,
+                "actual": actual_mod,
+                "target_mod": target_mod,
+                "actual_mod": actual_mod
+            }
+            try:
+                result = eval(expression, {"__builtins__": {}}, safe_dict)
+                return int(result) if result <= 5 else 5
+            except:
+                pass
+        
+        # Default calculation
+        return PCR_Service.calculateEfficiency(target_mod, actual_mod)
+
+    @staticmethod
+    def _calculate_timeliness_with_formula(target_time, actual_time, settings):
+        """Calculate timeliness using formula from settings or default"""
+        if settings and settings.timeliness_formula and settings.timeliness_formula.get("expression"):
+            expression = settings.timeliness_formula.get("expression", "")
+            safe_dict = {
+                "target": target_time,
+                "actual": actual_time,
+                "target_time": target_time,
+                "actual_time": actual_time
+            }
+            try:
+                result = eval(expression, {"__builtins__": {}}, safe_dict)
+                return int(result) if result <= 5 else 5
+            except:
+                pass
+        
+        # Default calculation
+        return PCR_Service.calculateTimeliness(target_time, actual_time)
+
     def generate_IPCR(user_id, main_task_id_array):
         try:
             from models.System_Settings import System_Settings
+            current_batch_id = str(uuid.uuid4())
 
             current_period = System_Settings.query.first().current_period_id
-
             current_period_ipcr = IPCR.query.filter_by(user_id=user_id, period=current_period).first()
 
             if current_period_ipcr:
-                return jsonify(message="An IPCR for the current period already exists."), 400
+
+                print("An IPCR for the current period already exists.")
+                for mt_id in main_task_id_array:
+                    # skip if there's already an output for same user/task/batch
+                    existing_output = Output.query.filter_by(
+                        user_id=user_id, main_task_id=mt_id, batch_id=current_period_ipcr.batch_id, period=current_period
+                    ).first()
+
+                    if existing_output:
+                        print("Currently exists in the batch and period")
+                        # already created for this batch — skip
+                        continue
+
+                    # create batch-scoped Assigned_Task if it doesn't exist for this batch
+                    existing_assigned = Assigned_Task.query.filter_by(
+                        user_id=user_id, main_task_id=mt_id, batch_id=current_period_ipcr.batch_id, period=current_period
+                    ).first()
+
+                    if not existing_assigned:
+                        print("Creating assigned task for the existing ipcr")
+                        new_assigned = Assigned_Task(
+                            user_id=user_id,
+                            main_task_id=mt_id,
+                            is_assigned=False,
+                            batch_id=current_period_ipcr.batch_id,
+                            period=current_period
+                        )
+                        db.session.add(new_assigned)
+
+                    # create new Output (this will create Sub_Task in Output.__init__)
+                    print("Creating output for the existing ipcr")
+                    new_output = Output(
+                        user_id=user_id,
+                        main_task_id=mt_id,
+                        batch_id=current_period_ipcr.batch_id,
+                        ipcr_id=current_period_ipcr.id,
+                        period=current_period
+                    )
+
+                    db.session.add(new_output)
+                    db.session.flush()
+                    db.session.commit()
+                return jsonify(message="An IPCR for the current period already exists."), 200
 
 
             # start batch
-            current_batch_id = str(uuid.uuid4())
+            
 
             # create IPCR and flush so id is available
-            new_ipcr = IPCR(user_id=user_id, batch_id=current_batch_id, form_status="submitted", period=current_period)
+            new_ipcr = IPCR(user_id=user_id, batch_id=current_batch_id, form_status="submitted", period=current_period, isMain=True)
             db.session.add(new_ipcr)
             db.session.flush()   # <-- new_ipcr.id now available
 
@@ -960,6 +1062,8 @@ class PCR_Service():
     #fix the creation of opcr
     def create_opcr(dept_id, ipcr_ids):
         try:
+
+            print("creating opcr")
             # Check if there's already an existing OPCR for this department
             from models.System_Settings import System_Settings            
             current_settings = System_Settings.query.first()
@@ -968,6 +1072,8 @@ class PCR_Service():
 
             # If no OPCR exists, create one
             if not existing_opcr:
+
+                print("no existing opcr, creating new one")
                 new_opcr = OPCR(department_id=dept_id, isMain=True, period = current_settings.current_period_id if current_settings else None)
                 db.session.add(new_opcr)
                 db.session.flush()  # Get new_opcr.id
@@ -1095,7 +1201,6 @@ class PCR_Service():
                     for name, arr in cat.items():
 
                         
-
                         if sub_task.main_task.category.name == name:
 
 
@@ -1120,6 +1225,7 @@ class PCR_Service():
                                     data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
 
                                     data[current_data_index][name][current_task_index]["rating"] = rating_data
+                                    data[current_data_index][name][current_task_index]["type"] = sub_task.main_task.category.type
                                 current_task_index += 1     
 
                             if not found:
@@ -1140,7 +1246,8 @@ class PCR_Service():
                                     "alterations": sub_task.main_task.modification,
                                     "time": sub_task.main_task.time_description,
                                 },
-                                "rating": rating_data
+                                "rating": rating_data,
+                                "type": sub_task.main_task.category.type
                             })
                             
 
@@ -1316,16 +1423,23 @@ class PCR_Service():
 
     
     def get_opcr(opcr_id):
+        from models.System_Settings import System_Settings
+
         opcr = OPCR.query.get(opcr_id)
         opcr_data = opcr.to_dict()
         data = []
         categories = []
         assigned = {}
 
+        # load settings once
+        settings = System_Settings.query.first()
+
         for assigned_pcr in opcr.assigned_pcrs:
             if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft":
                 continue
             for sub_task in assigned_pcr.ipcr.sub_tasks:
+                if sub_task.status == 0: continue
+
                 if sub_task.main_task.category.name not in categories:
                     categories.append(sub_task.main_task.category.name)
                 if sub_task.main_task.mfo in assigned.keys():
@@ -1343,25 +1457,37 @@ class PCR_Service():
                 continue
             for sub_task in assigned_pcr.ipcr.sub_tasks:
                 #sub_task.main_task.category.name
+                if sub_task.status == 0: continue
                 print(sub_task.main_task.category.name)
                 current_data_index = 0
                 for cat in data:
                     for name, arr in cat.items():
                         if sub_task.main_task.category.name == name:
                             #check mo kung exzisting na yung task sa loob ng category
+
                             current_task_index = 0
                             found = False
-                            for tasks in data[current_data_index][name]:
-                                rating = next((r for r in opcr.opcr_ratings if r.mfo == sub_task.main_task.mfo), None)
-                                rating_data = rating.to_dict() if rating else {"quantity": 0, "efficiency": 0, "timeliness": 0, "average": 0}
 
+                            for tasks in data[current_data_index][name]:
+                                # compute ratings using settings formulas (falls back to defaults)
+                                quantity = PCR_Service._calculate_quantity_with_formula(sub_task.target_acc, sub_task.actual_acc, settings)
+                                efficiency = PCR_Service._calculate_efficiency_with_formula(sub_task.target_mod, sub_task.actual_mod, settings)
+                                timeliness = PCR_Service._calculate_timeliness_with_formula(sub_task.target_time, sub_task.actual_time, settings)
+                                rating_data = {
+                                    "quantity": quantity,
+                                    "efficiency": efficiency,
+                                    "timeliness": timeliness,
+                                    "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness)
+                                }
 
                                 if sub_task.mfo == tasks["title"]:
                                     found = True
                                     data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
                                     data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
+
                                     data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
                                     data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
+
                                     data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
                                     data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
 
@@ -1369,8 +1495,16 @@ class PCR_Service():
                                 current_task_index += 1     
 
                             if not found:
-                                rating = next((r for r in opcr.opcr_ratings if r.mfo == sub_task.main_task.mfo), None)
-                                rating_data = rating.to_dict() if rating else {"quantity": 0, "efficiency": 0, "timeliness": 0, "average": 0}
+                                # calculate ratings for newly appended task
+                                quantity = PCR_Service._calculate_quantity_with_formula(sub_task.target_acc, sub_task.actual_acc, settings)
+                                efficiency = PCR_Service._calculate_efficiency_with_formula(sub_task.target_mod, sub_task.actual_mod, settings)
+                                timeliness = PCR_Service._calculate_timeliness_with_formula(sub_task.target_time, sub_task.actual_time, settings)
+                                rating_data = {
+                                    "quantity": quantity,
+                                    "efficiency": efficiency,
+                                    "timeliness": timeliness,
+                                    "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness)
+                                }
 
                                 data[current_data_index][name].append({
                                 "title": sub_task.mfo,
@@ -1389,7 +1523,8 @@ class PCR_Service():
                                     "alterations": sub_task.main_task.modification,
                                     "time": sub_task.main_task.time_description,
                                 },
-                                "rating": rating_data
+                                "rating": rating_data,
+                                "type": sub_task.main_task.category.type
                             })
                     current_data_index += 1
 
@@ -1482,7 +1617,6 @@ class PCR_Service():
         
 
         return jsonify(ipcr_data = data, assigned = assigned, admin_data = head_data, form_status = opcr.form_status)
-    
     def get_master_opcr():
         try:
             opcrs = OPCR.query.filter_by(status=1, isMain=True).all()

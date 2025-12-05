@@ -59,12 +59,13 @@ class Output(db.Model):
 
     status = db.Column(db.Integer, default = 1)
 
-    def __init__(self, user_id, main_task_id, batch_id, ipcr_id):
+    def __init__(self, user_id, main_task_id, batch_id, ipcr_id, period):
         super().__init__()
         self.user_id = user_id
         self.batch_id = batch_id
         self.ipcr_id = ipcr_id
         self.main_task = Main_Task.query.get(main_task_id)
+        self.period = period
 
         # Create subtask automatically by copying from main task
         new_sub_task = Sub_Task(
@@ -116,22 +117,23 @@ class Main_Task(db.Model):
     modification_editable = db.Column(db.Boolean, default=False)
 
     require_documents = db.Column(db.Boolean, default=False)
-
     #one category and one department
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id"), default = None)
     department = db.relationship("Department", back_populates = "main_tasks")
-
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"))
     category = db.relationship("Category", back_populates = "main_tasks")
-
     sub_tasks = db.relationship("Sub_Task", back_populates = "main_task", cascade = "all, delete")
     outputs = db.relationship("Output", back_populates="main_task", cascade = "all, delete")
-
     assigned_tasks = db.relationship("Assigned_Task", back_populates="main_task", cascade = "all, delete")
-
     period = db.Column(db.String(100), nullable=True)
 
+    target_quantity = db.Column(db.Integer, nullable=True, default = 0)
+    target_efficiency = db.Column(db.Integer, nullable=True, default = 0)
     
+    target_deadline = db.Column(db.DateTime, nullable=True)
+    target_timeframe = db.Column(db.Integer, nullable=True, default = 0)  #in days / hours / minutes
+    timeliness_mode = db.Column(db.String(100), nullable=True, default = "timeframe")  #timeframe or deadline
+
 
     def get_users(self):
         all_user = []
@@ -252,7 +254,6 @@ class Sub_Task(db.Model):
         return 0
 
     def calculateQuantity(self):
-        print("calculating quantity")
         target = self.target_acc
         actual = self.actual_acc
 
@@ -271,7 +272,6 @@ class Sub_Task(db.Model):
         return rating
 
     def calculateEfficiency(self):
-        print("calculating efficiency")
         
         target = self.target_mod
         actual = self.actual_mod
@@ -291,7 +291,6 @@ class Sub_Task(db.Model):
         return rating
     
     def calculateTimeliness(self):
-        print("calculating timeliness")
         target = self.target_time
         actual = self.actual_time
 
@@ -422,7 +421,12 @@ class Tasks_Service():
                 modification =  data["modification"],
                 category_id = int(data["id"]),
                 require_documents = data["require_documents"] if "require_documents" in data else False,
-                period = current_settings.current_period_id if current_settings else None
+                period = current_settings.current_period_id if current_settings else None,
+
+                target_quantity = data["target_quantity"] if "target_quantity" in data else 0,
+                target_efficiency = data["target_efficiency"] if "target_efficiency" in data else 0,
+                target_timeframe = data["target_timeframe"] if "target_timeframe" in data else 0,
+                timeliness_mode = data["timeliness_mode"] if "timeliness_mode" in data else "timeframe"                
             )
             print("registered task")
             Notification_Service.notify_department(dept_id=data["department"], msg="A new output has been added to the department.")
