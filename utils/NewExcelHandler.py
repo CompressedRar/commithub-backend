@@ -41,62 +41,108 @@ def prepareCells(ws, start, end):
 
 
 def _build_data_from_ipcr(ipcr):
-    """
-    Returns a list-of-dicts like the original `data` structure:
-      [ { "Category Name": [ {title, summary, working_days, corrections, description, rating}, ... ] }, ... ]
-    Each output in ipcr.outputs contributes one `a` entry.
-    """
-    grouped = {}  # category_name -> list of entries
+
+    grouped = {
+        "CORE FUNCTION": {},
+        "SUPPORT FUNCTION": {},
+        "STRATEGIC FUNCTION": {}
+    }
+
     for output in ipcr.outputs:
-        # output.sub_task is a single Sub_Task (per your model)
         sub = getattr(output, "sub_task", None)
         mt = getattr(output, "main_task", None)
-        # choose category name (if main_task exists and has category name)
+
+        # Category name
         try:
-            category_name = mt.category.name if mt and mt.category else "CORE FUNCTION"
-        except Exception:
-            category_name = "CORE FUNCTION"
+            category_name = mt.category.name if mt and mt.category else "Uncategorized"
+        except:
+            category_name = "Uncategorized"
 
-        # Build the a dict fields mapping to what your original excel expects:
-        a = {}
-        a["title"] = mt.mfo if mt else (output.main_task.mfo if hasattr(output, "main_task") else "")
-        # summary (quantity target/actual)
-        a["summary"] = {
-            "target": getattr(sub, "target_acc", 0) if sub else 0,
-            "actual": getattr(sub, "actual_acc", 0) if sub else 0
+        # Determine section bucket
+        section = ""
+        if mt.category.type == "Core Function":
+            section = "CORE FUNCTION"
+        elif mt.category.type == "Support Function":
+            section = "SUPPORT FUNCTION"
+        elif mt.category.type == "Strategic Function":
+            section = "STRATEGIC FUNCTION"
+
+        # Initialize list for this category inside its section
+        if category_name not in grouped[section]:
+            grouped[section][category_name] = []
+
+        # Build entry "a"
+        a = {
+            "title": mt.mfo if mt else "",
+            "summary": {
+                "target": getattr(sub, "target_acc", 0),
+                "actual": getattr(sub, "actual_acc", 0)
+            },
+            "corrections": {
+                "target": getattr(sub, "target_mod", 0),
+                "actual": getattr(sub, "actual_mod", 0)
+            }
         }
-        # working_days -> target_time / actual_time
-        a["working_days"] = {
-            "target": getattr(sub, "target_time", 0) if sub else 0,
-            "actual": getattr(sub, "actual_time", 0) if sub else 0
-        }
-        # corrections -> target_mod / actual_mod
-        a["corrections"] = {
-            "target": getattr(sub, "target_mod", 0) if sub else 0,
-            "actual": getattr(sub, "actual_mod", 0) if sub else 0
-        }
-        # descriptions - map from main task text fields where applicable
+
+        # Timeliness modes -------------------------------------
+        if mt.timeliness_mode == "timeframe":
+            a["working_days"] = {
+                "target": getattr(sub, "target_time", 0),
+                "actual": getattr(sub, "actual_time", 0)
+            }
+            target_deadline_desc = "within timeframe"
+            actual_deadline_desc = ""
+        else:
+            # deadline mode
+            days_late = (sub.actual_deadline - sub.main_task.target_deadline).days
+            a["working_days"] = {
+                "target": 1,
+                "actual": abs(days_late)
+            }
+            target_deadline_desc = "on the set deadline"
+
+            if days_late == 0:
+                actual_deadline_desc = "on the set deadline"
+            elif days_late > 0:
+                actual_deadline_desc = "day/s after deadline"
+            else:
+                actual_deadline_desc = "day/s before deadline"
+
+        # descriptions
         a["description"] = {
-            "target": mt.target_accomplishment if mt else "",
-            "time": mt.time_description if mt else "",
-            "alterations": mt.modification if mt else "",
-            "actual": mt.actual_accomplishment if mt else ""
+            "target": mt.target_accomplishment,
+            "time": mt.time_description,
+            "alterations": mt.modification,
+            "actual": mt.actual_accomplishment,
+            "timeliness_mode": mt.timeliness_mode,
+            "target_deadline_desc": target_deadline_desc,
+            "actual_deadline_desc": actual_deadline_desc
         }
-        # ratings from subtask computed fields
+
+        # ratings
         a["rating"] = {
-            "quantity": getattr(sub, "quantity", 0) if sub else 0,
-            "efficiency": getattr(sub, "efficiency", 0) if sub else 0,
-            "timeliness": getattr(sub, "timeliness", 0) if sub else 0,
-            "average": getattr(sub, "average", 0) if sub else 0
+            "quantity": getattr(sub, "quantity", 0),
+            "efficiency": getattr(sub, "efficiency", 0),
+            "timeliness": getattr(sub, "timeliness", 0),
+            "average": getattr(sub, "average", 0)
         }
 
-        grouped.setdefault(category_name, []).append(a)
+        # Append the task entry into category list
+        grouped[section][category_name].append(a)
 
-    # convert grouped dict to list-of-single-key dicts (to match original `for i in data: for g,h in i.items():` structure)
-    data = []
-    for k, v in grouped.items():
-        data.append({k: v})
-    return data
+    # Convert dict → list-of-dicts for Excel
+    final = {
+        "CORE FUNCTION": [],
+        "SUPPORT FUNCTION": [],
+        "STRATEGIC FUNCTION": []
+    }
+
+    for section in grouped:
+        for category_name, entries in grouped[section].items():
+            final[section].append({category_name: entries})
+
+    return final
+
 
 
 def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
@@ -150,7 +196,7 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
         }
 
     # Build 'data' structure from DB outputs/subtasks
-    data = _build_data_from_ipcr(ipcr)
+    
 
     # Now replicate your excel logic exactly (with the same cell positions & merges)
     wb = load_workbook("excels/IPCRTest.xlsx")
@@ -214,103 +260,151 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     endrow = 0
     numberformat = "0.00"
 
-    for i in data:
-        if len(i) == 0:
-            continue
+    ipcr_data = _build_data_from_ipcr(ipcr)
 
-        for g, h in i.items():
-            if len(h) == 0:
-                continue
-            ws[f"A{row}"] = g  # category name
+    for type, data in ipcr_data.items():
+        
+        print("TYPE", type)
+        if type != "CORE FUNCTION" and len(data) != 0:         
+
+            ws[f"A{row}"] = type
             prepareCells(ws, f"A{row}", f"S{row}")
+            ws[f"A{row}"].font = Font(bold=True)
             row += 1
+        
 
-            for a in h:
-                prepareCells(ws, f"A{row}", f"E{row+5}")
-                ws[f"A{row}"] = a["title"]
-                ws[f"A{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        for i in data:
+            if len(i) == 0:
+                continue
+            
 
-                # targets
-                prepareCells(ws, f"F{row}", f"F{row+1}")
-                ws[f"F{row}"] = a["summary"]["target"]
-                ws[f"F{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                ws[f"F{row}"].font = Font(bold=True)
+            for g, h in i.items():
+                if len(h) == 0:
+                    continue
 
-                prepareCells(ws, f"F{row+2}", f"F{row+3}")
-                ws[f"F{row+2}"] = a["working_days"]["target"]
-                ws[f"F{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                ws[f"F{row+2}"].font = Font(bold=True)
+                ws[f"A{row}"] = g  # category name
+                prepareCells(ws, f"A{row}", f"S{row}")
+                row += 1
 
-                prepareCells(ws, f"F{row+4}", f"F{row+5}")
-                ws[f"F{row+4}"] = a["corrections"]["target"]
-                ws[f"F{row+4}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                ws[f"F{row+4}"].font = Font(bold=True)
+                for a in h:
+                    print("TASKS", a)
+                    prepareCells(ws, f"A{row}", f"E{row+5}")
+                    ws[f"A{row}"] = a["title"]
+                    ws[f"A{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-                # description target
-                prepareCells(ws, f"G{row}", f"I{row+1}")
-                ws[f"G{row}"] = a["description"]["target"]
-                ws[f"G{row}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
-                ws.row_dimensions[row].height = 45
+                    # targets
+                    prepareCells(ws, f"F{row}", f"F{row+1}")
+                    ws[f"F{row}"] = a["summary"]["target"]
+                    ws[f"F{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"F{row}"].font = Font(bold=True)
 
-                prepareCells(ws, f"G{row+2}", f"I{row+3}")
-                ws[f"G{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                    # target deadline / timeframe
 
-                prepareCells(ws, f"G{row+4}", f"I{row+5}")
-                ws[f"G{row+4}"] = a["description"]["alterations"]
+                    if a["description"]["timeliness_mode"] == "deadline":
+                        prepareCells(ws, f"F{row+2}", f"F{row+3}")
+                        ws[f"F{row+2}"] = f""
+                        ws[f"F{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                        ws[f"F{row+2}"].font = Font(bold=True)
 
-                # actual cells
-                prepareCells(ws, f"J{row}", f"J{row+1}")
-                ws[f"J{row}"] = a["summary"]["actual"]
-                ws[f"J{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                ws[f"J{row}"].font = Font(bold=True)
+                    else:
+                        prepareCells(ws, f"F{row+2}", f"F{row+3}")
+                        ws[f"F{row+2}"] = a["working_days"]["target"]
+                        ws[f"F{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                        ws[f"F{row+2}"].font = Font(bold=True)
 
-                prepareCells(ws, f"J{row+2}", f"J{row+3}")
-                ws[f"J{row+2}"] = a["working_days"]["actual"]
-                ws[f"J{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                ws[f"J{row+2}"].font = Font(bold=True)
+                    prepareCells(ws, f"F{row+4}", f"F{row+5}")
+                    ws[f"F{row+4}"] = a["corrections"]["target"]
+                    ws[f"F{row+4}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"F{row+4}"].font = Font(bold=True)
 
-                prepareCells(ws, f"J{row+4}", f"J{row+5}")
-                ws[f"J{row+4}"] = a["corrections"]["actual"]
-                ws[f"J{row+4}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                ws[f"J{row+4}"].font = Font(bold=True)
+                    # description target
+                    prepareCells(ws, f"G{row}", f"I{row+1}")
+                    ws[f"G{row}"] = a["description"]["target"]
+                    ws[f"G{row}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
+                    ws.row_dimensions[row].height = 45
 
-                prepareCells(ws, f"K{row}", f"M{row+1}")
-                ws[f"K{row}"] = a["description"]["actual"]
-                ws[f"K{row}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
+                    # target deadline / timeframe
+                    if a["description"]["timeliness_mode"] == "deadline":
+                        prepareCells(ws, f"G{row+2}", f"I{row+3}")
+                        ws[f"G{row+2}"] = f"{a['description']['target_deadline_desc']}"
+                        ws[f"G{row+2}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-                prepareCells(ws, f"K{row+2}", f"M{row+3}")
-                ws[f"K{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                    else:
+                        prepareCells(ws, f"G{row+2}", f"I{row+3}")
+                        ws[f"G{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                        ws[f"G{row+2}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-                prepareCells(ws, f"K{row+4}", f"M{row+5}")
-                ws[f"K{row+4}"] = a["description"]["alterations"]
+                    prepareCells(ws, f"G{row+4}", f"I{row+5}")
+                    ws[f"G{row+4}"] = a["description"]["alterations"]
+                    ws[f"G{row+4}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-                # ratings
-                prepareCells(ws, f"N{row}", f"N{row+5}")
-                ws[f"N{row}"] = a["rating"]["quantity"]
-                ws[f"N{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                ws[f"N{row}"].font = Font(bold=True)
+                    # actual cells
+                    prepareCells(ws, f"J{row}", f"J{row+1}")
+                    ws[f"J{row}"] = a["summary"]["actual"]
+                    ws[f"J{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"J{row}"].font = Font(bold=True)
 
-                prepareCells(ws, f"O{row}", f"O{row+5}")
-                ws[f"O{row}"] = a["rating"]["efficiency"]
-                ws[f"O{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                ws[f"O{row}"].font = Font(bold=True)
+                    if a["description"]["timeliness_mode"] == "deadline":
+                        prepareCells(ws, f"J{row+2}", f"J{row+3}")
+                        ws[f"J{row+2}"] = a["working_days"]["actual"]
+                        ws[f"J{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                        ws[f"J{row+2}"].font = Font(bold=True)
+                    else:
+                        prepareCells(ws, f"J{row+2}", f"J{row+3}")
+                        ws[f"J{row+2}"] = a["working_days"]["actual"]
+                        ws[f"J{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                        ws[f"J{row+2}"].font = Font(bold=True)
 
-                prepareCells(ws, f"P{row}", f"P{row+5}")
-                ws[f"P{row}"] = a["rating"]["timeliness"]
-                ws[f"P{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                ws[f"P{row}"].font = Font(bold=True)
+                    prepareCells(ws, f"J{row+4}", f"J{row+5}")
+                    ws[f"J{row+4}"] = a["corrections"]["actual"]
+                    ws[f"J{row+4}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"J{row+4}"].font = Font(bold=True)
 
-                prepareCells(ws, f"Q{row}", f"Q{row+5}")
-                ws[f"Q{row}"] = a["rating"]["average"]
-                ws[f"Q{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                ws[f"Q{row}"].font = Font(bold=True)
+                    prepareCells(ws, f"K{row}", f"M{row+1}")
+                    ws[f"K{row}"] = a["description"]["actual"]
+                    ws[f"K{row}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
 
-                # remarks (blank)
-                prepareCells(ws, f"R{row}", f"S{row+5}")
-                ws[f"R{row}"] = " "
+                    if a["description"]["timeliness_mode"] == "deadline":
+                        prepareCells(ws, f"K{row+2}", f"M{row+3}")
+                        ws[f"K{row+2}"] = f"{a['description']['actual_deadline_desc']}"
+                        ws[f"K{row+2}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
 
-                endrow = row
-                row = row + 6
+                    else:
+                        prepareCells(ws, f"K{row+2}", f"M{row+3}")
+                        ws[f"K{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                        ws[f"K{row+2}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
+
+                    prepareCells(ws, f"K{row+4}", f"M{row+5}")
+                    ws[f"K{row+4}"] = a["description"]["alterations"]
+                    ws[f"K{row+4}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
+
+                    # ratings
+                    prepareCells(ws, f"N{row}", f"N{row+5}")
+                    ws[f"N{row}"] = a["rating"]["quantity"]
+                    ws[f"N{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"N{row}"].font = Font(bold=True)
+
+                    prepareCells(ws, f"O{row}", f"O{row+5}")
+                    ws[f"O{row}"] = a["rating"]["efficiency"]
+                    ws[f"O{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"O{row}"].font = Font(bold=True)
+
+                    prepareCells(ws, f"P{row}", f"P{row+5}")
+                    ws[f"P{row}"] = a["rating"]["timeliness"]
+                    ws[f"P{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"P{row}"].font = Font(bold=True)
+
+                    prepareCells(ws, f"Q{row}", f"Q{row+5}")
+                    ws[f"Q{row}"] = a["rating"]["average"]
+                    ws[f"Q{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"Q{row}"].font = Font(bold=True)
+
+                    # remarks (blank)
+                    prepareCells(ws, f"R{row}", f"S{row+5}")
+                    ws[f"R{row}"] = " "
+
+                    endrow = row
+                    row = row + 6
 
     row += 2
     prepareCells(ws, f"L{row}", f"M{row+1}")
@@ -453,7 +547,7 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     link = f"excels/IPCR/{filename}.xlsx"
     wb.save(link)
 
-    file_url = upload_file(link, "commiathub-bucket", f"IPCR/{filename}.xlsx")
+    file_url = upload_file(link, "commithub-bucket", f"IPCR/{filename}.xlsx")
 
 
     return file_url

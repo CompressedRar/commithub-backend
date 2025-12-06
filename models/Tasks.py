@@ -262,6 +262,8 @@ class Sub_Task(db.Model):
 
     actual_deadline = db.Column(db.DateTime, nullable=True)
 
+    
+
     def compute_rating(self, formula, target, actual):
         expression = formula["expression"]
 

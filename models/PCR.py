@@ -461,6 +461,55 @@ class OPCR(db.Model):
 #si subtask yung target, kasse pag may output may sub_task din,eh si sub task kailangan ng ipcr id
 class PCR_Service():
 
+    def compute_quantity_rating(target, actual, settings):
+        expression = settings.quantity_formula.get("expression", "")
+        rating_scale = settings.quantity_formula.get("rating_scale", {})
+
+        # Replacing formula variables safely
+        calc = eval(expression, {"__builtins__": None}, {
+            "target": target,
+            "actual": actual
+        })
+
+        for rating, condition in rating_scale.items():
+            
+            if eval(condition, {"__builtins__": None}, {"calc": calc}):
+                return int(rating)
+
+        return 0
+    
+    def compute_efficiency_rating(target, actual, settings):
+        expression = settings.efficiency_formula.get("expression", "")
+        rating_scale = settings.efficiency_formula.get("rating_scale", {})
+
+        # Replacing formula variables safely
+        calc = eval(expression, {"__builtins__": None}, {
+            "target": target,
+            "actual": actual
+        })
+
+        for rating, condition in rating_scale.items():
+            if eval(condition, {"__builtins__": None}, {"calc": calc}):
+                return int(rating)
+
+        return 0
+    
+    def compute_timeliness_rating(target, actual, settings):
+        expression = settings.timeliness_formula.get("expression", "")
+        rating_scale = settings.timeliness_formula.get("rating_scale", {})
+
+        # Replacing formula variables safely
+        calc = eval(expression, {"__builtins__": None}, {
+            "target": target,
+            "actual": actual
+        })
+
+        for rating, condition in rating_scale.items():
+            if eval(condition, {"__builtins__": None}, {"calc": calc}):
+                return int(rating)
+
+        return 0
+
     @staticmethod
     def _calculate_quantity_with_formula(target_acc, actual_acc, settings):
         """Calculate quantity using formula from settings or default"""
@@ -474,7 +523,9 @@ class PCR_Service():
             }
             try:
                 result = eval(expression, {"__builtins__": {}}, safe_dict)
-                return int(result) if result <= 5 else 5
+
+                print("Quantity Formula Result:", target_acc, actual_acc, expression, result)
+                return float(result) if result <= 5 else 5
             except:
                 pass
         
@@ -505,6 +556,7 @@ class PCR_Service():
     def _calculate_timeliness_with_formula(target_time, actual_time, settings):
         """Calculate timeliness using formula from settings or default"""
         if settings and settings.timeliness_formula and settings.timeliness_formula.get("expression"):
+            print("Timeliness Formula Found")
             expression = settings.timeliness_formula.get("expression", "")
             safe_dict = {
                 "target": target_time,
@@ -1533,62 +1585,158 @@ class PCR_Service():
 
                             for tasks in data[current_data_index][name]:
                                 # compute ratings using settings formulas (falls back to defaults)
-                                quantity = PCR_Service._calculate_quantity_with_formula(sub_task.target_acc, sub_task.actual_acc, settings)
-                                efficiency = PCR_Service._calculate_efficiency_with_formula(sub_task.target_mod, sub_task.actual_mod, settings)
-                                timeliness = PCR_Service._calculate_timeliness_with_formula(sub_task.target_time, sub_task.actual_time, settings)
-                                rating_data = {
-                                    "quantity": quantity,
-                                    "efficiency": efficiency,
-                                    "timeliness": timeliness,
-                                    "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness)
-                                }
+                                
 
                                 if sub_task.mfo == tasks["title"]:
-                                    found = True
-                                    data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
-                                    data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
+                                    if sub_task.main_task.timeliness_mode == "deadline" and sub_task.actual_deadline and sub_task.main_task.target_deadline:
+                                        from datetime import datetime
+                                        # Positive if actual submission is AFTER target (late)
 
-                                    data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
-                                    data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
+                                        
 
-                                    data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
-                                    data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
+                                        target_working_days = ""
+                                        actual_working_days = ""
 
-                                    data[current_data_index][name][current_task_index]["rating"] = rating_data
+                                        days_late = (sub_task.actual_deadline - sub_task.main_task.target_deadline).days
+
+                                        actual_working_days = days_late
+                                        target_working_days = 1  
+
+                                        quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
+                                        efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
+                                        timeliness = PCR_Service.compute_timeliness_rating(target_working_days, actual_working_days, settings)
+                                        rating_data = {
+                                            "quantity": quantity,
+                                            "efficiency": efficiency,
+                                            "timeliness": timeliness,
+                                            "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness)
+                                        }
+
+
+                                        found = True
+                                        data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
+                                        data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
+
+                                        data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
+                                        data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
+
+                                        data[current_data_index][name][current_task_index]["working_days"]["target"] += target_working_days
+                                        data[current_data_index][name][current_task_index]["working_days"]["actual"] += actual_working_days
+
+                                        data[current_data_index][name][current_task_index]["rating"] = rating_data
+                                        data[current_data_index][name][current_task_index]["frequency"] += 1
+                                    else:
+                                        quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
+                                        efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
+                                        timeliness = PCR_Service.compute_timeliness_rating(sub_task.target_time, sub_task.actual_time, settings)
+                                        rating_data = {
+                                            "quantity": quantity,
+                                            "efficiency": efficiency,
+                                            "timeliness": timeliness,
+                                            "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness)
+                                        }
+                                        found = True
+                                        data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
+                                        data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
+
+                                        data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
+                                        data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
+
+                                        data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
+                                        data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
+
+                                        data[current_data_index][name][current_task_index]["rating"] = rating_data
+                                        data[current_data_index][name][current_task_index]["frequency"] += 1
                                 current_task_index += 1     
 
                             if not found:
-                                # calculate ratings for newly appended task
-                                quantity = PCR_Service._calculate_quantity_with_formula(sub_task.target_acc, sub_task.actual_acc, settings)
-                                efficiency = PCR_Service._calculate_efficiency_with_formula(sub_task.target_mod, sub_task.actual_mod, settings)
-                                timeliness = PCR_Service._calculate_timeliness_with_formula(sub_task.target_time, sub_task.actual_time, settings)
-                                rating_data = {
-                                    "quantity": quantity,
-                                    "efficiency": efficiency,
-                                    "timeliness": timeliness,
-                                    "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness)
-                                }
+                                
+                                
 
-                                data[current_data_index][name].append({
-                                "title": sub_task.mfo,
-                                "summary": {
-                                    "target": sub_task.target_acc, "actual": sub_task.actual_acc
-                                },
-                                "corrections": {
-                                    "target": sub_task.target_mod, "actual": sub_task.actual_mod
-                                },
-                                "working_days": {
-                                    "target": sub_task.target_time, "actual": sub_task.actual_time
-                                },
-                                "description":{
-                                    "target": sub_task.main_task.target_accomplishment,
-                                    "actual": sub_task.main_task.actual_accomplishment,
-                                    "alterations": sub_task.main_task.modification,
-                                    "time": sub_task.main_task.time_description,
-                                },
-                                "rating": rating_data,
-                                "type": sub_task.main_task.category.type
-                            })
+                            
+                                if sub_task.main_task.timeliness_mode == "deadline" and sub_task.actual_deadline and sub_task.main_task.target_deadline:
+                                    from datetime import datetime
+                                    # Positive if actual submission is AFTER target (late)
+
+                                    target_working_days = ""
+                                    actual_working_days = ""
+
+                                    days_late = (sub_task.actual_deadline - sub_task.main_task.target_deadline).days
+                                    
+                                    actual_working_days = days_late
+                                    target_working_days = 1  
+
+                                    quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
+                                    efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
+                                    timeliness = PCR_Service.compute_timeliness_rating(target_working_days, actual_working_days, settings)
+                                    rating_data = {
+                                        "quantity": quantity,
+                                        "efficiency": efficiency,
+                                        "timeliness": timeliness,
+                                        "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness)
+                                    }
+
+                                    data[current_data_index][name].append({
+                                        "title": sub_task.mfo,
+                                        "summary": {
+                                            "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                        },
+                                        "corrections": {
+                                            "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                        },
+                                        "working_days": {
+                                            "target": target_working_days, "actual": actual_working_days
+                                        },
+                                        "description":{
+                                            "target": sub_task.main_task.target_accomplishment,
+                                            "actual": sub_task.main_task.actual_accomplishment,
+                                            "alterations": sub_task.main_task.modification,
+                                            "time": sub_task.main_task.time_description,
+                                            "timeliness_mode": sub_task.main_task.timeliness_mode
+                                        },
+                                        "rating": rating_data,
+                                        "type": sub_task.main_task.category.type,
+                                        "frequency": 1
+                                    })
+                                else:
+                                    from datetime import datetime
+                                    # Positive if actual submission is AFTER target (late)
+                                    
+
+                                    quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
+                                    efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
+                                    timeliness = PCR_Service.compute_timeliness_rating(sub_task.target_time, sub_task.actual_time, settings)
+                                    rating_data = {
+                                        "quantity": quantity,
+                                        "efficiency": efficiency,
+                                        "timeliness": timeliness,
+                                        "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness)
+                                    }
+
+                                    data[current_data_index][name].append({
+                                        "title": sub_task.mfo,
+                                        "summary": {
+                                            "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                        },
+                                        "corrections": {
+                                            "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                        },
+                                        "working_days": {
+                                            "target": sub_task.target_time, "actual": sub_task.actual_time
+                                        },
+                                        "description":{
+                                            "target": sub_task.main_task.target_accomplishment,
+                                            "actual": sub_task.main_task.actual_accomplishment,
+                                            "alterations": sub_task.main_task.modification,
+                                            "time": sub_task.main_task.time_description,
+                                            "timeliness_mode": sub_task.main_task.timeliness_mode
+                                        },
+                                        "rating": rating_data,
+                                        "type": sub_task.main_task.category.type,
+                                        "frequency": 1
+                                    })
+
+
                     current_data_index += 1
 
                     
