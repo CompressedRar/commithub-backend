@@ -36,7 +36,10 @@ def createNewOPCR(data, assigned, admin_data):
     else:
         period = "JULY - DECEMBER " + year
         
-    print(admin_data)
+    print("ADMIN DATA", admin_data)
+
+    print("OPCR_DATA",data)
+
     wb = load_workbook("excels/OPCRTest.xlsx")
     ws = wb.active
     
@@ -104,11 +107,19 @@ def createNewOPCR(data, assigned, admin_data):
                 ws["D"+str(row)] = a["summary"]["target"] #quabntity dito
                 ws["D"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["D"+str(row)].font = Font(bold=True)
+
+                if a["description"]["timeliness_mode"] == "deadline":
+                    prepareCells(ws, f"D{row+2}", f"D{row+3}")
+                    ws[f"D{row+2}"] = f""
+                    ws[f"D{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"D{row+2}"].font = Font(bold=True)
+
+                else:
+                    prepareCells(ws, f"D{row+2}", f"D{row+3}")
+                    ws[f"D{row+2}"] = a["working_days"]["target"]
+                    ws[f"D{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"D{row+2}"].font = Font(bold=True)
                 
-                prepareCells(ws, str("D"+str(row+2)), str("D"+str(row + 3)))
-                ws["D"+str(row+2)] = a["working_days"]["target"] #days naman dito
-                ws["D"+str(row+2)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                ws["D"+str(row+2)].font = Font(bold=True)
                 
                 prepareCells(ws, str("D"+str(row+4)), str("D"+str(row + 5)))
                 ws["D"+str(row+4)] = a["corrections"]["target"] # corrections 
@@ -120,12 +131,21 @@ def createNewOPCR(data, assigned, admin_data):
                 ws["E"+str(row)] = a["description"]["target"] # desc quant 
                 ws["E"+str(row)].alignment = Alignment(wrap_text=True, horizontal="left", vertical = "center")
                 ws.row_dimensions[row].height = 45
-                
-                prepareCells(ws, str("E"+str(row+2)), str("G"+str(row + 3)))
-                ws["E"+str(row+2)] = a["description"]["time"] + " spent" # desc quant
+
+                if a["description"]["timeliness_mode"] == "deadline":
+                    prepareCells(ws, f"E{row+2}", f"G{row+3}")
+                    ws[f"E{row+2}"] = f"on the set deadline"
+                    ws[f"E{row+2}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+                else:
+                    prepareCells(ws, f"E{row+2}", f"G{row+3}")
+                    ws[f"E{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                    ws[f"E{row+2}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
                 
                 prepareCells(ws, str("E"+str(row+4)), str("G"+str(row + 5)))
                 ws["E"+str(row+4)] = a["description"]["alterations"] # desc quant
+                ws[f"E{row+4}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
                 
                 #budget alloted
                 
@@ -147,26 +167,50 @@ def createNewOPCR(data, assigned, admin_data):
                 ws["J"+str(row)] = a["summary"]["actual"] # desc quant
                 ws["J"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["J"+str(row)].font = Font(bold=True)
-                
-                prepareCells(ws, str("J"+str(row+2)), str("J"+str(row + 3)))
-                ws["J"+str(row+2)] = a["working_days"]["actual"] # desc quant
-                ws["J"+str(row+2)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                ws["J"+str(row+2)].font = Font(bold=True)
+
+                if a["description"]["timeliness_mode"] == "deadline":
+                    prepareCells(ws, f"J{row+2}", f"J{row+3}")
+                    ws[f"J{row+2}"] = abs(int(a["working_days"]["actual"] / a["frequency"]))  # desc quant
+                    ws[f"J{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"J{row+2}"].font = Font(bold=True)
+                else:
+                    prepareCells(ws, f"J{row+2}", f"J{row+3}")
+                    ws[f"J{row+2}"] = a["working_days"]["actual"]
+                    ws[f"J{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"J{row+2}"].font = Font(bold=True)
                 
                 prepareCells(ws, str("J"+str(row+4)), str("J"+str(row + 5)))
-                ws["J"+str(row+4)] = a["corrections"]["actual"] # desc quant
+                ws["J"+str(row+4)] = int(a["corrections"]["actual"] / a["frequency"]) # desc quant
                 ws["J"+str(row+4)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["J"+str(row+4)].font = Font(bold=True)
                 
                 prepareCells(ws, str("K"+str(row)), str("M"+str(row + 1)))
                 ws["K"+str(row)] = a["description"]["actual"] # desc quant
                 ws["K"+str(row)].alignment = Alignment(wrap_text=True, horizontal="left", vertical = "center")
-                
-                prepareCells(ws, str("K"+str(row+2)), str("M"+str(row + 3)))
-                ws["K"+str(row+2)] = a["description"]["time"] + " spent" # desc quant
+
+                if a["description"]["timeliness_mode"] == "deadline":
+                    actual_deadline_desc = "on the set deadline"
+                    target_deadline_desc = "on the set deadline"
+
+                    if a["working_days"]["actual"] == 0:
+                        actual_deadline_desc = "on the set deadline"
+                    elif a["working_days"]["actual"] > 0:
+                        actual_deadline_desc = "day/s late in average"
+                    else:
+                        actual_deadline_desc = "day/s early in average"
+
+                    prepareCells(ws, f"K{row+2}", f"M{row+3}")
+                    ws[f"K{row+2}"] = actual_deadline_desc
+                    ws[f"K{row+2}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
+
+                else:
+                    prepareCells(ws, f"K{row+2}", f"M{row+3}")
+                    ws[f"K{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                    ws[f"K{row+2}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
                 
                 prepareCells(ws, str("K"+str(row+4)), str("M"+str(row + 5)))
-                ws["K"+str(row+4)] = a["description"]["alterations"] # desc quant
+                ws["K"+str(row+4)] = a["description"]["alterations"] + "/s in average" # desc quant
+                ws[f"K{row+4}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
                 
                 #dito yung ratings
                 prepareCells(ws, str("N"+str(row)), str("N"+str(row + 5)))
@@ -190,8 +234,40 @@ def createNewOPCR(data, assigned, admin_data):
                 ws["Q"+str(row)].font = Font(bold=True)
                 
                 #remarks na wala talagang laman
+                from models.System_Settings import System_Settings
+                settings = System_Settings.query.first()
+                rating_thresholds = settings.rating_thresholds if settings else {
+                    "POOR": {"min": 1, "max": 1.9},
+                    "UNSATISFACTORY": {"min": 2, "max": 2.9},
+                    "SATISFACTORY": {"min": 3, "max": 3.9},
+                    "VERY SATISFACTORY": {"min": 4, "max": 4.9},
+                    "OUTSTANDING": {"min": 5, "max": 5}
+                }
+
+                average = a["rating"]["average"]
+                
+                # Build dynamic formula from rating thresholds
+                formula_parts = []
+                for rating_name, thresholds in rating_thresholds.items():
+                    min_val = thresholds.get("min", 0)
+                    max_val = thresholds.get("max", 5)
+                    if min_val == max_val:
+                        # Exact match (e.g., OUTSTANDING = 5)
+                        formula_parts.append(f'IF({average}={min_val}, "{str(rating_name).replace("_", " ").upper()}"')
+                    else:
+                        # Range match
+                        formula_parts.append(f'IF(AND({average}>={min_val}, {average}<={max_val}), "{str(rating_name).replace("_", " ").upper()}"')
+                
+                # Close all nested IFs
+                formula = ""
+                for i, part in enumerate(formula_parts):
+                    formula += part + ", "
+                formula += '"UNRATED"' + ")" * len(formula_parts)
+
                 prepareCells(ws, str("R"+str(row)), str("S"+str(row + 5)))
-                ws["R"+str(row)] = " " # remarks
+                ws["R"+str(row)] = f"={formula}" # remarks
+                ws[f"R{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                ws[f"R{row}"].font = Font(bold=True)
                 
                 endrow = row
                 row = row + 6
@@ -338,7 +414,7 @@ def createNewOPCR(data, assigned, admin_data):
     link = f"excels/OPCR/{filename}.xlsx"
     wb.save(link)
 
-    file_url = upload_file(link, "commiathub-bucket", f"OPCR/{filename}.xlsx")
+    file_url = upload_file(link, "commithub-bucket", f"OPCR/{filename}.xlsx")
     
     return file_url
 
