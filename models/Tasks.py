@@ -198,6 +198,7 @@ class Main_Task(db.Model):
             "target_efficiency": self.target_efficiency,
             "target_timeframe": self.target_timeframe,
             "timeliness_mode": self.timeliness_mode,
+            
             "target_deadline": str(self.target_deadline) if self.target_deadline else None
             
         }
@@ -532,6 +533,30 @@ class Tasks_Service():
 
             if "modification" in data:
                 found_task.modification = data["modification"]
+
+            if "require_documents" in data:
+                found_task.require_documents = data["require_documents"]
+
+            if "target_quantity" in data:
+                print("target quantity detected", data["target_quantity"])
+                found_task.target_quantity = data["target_quantity"]
+
+            if "target_efficiency" in data:
+                print("target efficiency detected", data["target_efficiency"])
+                found_task.target_efficiency = data["target_efficiency"]
+
+            if "timeliness_mode" in data:
+                print("timeliness mode detected", data["timeliness_mode"])
+                found_task.timeliness_mode = data["timeliness_mode"]
+
+            if "target_timeframe" in data:
+                print("target timeframe detected", data["target_timeframe"])
+                found_task.target_timeframe = data["target_timeframe"]
+            
+            if "target_deadline" in data:
+                print("target deadline detected", data["target_deadline"])
+                found_task.target_deadline = datetime.strptime(data["target_deadline"], "%Y-%m-%d") if data["target_deadline"] != "" else None
+            
 
             if "status" in data:
                 print("status detected", data["status"])

@@ -382,7 +382,7 @@ class User(db.Model):
             "first_name": self.first_name,
             "last_name": self.last_name,
             "middle_name": self.middle_name,
-            "profile_picture_link": self.profile_picture_link,
+            "profile_picture_link": get_file(self.profile_picture_link),
             "position": self.position.info(),
             "role": self.role,
             "account_status": self.account_status,
