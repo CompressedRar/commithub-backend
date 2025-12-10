@@ -1284,7 +1284,8 @@ class PCR_Service():
             print(str(e))
             return jsonify(error=str(e)), 500
 
-        
+
+    
     def generate_opcr(opcr_id):
 
         from models.System_Settings import System_Settings
@@ -1510,92 +1511,143 @@ class PCR_Service():
     
     def generate_master_opcr():
         try:
+            from models.System_Settings import System_Settings
+
             opcrs = OPCR.query.filter_by(isMain=True, status=1).all()
             if not opcrs:
                 return jsonify(error="There is no OPCR to consolidate"), 400
 
-            data = []
-            category_set = set()  # ✅ Prevent duplicates
+            # Group by category TYPE -> category name -> list of tasks
+            data = {
+                "Core Function": {},
+                "Support Function": {},
+                "Strategic Function": {}
+            }
             assigned = {}
+            settings = System_Settings.query.first()
 
-            # Pass 1: collect all categories and assigned names
+            # Pass 1 — collect categories and assigned users
             for opcr in opcrs:
                 for assigned_pcr in opcr.assigned_pcrs:
-                    if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft":
+                    ipcr = assigned_pcr.ipcr
+                    if ipcr.status == 0 or ipcr.form_status == "draft":
                         continue
 
-                    for sub_task in assigned_pcr.ipcr.sub_tasks:
-                        # ✅ Add category name to set (no duplicates)
-                        category_set.add(sub_task.main_task.category.name)
+                    for sub_task in ipcr.sub_tasks:
+                        if sub_task.status == 0:
+                            continue
 
-                        # ✅ Track assigned names
+                        try:
+                            cat_type = sub_task.main_task.category.type if sub_task.main_task.category else "Core Function"
+                        except:
+                            cat_type = "Core Function"
+
+                        try:
+                            cat_name = sub_task.main_task.category.name if sub_task.main_task.category else "Uncategorized"
+                        except:
+                            cat_name = "Uncategorized"
+
+                        if cat_name not in data[cat_type]:
+                            data[cat_type][cat_name] = []
+
                         mfo = sub_task.main_task.mfo
-                        user_name = f"{assigned_pcr.ipcr.user.first_name} {assigned_pcr.ipcr.user.last_name}"
-                        assigned.setdefault(mfo, []).append(user_name)
+                        user_name = f"{ipcr.user.first_name} {ipcr.user.last_name}"
+                        assigned.setdefault(mfo, [])
+                        if user_name not in assigned[mfo]:
+                            assigned[mfo].append(user_name)
 
-            # Build empty category containers
-            for cat_name in sorted(category_set):
-                data.append({cat_name: []})
-
-            # Pass 2: aggregate data into the categories
+            # Pass 2 — aggregate tasks into the appropriate category/type
             for opcr in opcrs:
                 for assigned_pcr in opcr.assigned_pcrs:
-                    if assigned_pcr.ipcr.status == 0 or assigned_pcr.ipcr.form_status == "draft":
+                    ipcr = assigned_pcr.ipcr
+                    if ipcr.status == 0 or ipcr.form_status == "draft":
                         continue
 
-                    for sub_task in assigned_pcr.ipcr.sub_tasks:
-                        cat_name = sub_task.main_task.category.name
-                        mfo = sub_task.mfo
+                    for sub_task in ipcr.sub_tasks:
+                        if sub_task.status == 0:
+                            continue
 
-                        # Find the corresponding category entry in `data`
-                        for category_dict in data:
-                            if cat_name in category_dict:
-                                task_list = category_dict[cat_name]
+                        try:
+                            cat_type = sub_task.main_task.category.type if sub_task.main_task.category else "Core Function"
+                        except:
+                            cat_type = "Core Function"
 
-                                # ✅ Check if the task already exists
-                                existing_task = next((t for t in task_list if t["title"] == mfo), None)
+                        try:
+                            cat_name = sub_task.main_task.category.name if sub_task.main_task.category else "Uncategorized"
+                        except:
+                            cat_name = "Uncategorized"
 
-                                if existing_task:
-                                    # Aggregate data if the same task exists
-                                    existing_task["summary"]["target"] += sub_task.target_acc
-                                    existing_task["summary"]["actual"] += sub_task.actual_acc
-                                    existing_task["corrections"]["target"] += sub_task.target_mod
-                                    existing_task["corrections"]["actual"] += sub_task.actual_mod
-                                    existing_task["working_days"]["target"] += sub_task.target_time
-                                    existing_task["working_days"]["actual"] += sub_task.actual_time
+                        # timeliness handling
+                        if sub_task.main_task.timeliness_mode == "deadline" and sub_task.actual_deadline and sub_task.main_task.target_deadline:
+                            days_late = (sub_task.actual_deadline - sub_task.main_task.target_deadline).days
+                            target_working_days = 1
+                            actual_working_days = days_late
+                        else:
+                            target_working_days = sub_task.target_time
+                            actual_working_days = sub_task.actual_time
 
-                                    existing_task["rating"]["quantity"] = sub_task.quantity
-                                    existing_task["rating"]["efficiency"] = sub_task.efficiency
-                                    existing_task["rating"]["timeliness"] = sub_task.timeliness
-                                    existing_task["rating"]["average"] = PCR_Service.calculateAverage(
-                                        sub_task.quantity, sub_task.efficiency, sub_task.timeliness
-                                    )
-                                else:
-                                    # Add new task entry
-                                    task_list.append({
-                                        "title": mfo,
-                                        "summary": {"target": sub_task.target_acc, "actual": sub_task.actual_acc},
-                                        "corrections": {"target": sub_task.target_mod, "actual": sub_task.actual_mod},
-                                        "working_days": {"target": sub_task.target_time, "actual": sub_task.actual_time},
-                                        "description": {
-                                            "target": sub_task.main_task.target_accomplishment,
-                                            "actual": sub_task.main_task.actual_accomplishment,
-                                            "alterations": sub_task.main_task.modification,
-                                            "time": sub_task.main_task.time_description,
-                                        },
-                                        "rating": {
-                                            "quantity": sub_task.quantity,
-                                            "efficiency": sub_task.efficiency,
-                                            "timeliness": sub_task.timeliness,
-                                            "average": PCR_Service.calculateAverage(
-                                                sub_task.quantity, sub_task.efficiency, sub_task.timeliness
-                                            ),
-                                        },
-                                    })
-                                break
+                        # ratings
+                        quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
+                        efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
+                        timeliness = PCR_Service.compute_timeliness_rating(target_working_days, actual_working_days, settings)
 
-            # ✅ Head data
+                        rating_data = {
+                            "quantity": quantity,
+                            "efficiency": efficiency,
+                            "timeliness": timeliness,
+                            "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness)
+                        }
+
+                        task_list = data[cat_type][cat_name]
+                        existing_task = next((t for t in task_list if t["title"] == sub_task.mfo), None)
+
+                        if existing_task:
+                            existing_task["summary"]["target"] += sub_task.target_acc
+                            existing_task["summary"]["actual"] += sub_task.actual_acc
+                            existing_task["corrections"]["target"] += sub_task.target_mod
+                            existing_task["corrections"]["actual"] += sub_task.actual_mod
+                            existing_task["working_days"]["target"] += target_working_days
+                            existing_task["working_days"]["actual"] += actual_working_days
+                            existing_task["rating"] = rating_data
+                            existing_task["frequency"] += 1
+                        else:
+                            task_list.append({
+                                "title": sub_task.mfo,
+                                "summary": {
+                                    "target": sub_task.target_acc,
+                                    "actual": sub_task.actual_acc
+                                },
+                                "corrections": {
+                                    "target": sub_task.target_mod,
+                                    "actual": sub_task.actual_mod
+                                },
+                                "working_days": {
+                                    "target": target_working_days,
+                                    "actual": actual_working_days
+                                },
+                                "description": {
+                                    "target": sub_task.main_task.target_accomplishment,
+                                    "actual": sub_task.main_task.actual_accomplishment,
+                                    "alterations": sub_task.main_task.modification,
+                                    "time": sub_task.main_task.time_description,
+                                    "timeliness_mode": sub_task.main_task.timeliness_mode
+                                },
+                                "rating": rating_data,
+                                "type": cat_type,
+                                "frequency": 1
+                            })
+
+            # Convert to list format: [{"Core Function": {...}}, {"Support Function": {...}}, ...]
+            final_data = []
+            for func_type in ["Core Function", "Support Function", "Strategic Function"]:
+                if data[func_type]:
+                    final_data.append({func_type: data[func_type]})
+
+            # Head (President) info
             head = User.query.filter_by(role="president").first()
+            if not head:
+                return jsonify(error="No president user found"), 400
+
             head_data = {
                 "fullName": f"{head.first_name} {head.last_name}",
                 "givenName": head.first_name,
@@ -1608,12 +1660,12 @@ class PCR_Service():
                     "discuss": {"name": "", "position": "", "date": ""},
                     "assess": {"name": "", "position": "Municipal Administrator", "date": ""},
                     "final": {"name": "Hon. Maria Elena L. Germar", "position": "PMT Chairperson", "date": ""},
-                    "confirm": {"name": "Hon. Maria Elena L. Germar", "position": "PMT Chairperson", "date": ""},
-                },
+                    "confirm": {"name": "Hon. Maria Elena L. Germar", "position": "PMT Chairperson", "date": ""}
+                }
             }
 
-            # ✅ Generate Excel file
-            file_url = ExcelHandler.createNewMasterOPCR(data=data, assigned=assigned, admin_data=head_data)
+            # Generate master OPCR Excel using same structured grouping
+            file_url = ExcelHandler.createNewMasterOPCR(data=final_data, assigned=assigned, admin_data=head_data)
 
             return jsonify(link=file_url), 200
 
@@ -1841,17 +1893,25 @@ class PCR_Service():
             }
 
         return jsonify(ipcr_data=final_data, assigned=assigned, admin_data=head_data, form_status=opcr.form_status)
+    
     def get_master_opcr():
         try:
-            opcrs = OPCR.query.filter_by(status=1, isMain=True).all()
+            from models.System_Settings import System_Settings
+
+            opcrs = OPCR.query.filter_by(isMain=True, status=1).all()
             if not opcrs:
                 return jsonify(error="There is no OPCR to consolidate"), 400
 
-            data = []
-            category_set = set()  # ✅ Prevent duplicate categories
+            # Group by category TYPE -> category name -> list of tasks
+            data = {
+                "Core Function": {},
+                "Support Function": {},
+                "Strategic Function": {}
+            }
             assigned = {}
+            settings = System_Settings.query.first()
 
-            # Pass 1 — collect unique categories and assigned users
+            # Pass 1 — collect categories and assigned users
             for opcr in opcrs:
                 for assigned_pcr in opcr.assigned_pcrs:
                     ipcr = assigned_pcr.ipcr
@@ -1862,19 +1922,26 @@ class PCR_Service():
                         if sub_task.status == 0:
                             continue
 
-                        # Collect unique category names
-                        category_set.add(sub_task.main_task.category.name)
+                        try:
+                            cat_type = sub_task.main_task.category.type if sub_task.main_task.category else "Core Function"
+                        except:
+                            cat_type = "Core Function"
 
-                        # Track who is assigned to each MFO
+                        try:
+                            cat_name = sub_task.main_task.category.name if sub_task.main_task.category else "Uncategorized"
+                        except:
+                            cat_name = "Uncategorized"
+
+                        if cat_name not in data[cat_type]:
+                            data[cat_type][cat_name] = []
+
                         mfo = sub_task.main_task.mfo
                         user_name = f"{ipcr.user.first_name} {ipcr.user.last_name}"
-                        assigned.setdefault(mfo, []).append(user_name)
+                        assigned.setdefault(mfo, [])
+                        if user_name not in assigned[mfo]:
+                            assigned[mfo].append(user_name)
 
-            # ✅ Build data structure once
-            for cat_name in sorted(category_set):
-                data.append({cat_name: []})
-
-            # Pass 2 — aggregate sub_task data into the correct category
+            # Pass 2 — aggregate tasks into the appropriate category/type
             for opcr in opcrs:
                 for assigned_pcr in opcr.assigned_pcrs:
                     ipcr = assigned_pcr.ipcr
@@ -1885,88 +1952,103 @@ class PCR_Service():
                         if sub_task.status == 0:
                             continue
 
-                        cat_name = sub_task.main_task.category.name
-                        mfo = sub_task.mfo
+                        try:
+                            cat_type = sub_task.main_task.category.type if sub_task.main_task.category else "Core Function"
+                        except:
+                            cat_type = "Core Function"
 
-                        # Find matching category block
-                        for cat_block in data:
-                            if cat_name in cat_block:
-                                task_list = cat_block[cat_name]
+                        try:
+                            cat_name = sub_task.main_task.category.name if sub_task.main_task.category else "Uncategorized"
+                        except:
+                            cat_name = "Uncategorized"
 
-                                # See if this MFO already exists
-                                existing_task = next((t for t in task_list if t["title"] == mfo), None)
+                        # timeliness handling
+                        if sub_task.main_task.timeliness_mode == "deadline" and sub_task.actual_deadline and sub_task.main_task.target_deadline:
+                            days_late = (sub_task.actual_deadline - sub_task.main_task.target_deadline).days
+                            target_working_days = 1
+                            actual_working_days = days_late
+                        else:
+                            target_working_days = sub_task.target_time
+                            actual_working_days = sub_task.actual_time
 
-                                if existing_task:
-                                    # ✅ Aggregate data
-                                    existing_task["summary"]["target"] += sub_task.target_acc
-                                    existing_task["summary"]["actual"] += sub_task.actual_acc
-                                    existing_task["corrections"]["target"] += sub_task.target_mod
-                                    existing_task["corrections"]["actual"] += sub_task.actual_mod
-                                    existing_task["working_days"]["target"] += sub_task.target_time
-                                    existing_task["working_days"]["actual"] += sub_task.actual_time
+                        # ratings
+                        quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
+                        efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
+                        timeliness = PCR_Service.compute_timeliness_rating(target_working_days, actual_working_days, settings)
 
-                                    existing_task["rating"]["quantity"] = sub_task.quantity
-                                    existing_task["rating"]["efficiency"] = sub_task.efficiency
-                                    existing_task["rating"]["timeliness"] = sub_task.timeliness
-                                    existing_task["rating"]["average"] = PCR_Service.calculateAverage(
-                                        sub_task.quantity,
-                                        sub_task.efficiency,
-                                        sub_task.timeliness
-                                    )
-                                else:
-                                    # ✅ Create a new task entry
-                                    task_list.append({
-                                        "title": mfo,
-                                        "summary": {
-                                            "target": sub_task.target_acc,
-                                            "actual": sub_task.actual_acc
-                                        },
-                                        "corrections": {
-                                            "target": sub_task.target_mod,
-                                            "actual": sub_task.actual_mod
-                                        },
-                                        "working_days": {
-                                            "target": sub_task.target_time,
-                                            "actual": sub_task.actual_time
-                                        },
-                                        "description": {
-                                            "target": sub_task.main_task.target_accomplishment,
-                                            "actual": sub_task.main_task.actual_accomplishment,
-                                            "alterations": sub_task.main_task.modification,
-                                            "time": sub_task.main_task.time_description,
-                                        },
-                                        "rating": {
-                                            "quantity": sub_task.quantity,
-                                            "efficiency": sub_task.efficiency,
-                                            "timeliness": sub_task.timeliness,
-                                            "average": PCR_Service.calculateAverage(
-                                                sub_task.quantity,
-                                                sub_task.efficiency,
-                                                sub_task.timeliness
-                                            ),
-                                        },
-                                    })
-                                break  # Stop checking other categories
+                        rating_data = {
+                            "quantity": quantity,
+                            "efficiency": efficiency,
+                            "timeliness": timeliness,
+                            "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness)
+                        }
 
-            # ✅ Head (President) info
+                        task_list = data[cat_type][cat_name]
+                        existing_task = next((t for t in task_list if t["title"] == sub_task.mfo), None)
+
+                        if existing_task:
+                            existing_task["summary"]["target"] += sub_task.target_acc
+                            existing_task["summary"]["actual"] += sub_task.actual_acc
+                            existing_task["corrections"]["target"] += sub_task.target_mod
+                            existing_task["corrections"]["actual"] += sub_task.actual_mod
+                            existing_task["working_days"]["target"] += target_working_days
+                            existing_task["working_days"]["actual"] += actual_working_days
+                            existing_task["rating"] = rating_data
+                            existing_task["frequency"] += 1
+                        else:
+                            task_list.append({
+                                "title": sub_task.mfo,
+                                "summary": {
+                                    "target": sub_task.target_acc,
+                                    "actual": sub_task.actual_acc
+                                },
+                                "corrections": {
+                                    "target": sub_task.target_mod,
+                                    "actual": sub_task.actual_mod
+                                },
+                                "working_days": {
+                                    "target": target_working_days,
+                                    "actual": actual_working_days
+                                },
+                                "description": {
+                                    "target": sub_task.main_task.target_accomplishment,
+                                    "actual": sub_task.main_task.actual_accomplishment,
+                                    "alterations": sub_task.main_task.modification,
+                                    "time": sub_task.main_task.time_description,
+                                    "timeliness_mode": sub_task.main_task.timeliness_mode
+                                },
+                                "rating": rating_data,
+                                "type": cat_type,
+                                "frequency": 1
+                            })
+
+            # Convert to list format: [{"Core Function": {...}}, {"Support Function": {...}}, ...]
+            final_data = []
+            for func_type in ["Core Function", "Support Function", "Strategic Function"]:
+                if data[func_type]:
+                    final_data.append({func_type: data[func_type]})
+
+            # Head (President) info
             head = User.query.filter_by(role="president").first()
             if not head:
                 return jsonify(error="No president user found"), 400
+            
+            
 
             head_data = {
-                "fullName": f"{head.first_name} {head.last_name}",
+                "fullName": settings.current_president_fullname,
                 "givenName": head.first_name,
                 "middleName": head.middle_name,
                 "lastName": head.last_name,
-                "position": head.position.name,
+                "position": "College President",
                 "individuals": {
-                    "review": {"name": f"{head.first_name} {head.last_name}", "position": head.position.name, "date": ""},
-                    "approve": {"name": "Hon. Maria Elena L. Germar", "position": "PMT Chairperson", "date": ""},
+                    "review": {"name": settings.current_president_fullname, "position": "College President", "date": ""},
+                    "approve": {"name": settings.current_mayor_fullname, "position": "PMT Chairperson", "date": ""},
                     "discuss": {"name": "", "position": "", "date": ""},
                     "assess": {"name": "", "position": "Municipal Administrator", "date": ""},
-                    "final": {"name": "Hon. Maria Elena L. Germar", "position": "PMT Chairperson", "date": ""},
-                    "confirm": {"name": "Hon. Maria Elena L. Germar", "position": "PMT Chairperson", "date": ""},
-                },
+                    "final": {"name": settings.current_mayor_fullname, "position": "PMT Chairperson", "date": ""},
+                    "confirm": {"name": settings.current_mayor_fullname, "position": "PMT Chairperson", "date": ""}
+                }
             }
 
             # ✅ Return consolidated OPCR JSON
