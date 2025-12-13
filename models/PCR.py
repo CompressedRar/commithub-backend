@@ -1259,7 +1259,7 @@ class PCR_Service():
 
             socketio.emit("opcr", "created")
             socketio.emit("opcr_created", "created")
-            Notification_Service.notify_department(dept_id, f"OPCR for this department has been created or updated.")
+            #Notification_Service.notify_department(dept_id, f"OPCR for this department has been created or updated.")
 
             return jsonify(message="OPCR successfully created or updated."), 200
 

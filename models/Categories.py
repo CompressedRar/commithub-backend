@@ -16,8 +16,24 @@ class Category(db.Model):
     type = db.Column(db.String(50), default = "Core Function" )
 
     main_tasks = db.relationship("Main_Task", back_populates = "category")
+    description = db.Column(db.Text, nullable=True)
 
     period = db.Column(db.String(100), nullable=True)
+
+
+    def get_category_avg_rating(self):
+        total_rating = 0
+        task_count = 0
+
+        for main_task in self.main_tasks:
+            if main_task.status == 1:
+                total_rating += main_task.get_task_avg_rating()
+                task_count += 1
+
+        if task_count == 0:
+            return 0
+
+        return total_rating / task_count
 
 
     def info(self):
@@ -27,8 +43,9 @@ class Category(db.Model):
             "status": self.status,
             "type":self.type,
             "period_id": self.period,
-
-            "task_count": len(self.main_tasks)
+            "description": self.description,
+            "task_count": len(self.main_tasks),
+            "average_rating": self.get_category_avg_rating()
             
         }
 
@@ -40,7 +57,9 @@ class Category(db.Model):
             "status": self.status,
             "type":self.type,
             "period_id": self.period,
-            "task_count": len(self.main_tasks)
+            "description": self.description,
+            "task_count": len(self.main_tasks),
+            "average_rating": self.get_category_avg_rating()
         }
     
 
@@ -99,6 +118,7 @@ class Category_Service():
 
             category_name = data.get("category_name", "").strip()
             category_type = data.get("category_type", "").strip()
+            category_description = data.get("description", "").strip()
 
             if not category_name:
                 return jsonify(error="Category name is required."), 400
@@ -109,7 +129,7 @@ class Category_Service():
                 return jsonify(error="Category name already exists."), 400
 
             # Create new category
-            new_category = Category(name=category_name, type = category_type, period = current_settings.current_period_id if current_settings else None)
+            new_category = Category(name=category_name, type = category_type, period = current_settings.current_period_id if current_settings else None, description = category_description)
             db.session.add(new_category)
             db.session.commit()  # Make sure to commit!
 

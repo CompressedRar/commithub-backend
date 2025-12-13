@@ -138,6 +138,17 @@ class Main_Task(db.Model):
     target_timeframe = db.Column(db.Integer, nullable=True, default = 0)  #in days / hours / minutes
     timeliness_mode = db.Column(db.String(100), nullable=True, default = "timeframe")  #timeframe or deadline
 
+    def get_task_avg_rating(self):
+        total = 0
+        count = 0
+        for sub in self.sub_tasks:
+            if sub.average > 0:
+                total += sub.average
+                count += 1
+        if count == 0:
+            return 0
+        return total / count
+
 
     def get_users(self):
         all_user = []
@@ -535,7 +546,8 @@ class Tasks_Service():
                 found_task.modification = data["modification"]
 
             if "require_documents" in data:
-                found_task.require_documents = data["require_documents"]
+                print("required documents")
+                found_task.require_documents = True if data["require_documents"] == "true" else False
 
             if "target_quantity" in data:
                 print("target quantity detected", data["target_quantity"])
