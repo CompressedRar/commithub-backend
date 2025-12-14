@@ -1,33 +1,39 @@
 from flask import Blueprint, render_template, jsonify, request
 from app import db
-from utils.decorators import log_action
+from utils.decorators import log_action,token_required
 from models.User import Users, Notification, Notification_Service
 from models.PCR import PCR_Service
 users = Blueprint("users", __name__, url_prefix="/api/v1/users")
 
 
 @users.route("/", methods = ["GET"])
+@token_required()
 def get_users():
     return Users.get_all_users()
 
 @users.route("/pres-exists", methods = ["GET"])
+@token_required()
 def does_president_exists():
     return Users.does_president_exists()
 
 @users.route("/admin-exists", methods = ["GET"])
+@token_required()
 def does_admin_exists():
     return Users.does_admin_exists()
 
 @users.route("/<id>", methods = ["GET"])
+@token_required()
 def get_user(id):
     return Users.get_user(id)
 
 @users.route("/notification/<id>", methods = ["GET"])
+@token_required()
 def get_user_notifications(id):
     return Notification_Service.get_user_notification(id)
 
 
 @users.route("/", methods = ["PATCH"])
+@token_required()
 @log_action(action = "UPDATE", target="USER")
 def update_user():
     data = request.form
@@ -35,32 +41,37 @@ def update_user():
     return Users.update_user(data["id"], data, req)
 
 @users.route("/reset-password/<user_id>", methods = ["PATCH"])
+@token_required()
 def reset_password_user(user_id):
     
     return Users.reset_password(user_id)
 
 @users.route("/change-password/<user_id>", methods = ["PATCH"])
+@token_required()
 def change_password_user(user_id):
     new_pass = request.json.get("password")
     return Users.change_password(user_id, new_pass)
 
 @users.route("/<id>", methods = ["DELETE"])
+@token_required()
 @log_action(action = "DEACTIVATE", target="USER")
 def archive_user(id):
-    
     return Users.archive_user(id)
 
 @users.route("/tasks/<id>", methods = ["GET"])
+@token_required()
 def get_user_tasks(id):
     
     return Users.get_user_assigned_tasks(id)
 
 @users.route("/assigned/<user_id>", methods = ["GET"])
+@token_required()
 def get_assigned_tasks(user_id):
     
     return Users.get_user_assigned_tasks(user_id)
 
 @users.route("/tasks/<user_id>", methods = ["POST"])
+@token_required()
 def generate_user_tasks(user_id):
     
     data = request.get_json()
@@ -69,6 +80,7 @@ def generate_user_tasks(user_id):
     return PCR_Service.generate_IPCR(user_id, id_array)
 
 @users.route("/head/<user_id>", methods = ["POST"])
+@token_required()
 def assign_department_head(user_id):
     
     data = request.args
@@ -76,10 +88,12 @@ def assign_department_head(user_id):
     return Users.assign_department_head(user_id, dept_id)
 
 @users.route("/head/<user_id>", methods = ["DELETE"])
+@token_required()
 def remove_department_head(user_id):
     return Users.remove_department_head(user_id)
     
 @users.route("/notifications/", methods = ["PATCH"])
+@token_required()
 def read_notifications():
 
     data = request.get_json()
@@ -89,6 +103,7 @@ def read_notifications():
 
 
 @users.route("/<id>", methods = ["POST"])
+@token_required()
 @log_action(action = "REACTIVATE", target="USER")
 def unarchive_user(id):
     
