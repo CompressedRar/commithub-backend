@@ -4,12 +4,11 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
-from models.Tasks import Tasks_Service, Assigned_Task, Output, Sub_Task
+from models.Tasks import Tasks_Service, Assigned_Task, Output, Sub_Task, Formula_Engine
 from models.User import Users, User, Notification_Service
 from models.Departments import Department_Service, Department
 from utils import FileStorage, ExcelHandler
 from sqlalchemy import func, outerjoin
-
 from pprint import pprint
 import uuid
 
@@ -470,54 +469,42 @@ class OPCR(db.Model):
 #si subtask yung target, kasse pag may output may sub_task din,eh si sub task kailangan ng ipcr id
 class PCR_Service():
 
+
+
     def compute_quantity_rating(target, actual, settings):
-        expression = settings.quantity_formula.get("expression", "")
-        rating_scale = settings.quantity_formula.get("rating_scale", {})
+        
+        engine = Formula_Engine()
 
-        # Replacing formula variables safely
-        calc = eval(expression, {"__builtins__": None}, {
-            "target": target,
-            "actual": actual
-        })
+        rating = engine.compute_rating(
+            formula=settings.quantity_formula,
+            target=target,
+            actual= actual
+        )
 
-        for rating, condition in rating_scale.items():
-            
-            if eval(condition, {"__builtins__": None}, {"calc": calc}):
-                return int(rating)
+        return rating
 
-        return 0
     
     def compute_efficiency_rating(target, actual, settings):
-        expression = settings.efficiency_formula.get("expression", "")
-        rating_scale = settings.efficiency_formula.get("rating_scale", {})
+        engine = Formula_Engine()
 
-        # Replacing formula variables safely
-        calc = eval(expression, {"__builtins__": None}, {
-            "target": target,
-            "actual": actual
-        })
+        rating = engine.compute_rating(
+            formula=settings.efficiency_formula,
+            target = target,
+            actual = actual
+        )
 
-        for rating, condition in rating_scale.items():
-            if eval(condition, {"__builtins__": None}, {"calc": calc}):
-                return int(rating)
-
-        return 0
+        return rating
     
     def compute_timeliness_rating(target, actual, settings):
-        expression = settings.timeliness_formula.get("expression", "")
-        rating_scale = settings.timeliness_formula.get("rating_scale", {})
+        engine = Formula_Engine()
 
-        # Replacing formula variables safely
-        calc = eval(expression, {"__builtins__": None}, {
-            "target": target,
-            "actual": actual
-        })
+        rating = engine.compute_rating(
+            formula=settings.timeliness_formula,
+            target = target,
+            actual = actual
+        )
 
-        for rating, condition in rating_scale.items():
-            if eval(condition, {"__builtins__": None}, {"calc": calc}):
-                return int(rating)
-
-        return 0
+        return rating
 
     @staticmethod
     def _calculate_quantity_with_formula(target_acc, actual_acc, settings):

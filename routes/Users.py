@@ -31,7 +31,6 @@ def get_user(id):
 def get_user_notifications(id):
     return Notification_Service.get_user_notification(id)
 
-
 @users.route("/", methods = ["PATCH"])
 @token_required()
 @log_action(action = "UPDATE", target="USER")
