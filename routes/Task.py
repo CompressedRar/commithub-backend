@@ -27,14 +27,14 @@ def get_task(id):
     return Tasks_Service.get_main_task(id)
 
 @task.route("/<id>", methods = ["DELETE"])
-@token_required()
+@token_required(allowed_roles=["administrator"])
 @log_action(action = "ARCHIVE", target="TASK")
 
 def archive_task(id):
     return Tasks_Service.archive_task(id)
 
 @task.route("/", methods = ["POST"])
-@token_required()
+@token_required(allowed_roles=["administrator"])
 @log_action(action = "CREATE", target="TASK")
 
 def create_main_task():

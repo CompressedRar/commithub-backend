@@ -11,18 +11,18 @@ settings = Blueprint("settings", __name__, url_prefix="/api/v1/settings")
 
 
 @settings.route("/", methods = ["GET"])
-@token_required()
+@token_required(allowed_roles=["administrator"])
 def get_settings():
     return System_Settings_Service.get_settings()
 
 @settings.route("/", methods = ["PATCH"])
-@token_required()
+@token_required(allowed_roles=["administrator"])
 def update_settings():
     new_settings = request.get_json()
     return System_Settings_Service.update_settings(new_settings)
 
 @settings.route("/validate-formula", methods = ["POST"])
-@token_required()
+@token_required(allowed_roles=["administrator"])
 def validate_formula():
     new_settings = request.get_json()
     formula = loads(new_settings.get("formula"))

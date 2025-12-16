@@ -21,7 +21,7 @@ def get_opcr(id):
     return PCR_Service.get_opcr(id)
 
 @pcrs.route("/master-opcr/", methods = ["GET"])
-@token_required()
+@token_required(allowed_roles=["administrator"])
 def get_master_opcr():
     return PCR_Service.get_master_opcr()
 
@@ -189,7 +189,7 @@ def create_opcr(dept_id):
 
 
 @pcrs.route("/opcr/download/<opcr_id>", methods = ["GET"])
-@token_required()
+@token_required(allowed_roles=["administrator", "head"])
 @log_action(action = "DOWNLOAD", target="OPCR")
 
 def test_opcr(opcr_id):
@@ -198,7 +198,7 @@ def test_opcr(opcr_id):
 
 
 @pcrs.route("/master-opcr/download/", methods = ["GET"])
-@token_required()
+@token_required(allowed_roles=["administrator"])
 @log_action(action = "DOWNLOAD", target="MASTER OPCR")
 
 def test_master_opcr():

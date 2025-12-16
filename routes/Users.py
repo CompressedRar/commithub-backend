@@ -40,7 +40,7 @@ def update_user():
     return Users.update_user(data["id"], data, req)
 
 @users.route("/reset-password/<user_id>", methods = ["PATCH"])
-@token_required()
+@token_required(allowed_roles=["administrator"])
 def reset_password_user(user_id):
     
     return Users.reset_password(user_id)
@@ -79,7 +79,7 @@ def generate_user_tasks(user_id):
     return PCR_Service.generate_IPCR(user_id, id_array)
 
 @users.route("/head/<user_id>", methods = ["POST"])
-@token_required()
+@token_required(allowed_roles=["administrator"])
 def assign_department_head(user_id):
     
     data = request.args
