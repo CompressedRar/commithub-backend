@@ -564,6 +564,11 @@ class Sub_Task(db.Model):
 
 
     def to_dict(self):
+
+        from models.System_Settings import System_Settings_Service
+
+
+
         return {
             "id": self.id,
             "period_id": self.period,
@@ -579,9 +584,9 @@ class Sub_Task(db.Model):
             "status": self.status,
             "batch_id": self.batch_id,
 
-            "quantity": self.calculateQuantity(),
-            "efficiency": self.calculateEfficiency(),
-            "timeliness": self.calculateTimeliness(),
+            "quantity": self.calculateQuantity() if not System_Settings_Service.check_if_rating_period() else self.quantity, 
+            "efficiency": self.calculateEfficiency() if not System_Settings_Service.check_if_rating_period() else self.efficiency,
+            "timeliness": self.calculateTimeliness() if not System_Settings_Service.check_if_rating_period() else self.timeliness,
             "average": self.calculateAverage(),        
 
             "ipcr": self.ipcr.info(),
@@ -591,9 +596,11 @@ class Sub_Task(db.Model):
             "required_documents": self.main_task.require_documents
         }
   
- 
+
 
 class Tasks_Service():
+
+    
 
 
     def test_ipcr():
@@ -601,10 +608,15 @@ class Tasks_Service():
         ipcr = IPCR.query.get(9)
         return jsonify(ipcr.to_dict()), 200
     def get_main_tasks():
+        from models.System_Settings import System_Settings
+        settings = System_Settings.query.first()
+
         try:
-            all_main_tasks = Main_Task.query.filter_by(status = 1).all()
-            converted_main_tasks = [main_task.info() for main_task in all_main_tasks]
-        
+            all_main_tasks = Main_Task.query.filter_by(status = 1, period = settings.current_period_id).all()
+
+            
+            converted_main_tasks = [main_task.info() for main_task in all_main_tasks] if len(all_main_tasks) != 0 else []
+            print("LAHAT ng Tasks", converted_main_tasks)
             return jsonify(converted_main_tasks), 200
         
         except OperationalError:
@@ -1020,7 +1032,10 @@ class Tasks_Service():
         
     def get_general_tasks():
         try:
-            all_general_tasks = Main_Task.query.filter(Main_Task.department_id.is_(None), Main_Task.status == 1).all()
+            from models.System_Settings import System_Settings
+            settings = System_Settings.query.first()
+
+            all_general_tasks = Main_Task.query.filter(Main_Task.department_id.is_(None), Main_Task.status == 1, Main_Task.period == settings.current_period_id).all()
             converted = [task.info() for task in all_general_tasks]
             return jsonify(converted), 200
         
@@ -1034,7 +1049,10 @@ class Tasks_Service():
     
     def get_tasks_by_department(id):
         try:
-            all_department_tasks = Main_Task.query.filter_by(department_id = id, status = 1).all()
+            from models.System_Settings import System_Settings
+            settings = System_Settings.query.first()
+
+            all_department_tasks = Main_Task.query.filter_by(department_id = id, status = 1, period = settings.current_period_id).all()
             converted = [task.info() for task in all_department_tasks]
             return jsonify(converted), 200
         
@@ -1048,7 +1066,10 @@ class Tasks_Service():
         
     def get_all_general_tasks():
         try:
-            all_general_tasks = Main_Task.query.filter_by(department_id = None, status = 1).all()
+
+            from models.System_Settings import System_Settings
+            settings = System_Settings.query.first()
+            all_general_tasks = Main_Task.query.filter_by(department_id = None, status = 1, period = settings.current_period_id).all()
             converted = [task.info() for task in all_general_tasks]
 
             
@@ -1288,18 +1309,18 @@ class Tasks_Service():
 
 
             
-            if field == "quantity editable-field":
+            if field == "quantity":
                 
                 ipcr.quantity = int(value)
                 db.session.commit()
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
-            if field == "efficiency editable-field":
+            if field == "efficiency":
                 ipcr.efficiency = int(value)
                 db.session.commit()
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
-            if field == "timeliness editable-field":
+            if field == "timeliness":
                 ipcr.timeliness = int(value)
                 db.session.commit()
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
@@ -1341,6 +1362,11 @@ class Tasks_Service():
         Returns a list of user summaries for a specific task.
         Each summary includes user info and their average ratings.
         """
+
+        from models.System_Settings import System_Settings
+        settings = System_Settings.query.first()
+
+
         results = (
             db.session.query(
                 Output.user_id,
@@ -1350,7 +1376,7 @@ class Tasks_Service():
                 func.avg(Sub_Task.average).label("overall_average")
             )
             .join(Sub_Task, Output.id == Sub_Task.output_id)
-            .filter(Output.main_task_id == task_id)
+            .filter(Output.main_task_id == task_id, Output.period == settings.current_period_id)
             .group_by(Output.user_id)
             .all()
         )
@@ -1490,6 +1516,9 @@ class Tasks_Service():
         }
         """
 
+        from models.System_Settings import System_Settings
+        settings = System_Settings.query.first()
+
         results = (
             db.session.query(
                 func.avg(Sub_Task.quantity).label("avg_quantity"),
@@ -1498,7 +1527,7 @@ class Tasks_Service():
                 func.avg(Sub_Task.average).label("avg_overall")
             )
             .join(Output, Output.id == Sub_Task.output_id)
-            .filter(Output.user_id == user_id)
+            .filter(Output.user_id == user_id, Output.period == settings.current_period_id)
             .first()
         )
 
@@ -1527,7 +1556,11 @@ class Tasks_Service():
         (across all categories), using Sub_Task's calculation methods.
         """
 
-        all_tasks = Main_Task.query.filter_by(status=1).all()
+        from models.System_Settings import System_Settings
+        settings = System_Settings.query.first()
+
+
+        all_tasks = Main_Task.query.filter_by(status=1, period = settings.current_period_id).all()
         data = []
 
         for task in all_tasks:

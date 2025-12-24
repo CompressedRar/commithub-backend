@@ -403,10 +403,13 @@ class User(db.Model):
         }
     
     def calculatePerformance(self):
+        from models.System_Settings import System_Settings
+
+        settings = System_Settings.query.first()
         all_output_total = 0
         total = 0
         for output in self.outputs:
-            if output.status == 0: continue
+            if output.status == 0 or output.period != settings.current_period_id: continue
             total += 1
             all_output_total += output.sub_task.calculateAverage()
         
@@ -415,10 +418,14 @@ class User(db.Model):
         return all_output_total / total if total != 0 else 0
 
     def to_dict(self):
+
+        from models.System_Settings import System_Settings
+
+        settings = System_Settings.query.first()
         active_ipcrs = []
 
         for ipcr in self.ipcrs:
-            if ipcr.status == 1:
+            if ipcr.status == 1 and ipcr.period == settings.current_period_id if settings else False:
                 active_ipcrs.append(ipcr.to_dict())
 
         return {
@@ -435,6 +442,7 @@ class User(db.Model):
             "account_status": self.account_status,
             "created_at": str(self.created_at),
 
+            "avg_performance": self.calculatePerformance(),
             "position":self.position.info() if self.position else "NONE",
             "department": self.department.info() if self.department else "NONE",
             "ipcrs": active_ipcrs,
@@ -979,10 +987,10 @@ class Users():
                     return jsonify(message ="Authenticated.", token = token), 200
                 
                 else:
-                    return jsonify(error ="Invalid Credentials"), 400
+                    return jsonify(error ="Incorrect Email or Password"), 400
 
             else:
-                return jsonify(error = "Invalid Credentials"), 400
+                return jsonify(error = "Incorrect Email or Password"), 400
             
         except OperationalError as e:
             db.session.rollback()
@@ -992,7 +1000,7 @@ class Users():
         except Exception as e:  # fallback for unknown errors
             db.session.rollback()
             print(str(e), "EXCEPTION")
-            return jsonify(error=str(e)), 500
+            return jsonify(error = "Incorrect Email or Password"), 500
         
 
     

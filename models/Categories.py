@@ -66,7 +66,10 @@ class Category(db.Model):
 class Category_Service():
     def get_all():
         try:
-            all_categories = Category.query.filter_by(status = 1).all()
+            from models.System_Settings import System_Settings
+            settings = System_Settings.query.first()
+
+            all_categories = Category.query.filter_by(status = 1, period = settings.current_period_id).all()
             converted_categories = [category.info() for category in all_categories]
         
             return jsonify(converted_categories), 200
@@ -81,7 +84,9 @@ class Category_Service():
         
     def get_all_with_tasks():
         try:
-            all_categories = Category.query.filter_by(status = 1).all()
+            from models.System_Settings import System_Settings
+            settings = System_Settings.query.first()
+            all_categories = Category.query.filter_by(status = 1, period = settings.current_period_id).all()
             converted_categories = [category.to_dict() for category in all_categories]
         
             return jsonify(converted_categories), 200
@@ -294,6 +299,9 @@ class Category_Service():
         )
 
         # Build query: left outer join so tasks without subtasks are included
+
+        from models.System_Settings import System_Settings
+        settings = System_Settings.query.first()
         results = (
             db.session.query(
                 Main_Task.id.label("task_id"),
@@ -305,7 +313,7 @@ class Category_Service():
                 func.avg((qty_rating + eff_rating + tim_rating) / 3.0).label("avg_overall")
             )
             .outerjoin(Sub_Task, Sub_Task.main_task_id == Main_Task.id)
-            .filter(Main_Task.category_id == category_id, Main_Task.status == 1)
+            .filter(Main_Task.category_id == category_id, Main_Task.status == 1, Main_Task.period == settings.current_period_id)
             .group_by(Main_Task.id)
             .all()
         )
@@ -338,6 +346,8 @@ class Category_Service():
         """
 
         category = Category.query.get(category_id)
+        from models.System_Settings import System_Settings
+        settings = System_Settings.query.first()
 
         print(category)
         if not category:
@@ -351,7 +361,7 @@ class Category_Service():
 
         for main_task in category.main_tasks:
             print(main_task.status)
-            if main_task.status == 1:
+            if main_task.status == 1 and main_task.period == settings.current_period_id:
 
                 for sub_task in main_task.sub_tasks:
                     # Ensure calculations are up to date
@@ -378,4 +388,73 @@ class Category_Service():
             "overall_average": round(total_average / count, 2)
         }
         return jsonify(data), 200 
+    
+    def calculate_category_performance_per_department(category_id):
+        """
+        Returns:
+        [
+            {
+                "name": "Education",
+                "quantity": 3.5,
+                "efficiency": 2.0,
+                "timeliness": 2.0,
+                "average": 2.0
+            },
+            ...
+        ]
+        """
+
+        from models.System_Settings import System_Settings
+
+        category = Category.query.get(category_id)
+        settings = System_Settings.query.first()
+
+        if not category:
+            return jsonify([]), 200
+
+        depts = {}
+
+        for main_task in category.main_tasks:
+            if main_task.status == 1 and main_task.period == settings.current_period_id:
+
+                for sub_task in main_task.sub_tasks:
+                    # Defensive checks
+                    if not sub_task.output or not sub_task.output.user:
+                        continue
+
+                    dept_name = sub_task.output.user.department.name
+
+                    if dept_name not in depts:
+                        depts[dept_name] = {
+                            "quantity": 0,
+                            "efficiency": 0,
+                            "timeliness": 0,
+                            "average": 0,
+                            "count": 0
+                        }
+
+                    depts[dept_name]["quantity"] += sub_task.calculateQuantity()
+                    depts[dept_name]["efficiency"] += sub_task.calculateEfficiency()
+                    depts[dept_name]["timeliness"] += sub_task.calculateTimeliness()
+                    depts[dept_name]["average"] += sub_task.calculateAverage()
+                    depts[dept_name]["count"] += 1
+
+        # Convert to response format
+        response = []
+
+        for dept_name, values in depts.items():
+            count = values["count"]
+            if count == 0:
+                continue
+
+            response.append({
+                "name": dept_name,
+                "quantity": round(values["quantity"] / count, 2),
+                "efficiency": round(values["efficiency"] / count, 2),
+                "timeliness": round(values["timeliness"] / count, 2),
+                "average": round(values["average"] / count, 2)
+            })
+
+        return jsonify(response), 200
+
     

@@ -110,3 +110,7 @@ def unarchive_user(id):
 
 
 
+"""
+gawin yung override ng ratings bukas
+
+"""

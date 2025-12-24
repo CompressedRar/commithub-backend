@@ -51,19 +51,23 @@ class Department(db.Model):
         }
     
     def collect_all_ipcr(self):
+        from models.System_Settings import System_Settings
+        settings = System_Settings.query.first()
         all_ipcr = []
         for user in self.users:
             for ipcr in user.ipcrs:
-                if ipcr.status == 1:
+                if ipcr.status == 1 and ipcr.period == settings.current_period_id:
                     all_ipcr.append(ipcr.department_info())
                 
         return all_ipcr
     
     def collect_all_opcr(self):
+        from models.System_Settings import System_Settings
+        settings = System_Settings.query.first()
         all_ipcr = []
         
         for opcr in self.opcrs:
-            if opcr.status == 1:
+            if opcr.status == 1 and opcr.period == settings.current_period_id:
                 all_ipcr.append(opcr.to_dict())
 
         return all_ipcr
@@ -310,6 +314,9 @@ class Department_Service():
     
     def get_all_department_ipcr(dept_id):
         try:
+            from models.System_Settings import System_Settings
+            settings = System_Settings.query.first()
+
             dept_members = User.query.filter_by(department_id = dept_id).all()
 
             user_ipcr = []
@@ -321,7 +328,7 @@ class Department_Service():
                 ipcr_container = None
 
                 for ipcr in members.ipcrs:
-                    if ipcr.isMain and ipcr.status == 1:
+                    if ipcr.isMain and ipcr.status == 1 and ipcr.period == settings.current_period_id:
                         ipcr_container = ipcr.department_info()
 
                 user_ipcr.append({
@@ -382,44 +389,55 @@ class Department_Service():
     
     def get_average_performance_by_department():
         """
-        Returns department performance averages:
+        Returns department performance averages for CURRENT PERIOD only:
         [
             { "name": "Education", "value": 3.5 },
-            { "name": "Registrar", "value": 4.1 },
-            ...
+            { "name": "Registrar", "value": 4.1 }
         ]
-        Dynamically calculates each sub-task's average rating.
         """
 
-        # Calculate average rating dynamically per subtask
+        from models.System_Settings import System_Settings
+
+        settings = System_Settings.query.first()
+        current_period = settings.current_period_id
+
         results = (
             db.session.query(
                 Department.name.label("name"),
                 func.avg(
                     (
-                        (func.coalesce(Sub_Task.quantity, 0) +
+                        func.coalesce(Sub_Task.quantity, 0) +
                         func.coalesce(Sub_Task.efficiency, 0) +
                         func.coalesce(Sub_Task.timeliness, 0)
-                        ) / 3.0
-                    )
+                    ) / 3.0
                 ).label("value")
             )
             .join(User, User.department_id == Department.id)
             .join(Output, Output.user_id == User.id)
             .join(Sub_Task, Sub_Task.output_id == Output.id)
+            .filter(
+                Output.period == current_period,
+                Sub_Task.status == 1,
+                Output.status == 1
+            )
             .group_by(Department.id)
             .all()
         )
 
-        # Include all departments (even if they have no performance data)
+        # Ensure all departments appear
         departments = Department.query.all()
         data = []
+
         for dept in departments:
             match = next((r for r in results if r.name == dept.name), None)
             avg_value = round(match.value, 2) if match and match.value else 0
-            data.append({"name": dept.name, "value": avg_value})
+            data.append({
+                "name": dept.name,
+                "value": avg_value
+            })
 
         return jsonify(data), 200
+
 
     
     def get_user_performance_by_department_id(department_id):
@@ -432,6 +450,7 @@ class Department_Service():
             ...
         ]
         """
+        
         users = User.query.filter_by(department_id=department_id).all()
         data = []
 
@@ -461,6 +480,10 @@ class Department_Service():
         }
         """
 
+        from models.System_Settings import System_Settings
+        settings = System_Settings.query.first()
+        current_period = settings.current_period_id
+
         # Query department averages based on Sub_Task ratings through user relationships
         results = (
             db.session.query(
@@ -474,14 +497,17 @@ class Department_Service():
             .join(User, User.department_id == Department.id)
             .join(Output, Output.user_id == User.id)
             .join(Sub_Task, Sub_Task.output_id == Output.id)
+            .filter(
+                Output.period == current_period,  
+                Sub_Task.status == 1,
+                Output.status == 1
+                )
             .group_by(Department.id)
             .all()
         )
 
         if not results:
             return jsonify({"message": "No performance data available"}), 404
-
-        # Find the department with the highest overall average
         top_dept = max(results, key=lambda r: r.overall_average or 0)
 
         data = {

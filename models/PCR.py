@@ -1,6 +1,6 @@
 from app import db
 from app import socketio
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
@@ -1202,7 +1202,7 @@ class PCR_Service():
 
             for ipcr_id in ipcr_ids:
                 ipcr = IPCR.query.get(ipcr_id)
-                if not ipcr:
+                if not ipcr or ipcr.period != current_settings.current_period_id:
                     continue
 
                 # For each subtask of the IPCR, ensure the MFO exists in OPCR_Rating
@@ -2138,6 +2138,9 @@ class PCR_Service():
             ...
         ]
         """
+        from models.System_Settings import System_Settings
+        settings = System_Settings.query.first()
+        current_period = settings.current_period_id
 
         # Aggregate averages per department through user → sub_task relationship
         results = (
@@ -2152,6 +2155,11 @@ class PCR_Service():
             .join(User, User.department_id == Department.id)
             .join(IPCR, IPCR.user_id == User.id)
             .join(Sub_Task, Sub_Task.ipcr_id == IPCR.id)
+            .filter(
+                Output.period == current_period, 
+                Sub_Task.status == 1,
+                Output.status == 1
+            )
             .group_by(Department.id)
             .all()
         )
@@ -2381,6 +2389,7 @@ class PCR_Service():
             return jsonify(error=str(e)), 500
         
         
+
 
 
 #lagyan ng date period si ipcr

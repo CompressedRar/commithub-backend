@@ -57,6 +57,10 @@ def get_tasks_user_ratio(main_task_id):
 def get_category_performancve(cat_id):
     return Category_Service.calculate_category_performance(category_id=cat_id)
 
+@charts.route("/bar/category-performance-dept/<cat_id>", methods = ["GET"])
+def get_category_performance_by_dept(cat_id):
+    return Category_Service.calculate_category_performance_per_department(category_id=cat_id)
+
 
 @charts.route("/pie/main-task-performance/<main_task_id>", methods = ["GET"])
 def get_main_task_performancve(main_task_id):

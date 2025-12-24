@@ -3,7 +3,7 @@ from app import db
 from utils.decorators import log_action, token_required
 from models.Positions import Positions
 from json import loads
-
+from datetime import datetime, date
 from models.System_Settings import System_Settings_Service
 
 
@@ -43,4 +43,21 @@ def validate_formula():
         return jsonify(message = str(e)), 200 
 
 
+@settings.route("/get-date")
+def test_check_time():
+    from models.System_Settings import System_Settings
+
+    setting = System_Settings.query.first()
+
+    start = str(setting.rating_start_date)
+    end = str(setting.rating_end_date)
+
+    start_date = datetime.strptime(start, "%Y-%m-%d").date()
+    end_date = datetime.strptime(end, "%Y-%m-%d").date()
+    today = date.today()
+
+    print(start_date, end_date, today)
+
+    is_between = start_date <= today <= end_date
     
+    return str(is_between)

@@ -1,6 +1,6 @@
 from app import db
 from app import socketio
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
@@ -156,3 +156,23 @@ class System_Settings_Service:
         except (IntegrityError, OperationalError, DataError, ProgrammingError) as e:
             db.session.rollback()
             return jsonify({"status":"error", "message":str(e)}), 500
+        
+    def check_if_rating_period():
+
+        setting = System_Settings.query.first()
+        if not setting or not setting.rating_start_date or not setting.rating_end_date:
+            return False
+
+
+        start = str(setting.rating_start_date)
+        end = str(setting.rating_end_date)
+
+        start_date = datetime.strptime(start, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end, "%Y-%m-%d").date()
+        today = date.today()
+
+        
+
+        is_between = start_date <= today <= end_date
+        print("IS RATING PERIOD?", is_between)
+        return is_between
