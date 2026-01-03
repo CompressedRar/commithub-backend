@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, json
 from app import db
 
 from models.Tasks import Tasks_Service
@@ -62,3 +62,18 @@ def update_sub_task_field(sub_task_id):
 @token_required()
 def get_IPCRs():
     return Tasks_Service.test_ipcr()
+
+@task.route("/assigned_department/<dept_id>", methods = ["GET"])
+@token_required()
+def get_assigned_department(dept_id):
+    return Tasks_Service.get_assigned_department(dept_id)
+
+@task.route("/assigned_department/", methods = ["PATCH"])
+@token_required()
+def update_assigned_department():
+    data = request.json
+
+    print(data)
+    return Tasks_Service.update_tasks_weights(data)
+
+

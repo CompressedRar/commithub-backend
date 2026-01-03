@@ -196,6 +196,21 @@ def test_opcr(opcr_id):
     file_link = PCR_Service.generate_opcr(opcr_id=opcr_id)
     return jsonify(link = file_link), 200
 
+@pcrs.route("/planned-opcr/download/<dept_id>", methods = ["GET"])
+@token_required(allowed_roles=["administrator", "head"])
+@log_action(action = "DOWNLOAD", target="OPCR")
+
+def download_planned_opcr(dept_id):
+    file_link = PCR_Service.generate_planned_opcr_by_department(department_id=dept_id)
+    return jsonify(link = file_link), 200
+
+@pcrs.route("/weighted-opcr/download/<opcr_id>", methods = ["GET"])
+@token_required(allowed_roles=["administrator", "head"])
+@log_action(action = "DOWNLOAD", target="OPCR")
+
+def download_weighted_opcr(opcr_id):
+    file_link = PCR_Service.generate_weighted_opcr(opcr_id)
+    return jsonify(link = file_link), 200
 
 @pcrs.route("/master-opcr/download/", methods = ["GET"])
 @token_required(allowed_roles=["administrator"])
@@ -251,3 +266,8 @@ def get_opcr_reviewed():
 @token_required()
 def get_opcr_approved():
     return PCR_Service.get_opcr_approved()
+
+
+@pcrs.route("/planned-opcr/<dept_id>", methods = ["GET"])
+def get_planned_opcr(dept_id):
+    return PCR_Service.get_planned_opcr_by_department(dept_id)

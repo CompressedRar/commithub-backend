@@ -1,12 +1,19 @@
 from flask import Blueprint, render_template, jsonify, request
 from app import db
 from utils.decorators import log_action
+from utils import Email
 from models.Departments import Department_Service
 from models.PCR import PCR_Service
 from models.Logs import Log_Service
 from models.Categories import Category_Service
 from models.Tasks import Tasks_Service
+
 charts = Blueprint("charts", __name__, url_prefix="/api/v1/chart")
+
+@charts.route("/email-account", methods=["GET"])
+def test_email_account():
+    Email.send_email_account_creation("qwertythanzip1103@gmail.com", "test")
+    return "sent"
 
 @charts.route("/pie/population-per-department", methods = ["GET"])
 def population_per_department():
@@ -27,6 +34,10 @@ def get_department_performance_summary():
 @charts.route("/line/activity/", methods = ["GET"])
 def get_activity_trend():
     return Log_Service.get_log_activity_trend()
+
+@charts.route("/bar/logs/", methods = ["GET"])
+def get_system_logs__trend():
+    return Log_Service.get_logs_activity()
 
 @charts.route("/line/logs-by-hour/", methods = ["GET"])
 def get_logs_by_hour():

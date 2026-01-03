@@ -8,7 +8,7 @@ from flask import request, jsonify
 from models.Positions import Positions, Position
 from utils.FileStorage import upload_file, upload_profile_pic, get_file
 from utils.Generate import generate_default_password
-from utils.Email import send_email, send_reset_email
+from utils.Email import send_email, send_reset_email, send_email_account_creation,send_templated_reset_email
 from models.Logs import Log_Service
 from werkzeug.utils import secure_filename
 import os
@@ -377,11 +377,14 @@ class User(db.Model):
     assigned_tasks = db.relationship("Assigned_Task", back_populates="user")
     
     def info(self):
+
+        middle_initial = self.middle_name[0].upper() + ". " if self.middle_name else " "
         return {
             "id": self.id,
             "first_name": self.first_name,
             "last_name": self.last_name,
             "middle_name": self.middle_name,
+            "full_name": self.first_name + " " + middle_initial + self.last_name,
             "profile_picture_link": get_file(self.profile_picture_link),
             "position": self.position.info(),
             "role": self.role,
@@ -701,7 +704,7 @@ class Users():
                 hashed_password = ph.hash(new_default_password)
 
                 user.password = hashed_password
-                send_reset_email(user.email, msg)
+                send_templated_reset_email(user.email, msg)
                 Notification_Service.notify_user(user.id, "The account password has been reset.")
 
                 socketio.emit("user_modified", "modified")
@@ -825,7 +828,7 @@ class Users():
             
             )
             db.session.flush()
-            send_email(data["email"], msg)
+            send_email_account_creation(data["email"], msg)
 
             db.session.add(new_user)
             db.session.commit()

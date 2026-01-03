@@ -13,13 +13,21 @@ migrate = Migrate()
 socketio = SocketIO()
 
 
-def create_app(config_class):
+def create_app():
+    load_dotenv()
     
     app = Flask(__name__)
     CORS(app, supports_credentials=True)
     
-    app.config.from_object(config_class)
-
+    app.config["SECRET_KEY"] = "hannelore"
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("LOCAL_DATABASE_URL")
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+    app.config['MAIL_PORT'] = 587
+    app.config['MAIL_USE_TLS'] = True
+    app.config['MAIL_USERNAME'] = 'qwertythanzip1103@gmail.com'
+    app.config['MAIL_PASSWORD'] = 'bafx xxnm qryx egpc'
+    app.config['MAIL_DEFAULT_SENDER'] = 'qwertythanzip1103@gmail.com'
 
     mail.init_app(app)
     db.init_app(app)

@@ -84,7 +84,8 @@ class Log_Service:
         results = (
             db.session.query(
                 func.date(Log.created_at).label("date"),
-                func.count(Log.id).label("value")
+                func.count(Log.id).label("value"),
+                
             )
             .group_by(func.date(Log.created_at))
             .order_by(func.date(Log.created_at))
@@ -93,6 +94,24 @@ class Log_Service:
 
         data = [
             {"name": r.date.strftime("%Y-%m-%d"), "value": r.value}
+            for r in results
+        ]
+
+        return jsonify(data), 200
+    
+    def get_logs_activity():
+        results = (
+            db.session.query(
+                Log.action.label("type"),
+                Log.target.label("target"),
+                Log.department.label("department"),
+                func.date(Log.created_at).label("date"),                
+            )
+            .all()
+        )
+
+        data = [
+            {"date": r.date.strftime("%Y-%m-%d"), "type": r.type, "target": r.target, "department": r.department}
             for r in results
         ]
 

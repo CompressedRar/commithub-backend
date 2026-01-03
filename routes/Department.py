@@ -111,9 +111,12 @@ def archive_department(id):
     return Department_Service.archive_department(id)
 
 
-@department.route("/remove/<id>", methods = ["DELETE"])
+@department.route("/remove/<id>&deptid=<dept_id>", methods = ["DELETE"])
 @token_required()
 @log_action(action = "REMOVE", target="TASK")
-def remove_task_department(id):
-    return Tasks_Service.remove_task_from_dept(id)
+def remove_task_department(id, dept_id):
+    return Tasks_Service.remove_task_from_dept(id, dept_id)
 
+@department.route("/assigned_department/<dept_id>", methods = ["GET"])
+def get_assigned_department(dept_id):
+    return Tasks_Service.get_assigned_departments_for_opcr(dept_id)

@@ -440,58 +440,22 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
                     total += a["rating"]["average"]
 
                     prepareCells(ws, f"Q{row}", f"Q{row+5}")
-                    ws[f"Q{row}"] = a["rating"]["average"]
+                    ws[f"Q{row}"] = float(f"{float((a["rating"]["quantity"] + a["rating"]["efficiency"] + a["rating"]["timeliness"]) / 3):.2F}")
                     ws[f"Q{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     ws[f"Q{row}"].font = Font(bold=True)
 
                     # remarks (blank)
                     prepareCells(ws, f"R{row}", f"S{row+5}")
-                    ws[f"R{row}"] =a["rating"]["remarks"]
+                    ws[f"R{row}"] = ""
                     ws[f"R{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     ws[f"R{row}"].font = Font(bold=True)
 
                     endrow = row
-                    row = row + 6
-
-        raw_average = total / task_frequency if task_frequency > 0 else 0
-        
-        if len(data) > 0:
-            ws[f"A{row}"] = "RAW AVERAGE: " + f"{raw_average}" if len(data) > 0 else "RAW AVERAGE: 0"
-            prepareCells(ws, f"A{row}", f"S{row}")
-            ws[f"A{row}"].font = Font(bold=True)
-            row += 1
-
-        if type == "CORE FUNCTION" and len(data) > 0:
-            core_weight = position_weights.get("core_weight", 1.0)
-            weighted_average = raw_average * core_weight
-            total = weighted_average * len(data)  # for final average calculation
-
-            ws[f"A{row}"] = "WEIGHTED AVERAGE: " + f"{weighted_average:.2f}" if task_frequency > 0 else "WEIGHTED AVERAGE: 0"
-            prepareCells(ws, f"A{row}", f"S{row}")
-            ws[f"A{row}"].font = Font(bold=True)
-            row += 1
-        elif type == "STRATEGIC FUNCTION" and len(data) > 0:
-            strategic_weight = position_weights.get("strategic_weight", 1.0)
-            weighted_average = raw_average * strategic_weight
-            total = weighted_average * len(data)  # for final average calculation
-
-            ws[f"A{row}"] = "WEIGHTED AVERAGE: " + f"{weighted_average:.2f}" if task_frequency > 0 else "WEIGHTED AVERAGE: 0"
-            prepareCells(ws, f"A{row}", f"S{row}")
-            ws[f"A{row}"].font = Font(bold=True)
-            row += 1
-        elif type == "SUPPORT FUNCTION" and len(data) > 0:
-            support_weight = position_weights.get("support_weight", 1.0)
-            weighted_average = raw_average * support_weight
-            total = weighted_average * len(data)  # for final average calculation
-
-            ws[f"A{row}"] = "WEIGHTED AVERAGE: " + f"{weighted_average:.2f}" if task_frequency > 0 else "RAW AVERAGE: 0"
-            prepareCells(ws, f"A{row}", f"S{row}")
-            ws[f"A{row}"].font = Font(bold=True)
-            row += 1
-    row += 2
-    prepareCells(ws, f"L{row}", f"M{row+1}")
-    ws[f"L{row}"] = "Final Average Rating"
-    ws[f"L{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    row = row + 6        
+            
+    prepareCells(ws, f"K{row}", f"M{row+1}")
+    ws[f"K{row}"] = "Final Average Rating"
+    ws[f"K{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
     prepareCells(ws, f"N{row}", f"N{row+1}")
     ws[f"N{row}"] = f"=AVERAGE(N{startingrow}: N{endrow})"
@@ -517,9 +481,9 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
 
     # final average block
     row += 2
-    prepareCells(ws, f"L{row}", f"M{row+1}")
-    ws[f"L{row}"] = "FINAL AVERAGE RATING"
-    ws[f"L{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    prepareCells(ws, f"K{row}", f"M{row+1}")
+    ws[f"K{row}"] = "FINAL AVERAGE RATING"
+    ws[f"K{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
     prepareCells(ws, f"N{row}", f"Q{row+1}")
     ws[f"N{row}"] = average
@@ -528,18 +492,18 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     ws[f"N{row}"].number_format = numberformat
 
     row += 2
-    prepareCells(ws, f"L{row}", f"M{row+1}")
-    ws[f"L{row}"] = "ADJECTIVAL RATING"
-    ws[f"L{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    prepareCells(ws, f"K{row}", f"M{row+1}")
+    ws[f"K{row}"] = "ADJECTIVAL RATING"
+    ws[f"K{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
     from models.System_Settings import System_Settings
     settings = System_Settings.query.first()
     rating_thresholds = settings.rating_thresholds if settings else {
-        "POOR": {"min": 1, "max": 1.9},
-        "UNSATISFACTORY": {"min": 2, "max": 2.9},
-        "SATISFACTORY": {"min": 3, "max": 3.9},
-        "VERY SATISFACTORY": {"min": 4, "max": 4.9},
-        "OUTSTANDING": {"min": 5, "max": 5}
+        "POOR": {"min": 0, "max": 1.49},
+        "UNSATISFACTORY": {"min": 1.5, "max": 2.49},
+        "SATISFACTORY": {"min": 2.5, "max": 3.49},
+        "VERY SATISFACTORY": {"min": 3.5, "max": 4.49},
+        "OUTSTANDING": {"min": 4.5, "max": 5}
     }
 
     prepareCells(ws, f"N{row}", f"Q{row+1}")

@@ -237,7 +237,8 @@ class Output(db.Model):
             batch_id = batch_id,
             ipcr_id = self.ipcr_id,
             assigned_quantity = assigned_quantity,
-            target_acc=assigned_quantity
+            target_acc=assigned_quantity,
+            period=period
         )             
        
 
@@ -256,7 +257,42 @@ class Output(db.Model):
     def sub_task_info(self):
         return self.sub_task.to_dict()
         
+class Assigned_Department(db.Model):
+    __tablename__ = "assigned_departments"
+    id = db.Column(db.Integer, primary_key=True)
+    department_id = db.Column(db.Integer, db.ForeignKey("departments.id"))
+    main_task_id = db.Column(db.Integer, db.ForeignKey("main_tasks.id"))
 
+    batch_id = db.Column(db.Text, default = "")
+    period = db.Column(db.Text, default ="")
+    
+    department = db.relationship("Department", back_populates = "main_tasks")
+    main_task = db.relationship("Main_Task", back_populates = "assigned_departments")
+
+    task_weight = db.Column(db.Float, default = 0.0)
+
+    def info(self):
+        return {
+            "id": self.id,
+            "department_id": self.department_id,
+            "main_task_id": self.main_task_id,
+            "department_name": self.department.name,
+            "task_weight": self.task_weight,
+            "task_name": self.main_task.mfo
+        }
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "department_id": self.department_id,
+            "main_task": self.main_task.ipcr_info(),
+            "main_task_id": self.main_task_id,
+            "department_name": self.department.name,
+            "task_weight": self.task_weight,
+            "task_name": self.main_task.mfo,
+            "assigned_users": self.main_task.get_users_by_dept(self.department_id),
+            "task_data": self.main_task.get_performance_by_department(self.department_id)
+        }
 
 
 class Main_Task(db.Model):
@@ -283,8 +319,9 @@ class Main_Task(db.Model):
 
     require_documents = db.Column(db.Boolean, default=False)
     #one category and one department
-    department_id = db.Column(db.Integer, db.ForeignKey("departments.id"), default = None)
-    department = db.relationship("Department", back_populates = "main_tasks")
+    
+    assigned_departments = db.relationship("Assigned_Department", back_populates="main_task")
+
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"))
     category = db.relationship("Category", back_populates = "main_tasks")
     sub_tasks = db.relationship("Sub_Task", back_populates = "main_task", cascade = "all, delete")
@@ -298,6 +335,8 @@ class Main_Task(db.Model):
     target_deadline = db.Column(db.DateTime, nullable=True)
     target_timeframe = db.Column(db.Integer, nullable=True, default = 0)  #in days / hours / minutes
     timeliness_mode = db.Column(db.String(100), nullable=True, default = "timeframe")  #timeframe or deadline
+
+    description = db.Column(db.Text, nullable=True)
 
     def get_task_avg_rating(self):
         total = 0
@@ -321,15 +360,87 @@ class Main_Task(db.Model):
     def get_users_by_dept(self, id):
         all_user = []
         for assigned in self.assigned_tasks:
-            print(assigned.user_info())
+
+            user_info = assigned.user_info() 
+            user_info["assigned_quantity"] = assigned.assigned_quantity
             
             if assigned.user_info()["department_name"] == "NONE": 
                 continue
-            if  str(assigned.user_info()["department"]["id"]) == id:
-                all_user.append(assigned.user_info())
+
+            if  str(assigned.user.department.id) == id:
+                print("MAY NAHANAP")
+                all_user.append(user_info)
         
         return all_user
     
+    def get_performance_by_department(self, dept_id):
+        all_sub_tasks = {
+            "target_acc": 0,
+            "actual_acc": 0,
+            "target_time":0,
+            "actual_time": 0,
+            "target_mod": 0,
+            "actual_mod": 0,
+            "rating":{}
+        }
+        from models.PCR import PCR_Service 
+        from models.System_Settings import System_Settings
+        settings = System_Settings.query.first() 
+
+        for output in self.outputs:
+            user_department = output.user.department.id
+
+            if user_department == dept_id and output.status == 1 and output.sub_task.status == 1:
+                if self.timeliness_mode == "deadline":
+                    from datetime import datetime
+                                   
+    
+                    target_working_days = ""
+                    actual_working_days = ""
+
+                    days_late = (output.sub_task.actual_deadline - output.sub_task.main_task.target_deadline).days
+
+                    actual_working_days = days_late
+                    target_working_days = 1  
+
+                    all_sub_tasks["target_acc"] += output.sub_task.target_acc
+                    all_sub_tasks["target_mod"] += output.sub_task.target_mod
+                    all_sub_tasks["target_time"] = target_working_days
+
+                    all_sub_tasks["actual_acc"] += output.sub_task.actual_acc
+                    all_sub_tasks["actual_mod"] += output.sub_task.actual_mod
+                    all_sub_tasks["actual_time"] += actual_working_days
+
+                    
+                else:
+
+                    all_sub_tasks["target_acc"] += output.sub_task.target_acc
+                    all_sub_tasks["target_mod"] += output.sub_task.target_mod
+                    all_sub_tasks["target_time"] = output.sub_task.target_time
+
+                    all_sub_tasks["actual_acc"] += output.sub_task.actual_acc
+                    all_sub_tasks["actual_mod"] += output.sub_task.actual_mod
+                    all_sub_tasks["actual_time"] += output.sub_task.actual_time
+                
+                
+
+                quantity = PCR_Service.compute_quantity_rating(all_sub_tasks['target_acc'], all_sub_tasks['actual_acc'], settings)
+                efficiency = PCR_Service.compute_efficiency_rating(all_sub_tasks['target_mod'], all_sub_tasks['actual_mod'], settings)
+                timeliness = PCR_Service.compute_timeliness_rating(all_sub_tasks['target_time'], all_sub_tasks['actual_time'], settings)
+                rating_data = {
+                        "quantity": quantity,
+                        "efficiency": efficiency,
+                        "timeliness": timeliness,
+                        "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness)
+                    }
+                
+                all_sub_tasks["rating"] = rating_data
+
+
+        return all_sub_tasks
+
+
+
     
     def ipcr_info(self):
         return {
@@ -354,7 +465,9 @@ class Main_Task(db.Model):
         return {
             "id" : self.id,
             "name": self.mfo,
-            "department": self.department.name if self.department else "General",
+            "departments": [depts.info() for depts in self.assigned_departments],
+            "department_ids": [depts.info()["department_id"] for depts in self.assigned_departments],
+            "department": [depts.info()["department_id"] for depts in self.assigned_departments],
             "created_at": str(self.created_at),
             "target_accomplishment": self.target_accomplishment,
             "actual_accomplishment": self.actual_accomplishment,
@@ -370,6 +483,7 @@ class Main_Task(db.Model):
             "target_efficiency": self.target_efficiency,
             "target_timeframe": self.target_timeframe,
             "timeliness_mode": self.timeliness_mode,
+            "description":self.description,
             
             "target_deadline": str(self.target_deadline) if self.target_deadline else None
             
@@ -389,6 +503,7 @@ class Main_Task(db.Model):
             "target_timeframe": self.target_timeframe,
             "timeliness_mode": self.timeliness_mode,
             "target_deadline": str(self.target_deadline) if self.target_deadline else None,
+            "task_description":self.description,
 
             "category": self.category_id,
             "sub_tasks": [sub_task.to_dict() for sub_task in self.sub_tasks],
@@ -642,15 +757,63 @@ class Tasks_Service():
             #db.session.rollback()
             return jsonify(error=str(e)), 500
         
+    def get_assigned_department(dept_id):
+        try:
+
+            from models.System_Settings import System_Settings
+            current_settings = System_Settings.query.first()
+
+            found_assigned_department = Assigned_Department.query.filter_by(department_id = dept_id, period = current_settings.current_period_id).all()
+            converted = [assigned_department.info() for assigned_department in found_assigned_department]
+
+            return jsonify(converted), 200
+         
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def get_assigned_departments_for_opcr(dept_id):
+        try:
+
+            from models.System_Settings import System_Settings
+            current_settings = System_Settings.query.first()
+
+            found_assigned_department = Assigned_Department.query.filter_by(department_id = dept_id, period = current_settings.current_period_id).all()
+            converted = [assigned_department.to_dict() for assigned_department in found_assigned_department]
+
+            return jsonify(converted), 200
+         
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+
+    def update_tasks_weights(data):
+        try:
+            for assigned_task_id, weight in dict(data).items():
+                found_task = Assigned_Department.query.get(assigned_task_id)
+                found_task.task_weight = weight
+
+            db.session.commit()
+
+            socketio.emit("weight", "update")
+
+            return jsonify(message="Weights are successfully updated."), 200
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+        
     def create_main_task(data):
         try:
             print("creating task right now")
             from models.System_Settings import System_Settings            
             current_settings = System_Settings.query.first()
+
+            
             
             new_main_task = Main_Task(
                 mfo = data["task_name"],
-                department_id  = int(data["department"]) if int(data["department"]) != 0 else None,
                 target_accomplishment = data["task_desc"],
                 actual_accomplishment = data["past_task_desc"],
                 accomplishment_editable =  int(data["accomplishment_editable"]),
@@ -661,6 +824,7 @@ class Tasks_Service():
                 category_id = int(data["id"]),
                 require_documents = data["require_documents"] if "require_documents" in data else False,
                 period = current_settings.current_period_id if current_settings else None,
+                description = data["description"],
 
                 target_quantity = data["target_quantity"] if "target_quantity" in data else 0,
                 target_efficiency = data["target_efficiency"] if "target_efficiency" in data else 0,
@@ -668,18 +832,41 @@ class Tasks_Service():
                 target_deadline = datetime.strptime(data["target_deadline"], "%Y-%m-%d") if "target_deadline" in data and data["target_deadline"] != "" else None,
                 timeliness_mode = data["timeliness_mode"] if "timeliness_mode" in data else "timeframe"                
             )
+            db.session.add(new_main_task)
+
+            db.session.flush()
+
+            """
+                department_id = db.Column(db.Integer, db.ForeignKey("departments.id"))
+                main_task_id = db.Column(db.Integer, db.ForeignKey("main_tasks.id"))
+
+                batch_id = db.Column(db.Text, default = "")
+                period = db.Column(db.Text, default ="")
+            """
+
+            for department in data["department"].split(","):
+                print("Department ID", department)
+                new_assigned_department = Assigned_Department(
+                    department_id = department,
+                    main_task_id = new_main_task.id,
+                    period = current_settings.current_period_id if current_settings else None,
+                )
+
+                db.session.add(new_assigned_department)
+
             print("registered task")
             Notification_Service.notify_department(dept_id=data["department"], msg="A new output has been added to the department.")
             Notification_Service.notify_presidents( msg="A new output has been added.")
             Notification_Service.notify_administrators( msg="A new output has been added.")
-            db.session.add(new_main_task)
+
+            
             db.session.commit()
-            return jsonify(message="Output successfully created."), 200
+            return jsonify(message="Task successfully created."), 200
         
         except IntegrityError as e:
             db.session.rollback()
             print(str(e), "Integrity")
-            return jsonify(error="Output already exists"), 400
+            return jsonify(error="Task already exists"), 400
         
         except DataError as e:
             db.session.rollback()
@@ -701,6 +888,31 @@ class Tasks_Service():
         try:
             found_task = Main_Task.query.get(data["id"])
 
+            all_previous_department = found_task.info()["department_ids"]
+            updated_departments = [int(i) for i in data["department"].split(",")]
+        
+
+            from models.System_Settings import System_Settings            
+            current_settings = System_Settings.query.first()
+
+            for current_id in updated_departments:
+                print(current_id)
+                if int(current_id) not in all_previous_department:
+                    new_assigned_department = Assigned_Department(
+                        main_task_id = int(data["id"]),
+                        department_id = int(current_id),
+                        period = current_settings.current_period_id
+
+                    )
+                    db.session.add(new_assigned_department)
+
+            for current_id in all_previous_department:
+                print(current_id)
+                if int(current_id) not in updated_departments:
+                    found_assigned_department = Assigned_Department.query.filter_by(main_task_id = int(data["id"]), department_id = int(current_id)).first()
+                    db.session.delete(found_assigned_department)
+
+
             if found_task == None:
                 return jsonify(message="No output with that ID"), 400
             
@@ -713,6 +925,9 @@ class Tasks_Service():
 
             if "target_accomplishment" in data:
                 found_task.target_accomplishment = data["target_accomplishment"]
+
+            if "description" in data:
+                found_task.description = data["description"]
 
             if "actual_accomplishment" in data:
                 found_task.actual_accomplishment = data["actual_accomplishment"]
@@ -752,9 +967,11 @@ class Tasks_Service():
                 print("status detected", data["status"])
                 found_task.status = data["status"]
 
+            socketio.emit("category", "update")
+
             db.session.commit()
             Notification_Service.notify_everyone(msg=f"The task: {found_task.mfo} has been updated.")
-            return jsonify(message = "Output successfully updated."), 200
+            return jsonify(message = "Task successfully updated."), 200
         
         except IntegrityError as e:
             db.session.rollback()
@@ -791,12 +1008,21 @@ class Tasks_Service():
 
             from models.PCR import IPCR, PCR_Service
 
-            existing_ipcr = IPCR.query.filter_by(user_id=user_id, period=current_settings.current_period_id if current_settings else None).first()            
+            existing_ipcr = IPCR.query.filter_by(user_id=user_id, period=current_settings.current_period_id if current_settings else None).first()   
+
+            Assigned_Task.query.filter_by(user_id = user_id, main_task_id = task_id).delete()
+            db.session.commit()
+
             new_assigned_task = Assigned_Task(user_id = user_id, main_task_id = task_id, is_assigned = True, period = current_settings.current_period_id if current_settings else None, assigned_quantity = assigned_quantity)
             db.session.add(new_assigned_task)
             db.session.flush()
 
             if existing_ipcr:
+                Sub_Task.query.filter_by(main_task_id = task_id, batch_id = existing_ipcr.batch_id, ipcr_id=existing_ipcr.id, period = current_settings.current_period_id if current_settings else None).delete()
+                db.session.commit()
+
+                Output.query.filter_by(user_id = user_id, main_task_id = task_id, batch_id = existing_ipcr.batch_id, ipcr_id=existing_ipcr.id, period = current_settings.current_period_id if current_settings else None).delete()
+                db.session.commit()
                 new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = existing_ipcr.batch_id if current_settings else "", ipcr_id=existing_ipcr.id, period = current_settings.current_period_id if current_settings else None, assigned_quantity = assigned_quantity)
                 print("new output", new_output.batch_id)                            
                 db.session.add(new_output)
@@ -893,26 +1119,42 @@ class Tasks_Service():
         
     def assign_department(task_id, dept_id):
         try:
+            
+            from models.Departments import Department
             task = Main_Task.query.get(task_id)
+            department = Department.query.get(dept_id)
 
             #buburahin niya yung mga task na di naman nasa department
-            for output in task.outputs:
+            #buburahin yung mga output kase isang department lang pede maassign dati
+            # ngayon madami na 
+
+            from models.System_Settings import System_Settings
+            settings = System_Settings.query.first()
+
+            """for output in task.outputs:
                 if not output.user.department.id == dept_id:
                     db.session.delete(output)
-                    db.session.commit()
+                    db.session.commit()"""
+            
+            new_assigned_department = Assigned_Department(
+                main_task_id = task_id,
+                department_id = dept_id,
+                period = settings.current_period_id
+            )
+
+            db.session.add(new_assigned_department)
 
             if task == None:
                 return jsonify(message = "Output is not found."), 400
             
-            task.department_id = dept_id
 
             db.session.commit()
             print("task id: ", task_id)
             print("dept id: ", dept_id)
 
             Notification_Service.notify_department(dept_id=dept_id, msg=f"The output: {task.mfo} has been assigned to the office.")
-            Notification_Service.notify_administrators(msg=f"The output: {task.mfo} has been assigned to {task.department.name}.")
-            Notification_Service.notify_presidents(msg=f"The output: {task.mfo} has been assigned to {task.department.name}.")
+            Notification_Service.notify_administrators(msg=f"The output: {task.mfo} has been assigned to {department.name}.")
+            Notification_Service.notify_presidents(msg=f"The output: {task.mfo} has been assigned to {department.name}.")
             socketio.emit("department_assigned", "department assigned")
             socketio.emit("user_assigned", "user assigned")
 
@@ -999,10 +1241,15 @@ class Tasks_Service():
     
     def get_assigned_users(dept_id, task_id):
         try:
-            found_task = Main_Task.query.filter_by(department_id = dept_id, id = task_id).all()[0]
+            found_task = Main_Task.query.get(task_id)
+
             if found_task == None:
-                 return jsonify(""), 200
+                print("WALANG TAO")
+                return jsonify(""), 200
+            
             converted = found_task.get_users_by_dept(id = dept_id) 
+            print("ASSIGNEd", converted)
+
             return jsonify(converted), 200
         
         except OperationalError:
@@ -1052,8 +1299,8 @@ class Tasks_Service():
             from models.System_Settings import System_Settings
             settings = System_Settings.query.first()
 
-            all_department_tasks = Main_Task.query.filter_by(department_id = id, status = 1, period = settings.current_period_id).all()
-            converted = [task.info() for task in all_department_tasks]
+            all_department_tasks = Assigned_Department.query.filter_by(department_id = id, period = settings.current_period_id).all()
+            converted = [task.main_task.info() for task in all_department_tasks]
             return jsonify(converted), 200
         
         except OperationalError:
@@ -1108,7 +1355,7 @@ class Tasks_Service():
             db.session.commit()
             socketio.emit("main_task", "archived")
 
-            return jsonify(message="Output successfully archived."), 200
+            return jsonify(message="Task successfully archived."), 200
 
         except Exception as e:
             db.session.rollback()
@@ -1116,23 +1363,23 @@ class Tasks_Service():
             return jsonify(error=str(e)), 500
 
         
-    def remove_task_from_dept(id):
+    def remove_task_from_dept(id, dept_id):
         try:
             found_task = Main_Task.query.get(id)
-            dept_id = found_task.department_id
-            
+            from models.System_Settings import System_Settings
+            settings = System_Settings.query.first()
+
+
+            found_assigned_department = Assigned_Department.query.filter_by(main_task_id = id, department_id = dept_id, period = settings.current_period_id).first()
+            db.session.delete(found_assigned_department)
 
             if found_task == None:
                 return jsonify(message="No task with that ID"), 400
             
-            found_task.department_id = None
             db.session.commit()
             socketio.emit("task_modified", "task modified")
             socketio.emit("department_assigned", "task modified")
-            Notification_Service.notify_department(dept_id,f"The output: {found_task.mfo} has been removed from this office.")
-            Notification_Service.notify_heads(f"The output: {found_task.mfo} has been assigned as a general output.")
-            Notification_Service.notify_presidents(f"The output: {found_task.mfo} has been assigned as a general output.")
-            Notification_Service.notify_administrators(f"The output: {found_task.mfo} has been assigned as a general output.")
+            Notification_Service.notify_department(dept_id, f"The output: {found_task.mfo} has been removed from this office.")
 
             return jsonify(message = "Output successfully removed."), 200
         

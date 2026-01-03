@@ -20,7 +20,8 @@ class Department(db.Model):
     users = db.relationship("User", back_populates="department")
     opcrs = db.relationship("OPCR", back_populates="department")
 
-    main_tasks = db.relationship("Main_Task", back_populates = "department")
+    main_tasks = db.relationship("Assigned_Department", back_populates = "department")
+    
     assigned_pcrs = db.relationship("Assigned_PCR", back_populates = "department")
 
     def count_tasks(self):

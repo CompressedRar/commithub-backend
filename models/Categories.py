@@ -87,6 +87,7 @@ class Category_Service():
             from models.System_Settings import System_Settings
             settings = System_Settings.query.first()
             all_categories = Category.query.filter_by(status = 1, period = settings.current_period_id).all()
+            
             converted_categories = [category.to_dict() for category in all_categories]
         
             return jsonify(converted_categories), 200
