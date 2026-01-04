@@ -120,3 +120,9 @@ def remove_task_department(id, dept_id):
 @department.route("/assigned_department/<dept_id>", methods = ["GET"])
 def get_assigned_department(dept_id):
     return Tasks_Service.get_assigned_departments_for_opcr(dept_id)
+
+
+@department.route("/assigned_department/<assigned_dept_id>", methods = ["PATCH"])
+def update_assigned_department_formulas(assigned_dept_id):
+    new_data = request.get_json() 
+    return Tasks_Service.update_department_task_formula(assigned_dept_id=assigned_dept_id, data=new_data)

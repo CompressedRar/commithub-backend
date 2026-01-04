@@ -271,6 +271,13 @@ class Assigned_Department(db.Model):
 
     task_weight = db.Column(db.Float, default = 0.0)
 
+    quantity_formula = db.Column(JSON, default={})
+    efficiency_formula = db.Column(JSON, default={})
+    timeliness_formula = db.Column(JSON, default={})
+
+    enable_formulas = db.Column(db.Boolean, default=False)
+
+
     def info(self):
         return {
             "id": self.id,
@@ -566,86 +573,83 @@ class Sub_Task(db.Model):
                 return int(rating)
 
         return 0"""
-
-    def calculateQuantity(self):
-        target = self.target_acc
-        actual = self.actual_acc
-
+    
+    def _get_formula(self, metric):
+        """
+        metric: 'quantity', 'efficiency', 'timeliness'
+        """
+        from models.Tasks import Assigned_Department
         from models.System_Settings import System_Settings
 
-        setting = System_Settings.query.first()
+        # Try department-level override
+        assigned = Assigned_Department.query.filter_by(
+            department_id=self.ipcr.user.department.id,
+            main_task_id=self.main_task.id
+        ).first()
+
+        if assigned and assigned.enable_formulas:
+            return getattr(assigned, f"{metric}_formula")
+
+        # Fallback to system settings
+        settings = System_Settings.query.first()
+        return getattr(settings, f"{metric}_formula")
+
+
+    def calculateQuantity(self):
+        target = self.assigned_quantity
+        actual = self.actual_acc
+
         engine = Formula_Engine()
+        formula = self._get_formula("quantity")
 
         rating = engine.compute_rating(
-            formula=setting.quantity_formula,
+            formula=formula,
             target=target,
             actual=actual
         )
 
         self.quantity = rating
-
         return rating
 
+
     def calculateEfficiency(self):
-        
-        target = self.target_mod
+        target = self.main_task.target_efficiency
         actual = self.actual_mod
 
-        from models.System_Settings import System_Settings
-
-        setting = System_Settings.query.first()
-
         engine = Formula_Engine()
+        formula = self._get_formula("efficiency")
 
         rating = engine.compute_rating(
-            formula=setting.efficiency_formula,
+            formula=formula,
             target=target,
             actual=actual
         )
 
         self.efficiency = rating
-
         return rating
+
     
     def calculateTimeliness(self):
-        target = self.target_time
+        target = self.main_task.target_timeframe    
         actual = self.actual_time
 
-        from models.System_Settings import System_Settings
-
-        setting = System_Settings.query.first()
-
-
         if self.main_task.timeliness_mode == "deadline" and self.actual_deadline and self.main_task.target_deadline:
-
-            from datetime import datetime
-
-            # Positive if actual submission is AFTER target (late)
             days_late = (self.actual_deadline - self.main_task.target_deadline).days
-
-            if days_late <= 0:
-                # On time or early
-                actual = 0
-            else:
-                # Late by X days
-                actual = days_late
-
-            target = 1  # 1 = "no late days expected"
-
-            print("Deadline mode values -> target:", target, "actual:", actual)
-
+            actual = 0 if days_late <= 0 else days_late
+            target = 1  # no late days expected
 
         engine = Formula_Engine()
+        formula = self._get_formula("timeliness")
 
         rating = engine.compute_rating(
-            formula=setting.timeliness_formula,
-            target = target,
-            actual = actual
+            formula=formula,
+            target=target,
+            actual=actual
         )
-    
-        self.timeliness = rating
 
+        self.timeliness = rating
         return rating
+
     
     def calculateAverage(self):
         
@@ -688,9 +692,9 @@ class Sub_Task(db.Model):
             "id": self.id,
             "period_id": self.period,
             "title": self.mfo,
-            "target_acc": self.target_acc,
-            "target_time": self.target_time,
-            "target_mod": self.target_mod,
+            "target_acc": self.assigned_quantity,
+            "target_time": self.main_task.target_timeframe,
+            "target_mod": self.main_task.target_efficiency,
             "actual_acc": self.actual_acc,
             "actual_time": self.actual_time,
             "actual_mod": self.actual_mod,
@@ -1010,14 +1014,18 @@ class Tasks_Service():
 
             existing_ipcr = IPCR.query.filter_by(user_id=user_id, period=current_settings.current_period_id if current_settings else None).first()   
 
-            Assigned_Task.query.filter_by(user_id = user_id, main_task_id = task_id).delete()
-            db.session.commit()
-
-            new_assigned_task = Assigned_Task(user_id = user_id, main_task_id = task_id, is_assigned = True, period = current_settings.current_period_id if current_settings else None, assigned_quantity = assigned_quantity)
-            db.session.add(new_assigned_task)
-            db.session.flush()
+            
+            main_task = Main_Task.query.get(task_id)
+            
+           
 
             if existing_ipcr:
+                new_assigned_task = Assigned_Task(user_id = user_id, main_task_id = task_id, is_assigned = True, period = current_settings.current_period_id if current_settings else None, assigned_quantity = assigned_quantity)
+                db.session.add(new_assigned_task)
+                db.session.flush()
+                Assigned_Task.query.filter_by(user_id = user_id, main_task_id = task_id).delete()
+                db.session.commit()
+
                 Sub_Task.query.filter_by(main_task_id = task_id, batch_id = existing_ipcr.batch_id, ipcr_id=existing_ipcr.id, period = current_settings.current_period_id if current_settings else None).delete()
                 db.session.commit()
 
@@ -1034,8 +1042,8 @@ class Tasks_Service():
             user = User.query.get(user_id)
             socketio.emit("user_assigned", "user assigned")
 
-            Notification_Service.notify_user(user_id, msg=f"The output: { new_assigned_task.main_task.mfo} has been assigned to this account.")
-            Notification_Service.notify_presidents( msg=f"The output: { new_assigned_task.main_task.mfo} has been assigned to {user.first_name + " " + user.last_name}.")
+            Notification_Service.notify_user(user_id, msg=f"The output: { main_task.mfo} has been assigned to this account.")
+            Notification_Service.notify_presidents( msg=f"The output: { main_task.mfo} has been assigned to {user.first_name + " " + user.last_name}.")
             
 
             return jsonify(message = "Member successfully assigned."), 200
@@ -1139,7 +1147,11 @@ class Tasks_Service():
             new_assigned_department = Assigned_Department(
                 main_task_id = task_id,
                 department_id = dept_id,
-                period = settings.current_period_id
+                period = settings.current_period_id,
+                quantity_formula = settings.quantity_formula,
+                efficiency_formula = settings.efficiency_formula,
+                timeliness_formula = settings.timeliness_formula,
+                enable_formulas = False
             )
 
             db.session.add(new_assigned_department)
@@ -1176,6 +1188,23 @@ class Tasks_Service():
             return jsonify(error=str(e)), 500
         
         #ayusin yung mga logs mamaya
+
+    def update_department_task_formula(assigned_dept_id, data):
+        try:
+            assigned_dept = Assigned_Department.query.get(assigned_dept_id)
+            assigned_dept.enable_formulas = data.get("enable_formulas", assigned_dept.enable_formulas)
+            assigned_dept.quantity_formula = data.get("quantity_formula", assigned_dept.quantity_formula)
+            assigned_dept.efficiency_formula = data.get("efficiency_formula", assigned_dept.efficiency_formula)
+            assigned_dept.timeliness_formula = data.get("timeliness_formula", assigned_dept.timeliness_formula)
+
+            db.session.commit()
+
+            return jsonify(message="Formula successfully updated."), 200
+        
+        except Exception as e:
+            db.session.rollback()
+            print(str(e))
+            return jsonify(error=str(e)), 500
 
     def check_if_ipcrs_have_tasks():
         from models.PCR import IPCR, Supporting_Document
@@ -1300,7 +1329,18 @@ class Tasks_Service():
             settings = System_Settings.query.first()
 
             all_department_tasks = Assigned_Department.query.filter_by(department_id = id, period = settings.current_period_id).all()
-            converted = [task.main_task.info() for task in all_department_tasks]
+            converted = []
+
+            for task in all_department_tasks:
+                data = task.main_task.info() 
+                data["quantity_formula"] = task.quantity_formula
+                data["efficiency_formula"] = task.efficiency_formula
+                data["timeliness_formula"] = task.timeliness_formula
+                data["assigned_dept_id"] = task.id  
+                data["enable_formulas"] = task.enable_formulas  
+
+                converted.append(data)
+
             return jsonify(converted), 200
         
         except OperationalError:

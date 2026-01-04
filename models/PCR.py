@@ -468,7 +468,25 @@ class OPCR(db.Model):
 
 #si subtask yung target, kasse pag may output may sub_task din,eh si sub task kailangan ng ipcr id
 class PCR_Service():
+    def compute_rating_with_override(metric, target, actual, task_id, settings, dept_configs):
+        """
+        metric: 'quantity' | 'efficiency' | 'timeliness'
+        """
+        from models.Tasks import Formula_Engine
 
+        engine = Formula_Engine()
+        dept_cfg = dept_configs.get(task_id)
+
+        if dept_cfg and dept_cfg["enable"]:
+            formula = dept_cfg[metric]
+        else:
+            formula = getattr(settings, f"{metric}_formula")
+
+        return engine.compute_rating(
+                formula=formula,
+                target=target,
+                actual=actual
+        )
 
 
     def compute_quantity_rating(target, actual, settings):
@@ -1278,14 +1296,19 @@ class PCR_Service():
 
         from models.Tasks import Assigned_Department
 
-        assigned_dept_weights = {
-            ad.main_task_id: float(ad.task_weight / 100)
+        assigned_dept_configs = {
+            ad.main_task_id: {
+                "enable": ad.enable_formulas,
+                "quantity": ad.quantity_formula,
+                "efficiency": ad.efficiency_formula,
+                "timeliness": ad.timeliness_formula,
+                "weight": float(ad.task_weight / 100)
+            }
             for ad in Assigned_Department.query.filter_by(
                 department_id=opcr.department_id
             ).all()
         }
 
-        print("weights", assigned_dept_weights)
 
         # load settings once
         settings = System_Settings.query.first()
@@ -1353,50 +1376,89 @@ class PCR_Service():
                                         actual_working_days = days_late
                                         target_working_days = 1  
 
-                                        quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
-                                        efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
-                                        timeliness = PCR_Service.compute_timeliness_rating(target_working_days, actual_working_days, settings)
+                                        quantity = quantity = PCR_Service.compute_rating_with_override(
+                                            "quantity",
+                                            sub_task.target_acc,
+                                            sub_task.actual_acc,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                        efficiency = PCR_Service.compute_rating_with_override(
+                                            "efficiency",
+                                            sub_task.target_mod,
+                                            sub_task.actual_mod,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                        timeliness = PCR_Service.compute_rating_with_override(
+                                            "timeliness",
+                                            target_working_days,
+                                            actual_working_days,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+
+
                                         rating_data = {
                                             "quantity": quantity,
                                             "efficiency": efficiency,
                                             "timeliness": timeliness,
                                             "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
-                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_weights.get(sub_task.main_task.id, 0)
+                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
                                         }
 
 
                                         found = True
-                                        data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
                                         data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
 
-                                        data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
                                         data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
 
-                                        data[current_data_index][name][current_task_index]["working_days"]["target"] += target_working_days
                                         data[current_data_index][name][current_task_index]["working_days"]["actual"] += actual_working_days
 
                                         data[current_data_index][name][current_task_index]["rating"] = rating_data
                                         data[current_data_index][name][current_task_index]["frequency"] += 1
                                     else:
 
-                                        quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
-                                        efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
-                                        timeliness = PCR_Service.compute_timeliness_rating(sub_task.target_time, sub_task.actual_time, settings)
+                                        quantity = quantity = PCR_Service.compute_rating_with_override(
+                                            "quantity",
+                                            sub_task.target_acc,
+                                            sub_task.actual_acc,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                        efficiency = PCR_Service.compute_rating_with_override(
+                                            "efficiency",
+                                            sub_task.target_mod,
+                                            sub_task.actual_mod,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                        timeliness = PCR_Service.compute_rating_with_override(
+                                            "timeliness",
+                                            sub_task.target_time,
+                                            sub_task.actual_time,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+
                                         rating_data = {
                                             "quantity": quantity,
                                             "efficiency": efficiency,
                                             "timeliness": timeliness,
                                             "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
-                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_weights.get(sub_task.main_task.id, 0)
+                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
                                         }
                                         found = True
-                                        data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
                                         data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
 
-                                        data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
                                         data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
 
-                                        data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
                                         data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
 
                                         data[current_data_index][name][current_task_index]["rating"] = rating_data
@@ -1414,28 +1476,51 @@ class PCR_Service():
                                     actual_working_days = ""
 
                                     days_late = (sub_task.actual_deadline - sub_task.main_task.target_deadline).days
-                                    
+
                                     actual_working_days = days_late
                                     target_working_days = 1  
 
-                                    quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
-                                    efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
-                                    timeliness = PCR_Service.compute_timeliness_rating(target_working_days, actual_working_days, settings)
+                                    quantity = quantity = PCR_Service.compute_rating_with_override(
+                                            "quantity",
+                                            sub_task.target_acc,
+                                            sub_task.actual_acc,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                    efficiency = PCR_Service.compute_rating_with_override(
+                                            "efficiency",
+                                            sub_task.target_mod,
+                                            sub_task.actual_mod,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                    timeliness = PCR_Service.compute_rating_with_override(
+                                            "timeliness",
+                                            target_working_days,
+                                            actual_working_days,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+
+
                                     rating_data = {
-                                        "quantity": quantity,
-                                        "efficiency": efficiency,
-                                        "timeliness": timeliness,
-                                        "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
-                                        "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_weights.get(sub_task.main_task.id, 0)
-                                    }
+                                            "quantity": quantity,
+                                            "efficiency": efficiency,
+                                            "timeliness": timeliness,
+                                            "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
+                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
+                                        }
 
                                     data[current_data_index][name].append({
                                         "title": sub_task.mfo,
                                         "summary": {
-                                            "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                            "target": sub_task.main_task.target_quantity, "actual": sub_task.actual_acc
                                         },
                                         "corrections": {
-                                            "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                            "target": sub_task.main_task.target_efficiency, "actual": sub_task.actual_mod
                                         },
                                         "working_days": {
                                             "target": sub_task.main_task.target_deadline, "actual": actual_working_days
@@ -1446,9 +1531,7 @@ class PCR_Service():
                                             "alterations": sub_task.main_task.modification,
                                             "time": sub_task.main_task.time_description,
                                             "timeliness_mode": sub_task.main_task.timeliness_mode,
-                                            "task_weight": assigned_dept_weights.get(
-                                                sub_task.main_task.id, 0
-                                            )
+                                            "task_weight": assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
                                         },
 
                                         "rating": rating_data,
@@ -1460,25 +1543,46 @@ class PCR_Service():
                                     # Positive if actual submission is AFTER target (late)
                                     
 
-                                    quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
-                                    efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
-                                    timeliness = PCR_Service.compute_timeliness_rating(sub_task.target_time, sub_task.actual_time, settings)
+                                    quantity = quantity = PCR_Service.compute_rating_with_override(
+                                            "quantity",
+                                            sub_task.target_acc,
+                                            sub_task.actual_acc,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                    efficiency = PCR_Service.compute_rating_with_override(
+                                            "efficiency",
+                                            sub_task.target_mod,
+                                            sub_task.actual_mod,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                    timeliness = PCR_Service.compute_rating_with_override(
+                                            "timeliness",
+                                            sub_task.target_time,
+                                            sub_task.actual_time,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+
                                     rating_data = {
-                                        "quantity": quantity,
-                                        "efficiency": efficiency,
-                                        "timeliness": timeliness,
-                                        "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
-                                        "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_weights.get(sub_task.main_task.id, 0)
-                                        
-                                    }
+                                            "quantity": quantity,
+                                            "efficiency": efficiency,
+                                            "timeliness": timeliness,
+                                            "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
+                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
+                                        }
 
                                     data[current_data_index][name].append({
                                         "title": sub_task.mfo,
                                         "summary": {
-                                            "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                            "target": sub_task.main_task.target_quantity, "actual": sub_task.actual_acc
                                         },
                                         "corrections": {
-                                            "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                            "target": sub_task.main_task.target_efficiency, "actual": sub_task.actual_mod
                                         },
                                         "working_days": {
                                             "target": sub_task.main_task.target_timeframe, "actual": sub_task.actual_time
@@ -1491,9 +1595,7 @@ class PCR_Service():
                                             "timeliness_mode": sub_task.main_task.timeliness_mode,
                                             "target_timeframe": sub_task.main_task.target_timeframe,
                                             "target_dealine": sub_task.main_task.target_deadline,
-                                            "task_weight": assigned_dept_weights.get(
-                                                sub_task.main_task.id, 0
-                                            )
+                                            "task_weight": assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
                                         },
                                         "rating": rating_data,
                                         "type": sub_task.main_task.category.type,
@@ -1603,14 +1705,19 @@ class PCR_Service():
 
         from models.Tasks import Assigned_Department
 
-        assigned_dept_weights = {
-            ad.main_task_id: float(ad.task_weight / 100)
+        assigned_dept_configs = {
+            ad.main_task_id: {
+                "enable": ad.enable_formulas,
+                "quantity": ad.quantity_formula,
+                "efficiency": ad.efficiency_formula,
+                "timeliness": ad.timeliness_formula,
+                "weight": float(ad.task_weight / 100)
+            }
             for ad in Assigned_Department.query.filter_by(
                 department_id=opcr.department_id
             ).all()
         }
 
-        print("weights", assigned_dept_weights)
 
         # load settings once
         settings = System_Settings.query.first()
@@ -1678,50 +1785,89 @@ class PCR_Service():
                                         actual_working_days = days_late
                                         target_working_days = 1  
 
-                                        quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
-                                        efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
-                                        timeliness = PCR_Service.compute_timeliness_rating(target_working_days, actual_working_days, settings)
+                                        quantity = quantity = PCR_Service.compute_rating_with_override(
+                                            "quantity",
+                                            sub_task.target_acc,
+                                            sub_task.actual_acc,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                        efficiency = PCR_Service.compute_rating_with_override(
+                                            "efficiency",
+                                            sub_task.target_mod,
+                                            sub_task.actual_mod,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                        timeliness = PCR_Service.compute_rating_with_override(
+                                            "timeliness",
+                                            target_working_days,
+                                            actual_working_days,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+
+
                                         rating_data = {
                                             "quantity": quantity,
                                             "efficiency": efficiency,
                                             "timeliness": timeliness,
                                             "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
-                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_weights.get(sub_task.main_task.id, 0)
+                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
                                         }
 
 
                                         found = True
-                                        data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
                                         data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
 
-                                        data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
                                         data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
 
-                                        data[current_data_index][name][current_task_index]["working_days"]["target"] += target_working_days
                                         data[current_data_index][name][current_task_index]["working_days"]["actual"] += actual_working_days
 
                                         data[current_data_index][name][current_task_index]["rating"] = rating_data
                                         data[current_data_index][name][current_task_index]["frequency"] += 1
                                     else:
 
-                                        quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
-                                        efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
-                                        timeliness = PCR_Service.compute_timeliness_rating(sub_task.target_time, sub_task.actual_time, settings)
+                                        quantity = quantity = PCR_Service.compute_rating_with_override(
+                                            "quantity",
+                                            sub_task.target_acc,
+                                            sub_task.actual_acc,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                        efficiency = PCR_Service.compute_rating_with_override(
+                                            "efficiency",
+                                            sub_task.target_mod,
+                                            sub_task.actual_mod,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                        timeliness = PCR_Service.compute_rating_with_override(
+                                            "timeliness",
+                                            sub_task.target_time,
+                                            sub_task.actual_time,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+
                                         rating_data = {
                                             "quantity": quantity,
                                             "efficiency": efficiency,
                                             "timeliness": timeliness,
                                             "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
-                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_weights.get(sub_task.main_task.id, 0)
+                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
                                         }
                                         found = True
-                                        data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
                                         data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
 
-                                        data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
                                         data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
 
-                                        data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
                                         data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
 
                                         data[current_data_index][name][current_task_index]["rating"] = rating_data
@@ -1739,28 +1885,51 @@ class PCR_Service():
                                     actual_working_days = ""
 
                                     days_late = (sub_task.actual_deadline - sub_task.main_task.target_deadline).days
-                                    
+
                                     actual_working_days = days_late
                                     target_working_days = 1  
 
-                                    quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
-                                    efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
-                                    timeliness = PCR_Service.compute_timeliness_rating(target_working_days, actual_working_days, settings)
+                                    quantity = quantity = PCR_Service.compute_rating_with_override(
+                                            "quantity",
+                                            sub_task.target_acc,
+                                            sub_task.actual_acc,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                    efficiency = PCR_Service.compute_rating_with_override(
+                                            "efficiency",
+                                            sub_task.target_mod,
+                                            sub_task.actual_mod,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                    timeliness = PCR_Service.compute_rating_with_override(
+                                            "timeliness",
+                                            target_working_days,
+                                            actual_working_days,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+
+
                                     rating_data = {
-                                        "quantity": quantity,
-                                        "efficiency": efficiency,
-                                        "timeliness": timeliness,
-                                        "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
-                                        "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_weights.get(sub_task.main_task.id, 0)
-                                    }
+                                            "quantity": quantity,
+                                            "efficiency": efficiency,
+                                            "timeliness": timeliness,
+                                            "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
+                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
+                                        }
 
                                     data[current_data_index][name].append({
                                         "title": sub_task.mfo,
                                         "summary": {
-                                            "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                            "target": sub_task.main_task.target_quantity, "actual": sub_task.actual_acc
                                         },
                                         "corrections": {
-                                            "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                            "target": sub_task.main_task.target_efficiency, "actual": sub_task.actual_mod
                                         },
                                         "working_days": {
                                             "target": sub_task.main_task.target_deadline, "actual": actual_working_days
@@ -1771,9 +1940,7 @@ class PCR_Service():
                                             "alterations": sub_task.main_task.modification,
                                             "time": sub_task.main_task.time_description,
                                             "timeliness_mode": sub_task.main_task.timeliness_mode,
-                                            "task_weight": assigned_dept_weights.get(
-                                                sub_task.main_task.id, 0
-                                            )
+                                            "task_weight": assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
                                         },
 
                                         "rating": rating_data,
@@ -1785,25 +1952,46 @@ class PCR_Service():
                                     # Positive if actual submission is AFTER target (late)
                                     
 
-                                    quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
-                                    efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
-                                    timeliness = PCR_Service.compute_timeliness_rating(sub_task.target_time, sub_task.actual_time, settings)
+                                    quantity = quantity = PCR_Service.compute_rating_with_override(
+                                            "quantity",
+                                            sub_task.target_acc,
+                                            sub_task.actual_acc,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                    efficiency = PCR_Service.compute_rating_with_override(
+                                            "efficiency",
+                                            sub_task.target_mod,
+                                            sub_task.actual_mod,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                    timeliness = PCR_Service.compute_rating_with_override(
+                                            "timeliness",
+                                            sub_task.target_time,
+                                            sub_task.actual_time,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+
                                     rating_data = {
-                                        "quantity": quantity,
-                                        "efficiency": efficiency,
-                                        "timeliness": timeliness,
-                                        "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
-                                        "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_weights.get(sub_task.main_task.id, 0)
-                                        
-                                    }
+                                            "quantity": quantity,
+                                            "efficiency": efficiency,
+                                            "timeliness": timeliness,
+                                            "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
+                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
+                                        }
 
                                     data[current_data_index][name].append({
                                         "title": sub_task.mfo,
                                         "summary": {
-                                            "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                            "target": sub_task.main_task.target_quantity, "actual": sub_task.actual_acc
                                         },
                                         "corrections": {
-                                            "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                            "target": sub_task.main_task.target_efficiency, "actual": sub_task.actual_mod
                                         },
                                         "working_days": {
                                             "target": sub_task.main_task.target_timeframe, "actual": sub_task.actual_time
@@ -1816,9 +2004,7 @@ class PCR_Service():
                                             "timeliness_mode": sub_task.main_task.timeliness_mode,
                                             "target_timeframe": sub_task.main_task.target_timeframe,
                                             "target_dealine": sub_task.main_task.target_deadline,
-                                            "task_weight": assigned_dept_weights.get(
-                                                sub_task.main_task.id, 0
-                                            )
+                                            "task_weight": assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
                                         },
                                         "rating": rating_data,
                                         "type": sub_task.main_task.category.type,
@@ -2374,10 +2560,15 @@ class PCR_Service():
     
 
     
+
+    
+    
     
     def get_opcr(opcr_id):
         from models.System_Settings import System_Settings
+        
 
+    
         opcr = OPCR.query.get(opcr_id)
         opcr_data = opcr.to_dict()
         data = []
@@ -2386,14 +2577,21 @@ class PCR_Service():
 
         from models.Tasks import Assigned_Department
 
-        assigned_dept_weights = {
-            ad.main_task_id: float(ad.task_weight / 100)
+
+        assigned_dept_configs = {
+            ad.main_task_id: {
+                "enable": ad.enable_formulas,
+                "quantity": ad.quantity_formula,
+                "efficiency": ad.efficiency_formula,
+                "timeliness": ad.timeliness_formula,
+                "weight": float(ad.task_weight / 100)
+            }
             for ad in Assigned_Department.query.filter_by(
                 department_id=opcr.department_id
             ).all()
         }
 
-        print("weights", assigned_dept_weights)
+
 
         # load settings once
         settings = System_Settings.query.first()
@@ -2461,50 +2659,89 @@ class PCR_Service():
                                         actual_working_days = days_late
                                         target_working_days = 1  
 
-                                        quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
-                                        efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
-                                        timeliness = PCR_Service.compute_timeliness_rating(target_working_days, actual_working_days, settings)
+                                        quantity = quantity = PCR_Service.compute_rating_with_override(
+                                            "quantity",
+                                            sub_task.target_acc,
+                                            sub_task.actual_acc,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                        efficiency = PCR_Service.compute_rating_with_override(
+                                            "efficiency",
+                                            sub_task.target_mod,
+                                            sub_task.actual_mod,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                        timeliness = PCR_Service.compute_rating_with_override(
+                                            "timeliness",
+                                            target_working_days,
+                                            actual_working_days,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+
+
                                         rating_data = {
                                             "quantity": quantity,
                                             "efficiency": efficiency,
                                             "timeliness": timeliness,
                                             "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
-                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_weights.get(sub_task.main_task.id, 0)
+                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
                                         }
 
 
                                         found = True
-                                        data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
                                         data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
 
-                                        data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
                                         data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
 
-                                        data[current_data_index][name][current_task_index]["working_days"]["target"] += target_working_days
                                         data[current_data_index][name][current_task_index]["working_days"]["actual"] += actual_working_days
 
                                         data[current_data_index][name][current_task_index]["rating"] = rating_data
                                         data[current_data_index][name][current_task_index]["frequency"] += 1
                                     else:
 
-                                        quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
-                                        efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
-                                        timeliness = PCR_Service.compute_timeliness_rating(sub_task.target_time, sub_task.actual_time, settings)
+                                        quantity = quantity = PCR_Service.compute_rating_with_override(
+                                            "quantity",
+                                            sub_task.target_acc,
+                                            sub_task.actual_acc,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                        efficiency = PCR_Service.compute_rating_with_override(
+                                            "efficiency",
+                                            sub_task.target_mod,
+                                            sub_task.actual_mod,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                        timeliness = PCR_Service.compute_rating_with_override(
+                                            "timeliness",
+                                            sub_task.target_time,
+                                            sub_task.actual_time,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+
                                         rating_data = {
                                             "quantity": quantity,
                                             "efficiency": efficiency,
                                             "timeliness": timeliness,
                                             "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
-                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_weights.get(sub_task.main_task.id, 0)
+                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
                                         }
                                         found = True
-                                        data[current_data_index][name][current_task_index]["summary"]["target"] += sub_task.target_acc
                                         data[current_data_index][name][current_task_index]["summary"]["actual"] += sub_task.actual_acc
 
-                                        data[current_data_index][name][current_task_index]["corrections"]["target"] += sub_task.target_mod
                                         data[current_data_index][name][current_task_index]["corrections"]["actual"] += sub_task.actual_mod
 
-                                        data[current_data_index][name][current_task_index]["working_days"]["target"] += sub_task.target_time
                                         data[current_data_index][name][current_task_index]["working_days"]["actual"] += sub_task.actual_time
 
                                         data[current_data_index][name][current_task_index]["rating"] = rating_data
@@ -2522,28 +2759,51 @@ class PCR_Service():
                                     actual_working_days = ""
 
                                     days_late = (sub_task.actual_deadline - sub_task.main_task.target_deadline).days
-                                    
+
                                     actual_working_days = days_late
                                     target_working_days = 1  
 
-                                    quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
-                                    efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
-                                    timeliness = PCR_Service.compute_timeliness_rating(target_working_days, actual_working_days, settings)
+                                    quantity = quantity = PCR_Service.compute_rating_with_override(
+                                            "quantity",
+                                            sub_task.target_acc,
+                                            sub_task.actual_acc,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                    efficiency = PCR_Service.compute_rating_with_override(
+                                            "efficiency",
+                                            sub_task.target_mod,
+                                            sub_task.actual_mod,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                    timeliness = PCR_Service.compute_rating_with_override(
+                                            "timeliness",
+                                            target_working_days,
+                                            actual_working_days,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+
+
                                     rating_data = {
-                                        "quantity": quantity,
-                                        "efficiency": efficiency,
-                                        "timeliness": timeliness,
-                                        "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
-                                        "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_weights.get(sub_task.main_task.id, 0)
-                                    }
+                                            "quantity": quantity,
+                                            "efficiency": efficiency,
+                                            "timeliness": timeliness,
+                                            "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
+                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
+                                        }
 
                                     data[current_data_index][name].append({
                                         "title": sub_task.mfo,
                                         "summary": {
-                                            "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                            "target": sub_task.main_task.target_quantity, "actual": sub_task.actual_acc
                                         },
                                         "corrections": {
-                                            "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                            "target": sub_task.main_task.target_efficiency, "actual": sub_task.actual_mod
                                         },
                                         "working_days": {
                                             "target": sub_task.main_task.target_deadline, "actual": actual_working_days
@@ -2554,9 +2814,7 @@ class PCR_Service():
                                             "alterations": sub_task.main_task.modification,
                                             "time": sub_task.main_task.time_description,
                                             "timeliness_mode": sub_task.main_task.timeliness_mode,
-                                            "task_weight": assigned_dept_weights.get(
-                                                sub_task.main_task.id, 0
-                                            )
+                                            "task_weight": assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
                                         },
 
                                         "rating": rating_data,
@@ -2568,25 +2826,46 @@ class PCR_Service():
                                     # Positive if actual submission is AFTER target (late)
                                     
 
-                                    quantity = PCR_Service.compute_quantity_rating(sub_task.target_acc, sub_task.actual_acc, settings)
-                                    efficiency = PCR_Service.compute_efficiency_rating(sub_task.target_mod, sub_task.actual_mod, settings)
-                                    timeliness = PCR_Service.compute_timeliness_rating(sub_task.target_time, sub_task.actual_time, settings)
+                                    quantity = quantity = PCR_Service.compute_rating_with_override(
+                                            "quantity",
+                                            sub_task.target_acc,
+                                            sub_task.actual_acc,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                    efficiency = PCR_Service.compute_rating_with_override(
+                                            "efficiency",
+                                            sub_task.target_mod,
+                                            sub_task.actual_mod,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+                                    timeliness = PCR_Service.compute_rating_with_override(
+                                            "timeliness",
+                                            sub_task.target_time,
+                                            sub_task.actual_time,
+                                            sub_task.main_task.id,
+                                            settings,
+                                            assigned_dept_configs
+                                        )
+
                                     rating_data = {
-                                        "quantity": quantity,
-                                        "efficiency": efficiency,
-                                        "timeliness": timeliness,
-                                        "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
-                                        "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_weights.get(sub_task.main_task.id, 0)
-                                        
-                                    }
+                                            "quantity": quantity,
+                                            "efficiency": efficiency,
+                                            "timeliness": timeliness,
+                                            "average": PCR_Service.calculateAverage(quantity, efficiency, timeliness),
+                                            "weighted_avg": PCR_Service.calculateAverage(quantity, efficiency, timeliness) * assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
+                                        }
 
                                     data[current_data_index][name].append({
                                         "title": sub_task.mfo,
                                         "summary": {
-                                            "target": sub_task.target_acc, "actual": sub_task.actual_acc
+                                            "target": sub_task.main_task.target_quantity, "actual": sub_task.actual_acc
                                         },
                                         "corrections": {
-                                            "target": sub_task.target_mod, "actual": sub_task.actual_mod
+                                            "target": sub_task.main_task.target_efficiency, "actual": sub_task.actual_mod
                                         },
                                         "working_days": {
                                             "target": sub_task.main_task.target_timeframe, "actual": sub_task.actual_time
@@ -2599,9 +2878,7 @@ class PCR_Service():
                                             "timeliness_mode": sub_task.main_task.timeliness_mode,
                                             "target_timeframe": sub_task.main_task.target_timeframe,
                                             "target_dealine": sub_task.main_task.target_deadline,
-                                            "task_weight": assigned_dept_weights.get(
-                                                sub_task.main_task.id, 0
-                                            )
+                                            "task_weight": assigned_dept_configs.get(sub_task.main_task.id, {}).get("weight", 0)
                                         },
                                         "rating": rating_data,
                                         "type": sub_task.main_task.category.type,
