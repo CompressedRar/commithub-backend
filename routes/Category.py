@@ -25,6 +25,11 @@ def get_categories_count():
 def get_category(id):
     return Category_Service.get_category(id)
 
+@category.route("/order/<id>&<prio_num>", methods = ["PATCH"])
+@token_required()
+def update_priority_number(id, prio_num):
+    return Category_Service.update_category_order(id, prio_num)
+
 
 @category.route("/", methods = ["POST"])
 @token_required(allowed_roles=["administrator"])

@@ -3,9 +3,10 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
-from sqlalchemy import func, case, cast, Float, and_
+from sqlalchemy import func, case, cast, Float, and_,nullslast
 from models.Tasks import Sub_Task, Main_Task, Output
 from app import socketio
+
 
 
 class Category(db.Model):
@@ -20,6 +21,8 @@ class Category(db.Model):
 
     period = db.Column(db.String(100), nullable=True)
 
+
+    priority_order = db.Column(db.Integer, default = 0)
 
     def get_category_avg_rating(self):
         total_rating = 0
@@ -45,7 +48,8 @@ class Category(db.Model):
             "period_id": self.period,
             "description": self.description,
             "task_count": len(self.main_tasks),
-            "average_rating": self.get_category_avg_rating()
+            "average_rating": self.get_category_avg_rating(),
+            "priority_order": self.priority_order
             
         }
 
@@ -59,7 +63,8 @@ class Category(db.Model):
             "period_id": self.period,
             "description": self.description,
             "task_count": len(self.main_tasks),
-            "average_rating": self.get_category_avg_rating()
+            "average_rating": self.get_category_avg_rating(),
+            "priority_order": self.priority_order
         }
     
 
@@ -69,7 +74,12 @@ class Category_Service():
             from models.System_Settings import System_Settings
             settings = System_Settings.query.first()
 
-            all_categories = Category.query.filter_by(status = 1, period = settings.current_period_id).all()
+            all_categories = (
+                Category.query
+                .filter_by(status=1, period=settings.current_period_id)
+                .order_by(Category.priority_order.desc())
+                .all()
+            )
             converted_categories = [category.info() for category in all_categories]
         
             return jsonify(converted_categories), 200
@@ -99,6 +109,24 @@ class Category_Service():
         except Exception as e:
             #db.session.rollback()
             return jsonify(error=str(e)), 500
+        
+    def update_category_order(cat_id, order_num):
+        try:
+            found_cat = Category.query.get(cat_id)
+
+            if not found_cat:
+                return jsonify(message="Category was not found."), 404
+
+            found_cat.priority_order = int(order_num)
+
+            db.session.commit()
+
+            socketio.emit("category", "category changed")
+
+            return jsonify(message="Category Priority Number was successfully updated."), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error="Updating priority number failed."), 400
         
     def get_category(id):
         try:

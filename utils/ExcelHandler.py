@@ -155,8 +155,11 @@ def createNewOPCR(data, assigned, admin_data):
                 
                 #individuals involved
                 accountable = ""
-                for person in assigned[a["title"]]:
-                    accountable += person + "\n"
+
+                if a['title'] in assigned:
+                    for person in assigned[a["title"]]:
+
+                        accountable += person + "\n"
                 
                 prepareCells(ws, str("I"+str(row)), str("I"+str(row + 5)))
                 ws["I"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -554,8 +557,10 @@ def createNewWeightedOPCR(data, assigned, admin_data):
                 
                 #individuals involved
                 accountable = ""
-                for person in assigned[a["title"]]:
-                    accountable += person + "\n"
+                if a['title'] in assigned:
+                    for person in assigned[a["title"]]:
+
+                        accountable += person + "\n"
                 
                 prepareCells(ws, str("I"+str(row)), str("I"+str(row + 5)))
                 ws["I"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -931,8 +936,10 @@ def createNewMasterOPCR(data, assigned, admin_data):
                 
                 #individuals involved
                 accountable = ""
-                for person in assigned[a["title"]]:
-                    accountable += person + "\n"
+                if a['title'] in assigned:
+                    for person in assigned[a["title"]]:
+
+                        accountable += person + "\n"
                 
                 prepareCells(ws, str("I"+str(row)), str("I"+str(row + 5)))
                 ws["I"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -981,7 +988,7 @@ def createNewMasterOPCR(data, assigned, admin_data):
                 ws["P"+str(row)].font = Font(bold=True)
                 
                 prepareCells(ws, str("Q"+str(row)), str("Q"+str(row + 5)))
-                ws["Q"+str(row)] = a["rating"]["average"] # average
+                ws["Q"+str(row)] = float(f"{float(a["rating"]["average"]):.2F}") # average
                 ws["Q"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["Q"+str(row)].font = Font(bold=True)
                 
@@ -1092,11 +1099,11 @@ def createNewMasterOPCR(data, assigned, admin_data):
     #prepare category name    
     # Save changes
     id = random.randint(1,999999)
-    filename = f"OPCR-NC-{period}-{admin_data["givenName"]}-{admin_data["middleName"]}-{admin_data["lastName"]}-{datee}-{id}"
+    filename = f"MOPCR-NC-{period}-{admin_data["fullName"]}-{datee}-{id}"
     link = f"excels/OPCR/{filename}.xlsx"
     wb.save(link)
 
-    file_url = upload_file(link, "commiathub-bucket", f"OPCR/{filename}.xlsx")
+    file_url = upload_file(link, "commithub-bucket", f"OPCR/{filename}.xlsx")
     
     return file_url
 

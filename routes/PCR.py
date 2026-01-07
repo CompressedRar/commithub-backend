@@ -180,8 +180,6 @@ def record_supporting_document_for_opcr():
 
 @pcrs.route("/opcr/<dept_id>", methods = ["POST"])
 @token_required()
-@log_action(action = "CREATE", target="OPCR")
-
 def create_opcr(dept_id):
     ipcr_ids = request.json["ipcr_ids"]
 

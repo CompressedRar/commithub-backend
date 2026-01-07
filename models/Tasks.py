@@ -1020,10 +1020,13 @@ class Tasks_Service():
            
 
             if existing_ipcr:
+                
+                Assigned_Task.query.filter_by(user_id = user_id, main_task_id = task_id).delete()
+                db.session.flush()
+                
                 new_assigned_task = Assigned_Task(user_id = user_id, main_task_id = task_id, is_assigned = True, period = current_settings.current_period_id if current_settings else None, assigned_quantity = assigned_quantity)
                 db.session.add(new_assigned_task)
                 db.session.flush()
-                Assigned_Task.query.filter_by(user_id = user_id, main_task_id = task_id).delete()
                 db.session.commit()
 
                 Sub_Task.query.filter_by(main_task_id = task_id, batch_id = existing_ipcr.batch_id, ipcr_id=existing_ipcr.id, period = current_settings.current_period_id if current_settings else None).delete()
