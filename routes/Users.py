@@ -40,7 +40,6 @@ def update_user():
     return Users.update_user(data["id"], data, req)
 
 @users.route("/reset-password/<user_id>", methods = ["PATCH"])
-@token_required(allowed_roles=["administrator"])
 def reset_password_user(user_id):
     
     return Users.reset_password(user_id)
