@@ -617,8 +617,8 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     fname_given = given
     fname_middle = middle[0] if middle else ""
     fname_last = last
-    prefix = filename_prefix if filename_prefix else "IPCR-NC"
-    filename = f"{prefix}-{period}-{fname_given}-{fname_middle}-{fname_last}-{datee}-{id_rand}"
+    prefix = filename_prefix if filename_prefix else "IPCR"
+    filename = f"{prefix} {period} - {fname_last} - {id_rand}"
     link = f"excels/IPCR/{filename}.xlsx"
     wb.save(link)
 
@@ -1104,8 +1104,8 @@ def createNewWeightedIPCR_from_db(ipcr_id, individuals=None, filename_prefix=Non
     fname_given = given
     fname_middle = middle[0] if middle else ""
     fname_last = last
-    prefix = filename_prefix if filename_prefix else "IPCR-NC"
-    filename = f"{prefix}-{period}-{fname_given}-{fname_middle}-{fname_last}-{datee}-{id_rand}"
+    prefix = filename_prefix if filename_prefix else "IPCR"
+    filename = f"{prefix} {period} - {fname_last} - {id_rand}"
     link = f"excels/IPCR/{filename}.xlsx"
     wb.save(link)
 

@@ -15,6 +15,9 @@ import os
 import uuid
 from argon2 import PasswordHasher
 import jwt
+import secrets
+import hashlib
+from models.LoginOTP import LoginOTP
 
 # gagawa ng output base sa id
 #pagtapos gumawa ng mga output, kukunin id ni ipcr
@@ -385,7 +388,7 @@ class User(db.Model):
             "last_name": self.last_name,
             "middle_name": self.middle_name,
             "full_name": self.first_name + " " + middle_initial + self.last_name,
-            "profile_picture_link": get_file(self.profile_picture_link),
+            "profile_picture_link": get_file(self.profile_picture_link) if self.profile_picture_link else "/default-profile-pic.jpg",
             "position": self.position.info(),
             "role": self.role,
             "account_status": self.account_status,
@@ -440,7 +443,7 @@ class User(db.Model):
             "role": self.role,
             "email": self.email,
             "password": self.password,
-            "profile_picture_link": get_file(self.profile_picture_link),
+            "profile_picture_link": get_file(self.profile_picture_link) if self.profile_picture_link else "/default-profile-pic.jpg",
             "active_status": self.active_status,
             "account_status": self.account_status,
             "created_at": str(self.created_at),
@@ -807,13 +810,16 @@ class Users():
             ph = PasswordHasher()
             hashed_password = ph.hash(new_default_password)
 
-            filename = secure_filename(profile_picture.filename)
-            filepath = os.path.join("profile_pics", filename)
-            profile_picture.save(filepath)
-            
-            res = upload_profile_pic(filepath, "commithub-bucket", f"profile_pictures/{data["first_name"]+data["last_name"]+str(uuid.uuid4())}.png")
-
             dept_id = data["department"]
+
+            # handle optional profile picture
+            profile_link = None
+            if profile_picture:
+                filename = secure_filename(profile_picture.filename)
+                filepath = os.path.join("profile_pics", filename)
+                profile_picture.save(filepath)
+                object_name = f"profile_pictures/{data['first_name']+data['last_name']+str(uuid.uuid4())}.png"
+                profile_link = upload_profile_pic(filepath, "commithub-bucket", object_name)
 
             new_user = User(
                 first_name=data["first_name"],
@@ -824,7 +830,7 @@ class Users():
                 role = data["role"],            
                 email=data["email"],
                 password= hashed_password,
-                profile_picture_link = res
+                profile_picture_link = profile_link
             
             )
             db.session.flush()
@@ -962,7 +968,39 @@ class Users():
             db.session.rollback()
             print(str(e), "EXCEPTION")
             return jsonify(error=str(e)), 500
+        
+    
+    def verify_login_otp(email, otp):
+        """Verify an OTP for a given user id and return a JWT on success."""
+        from models.LoginOTP import LoginOTP
+        try:
+            user = User.query.filter_by(email = email).first()
+            if not user:
+                return jsonify(error="There is no user with that id."), 400
 
+            valid = LoginOTP.verify_user_otp(user.id , otp)
+            if valid:
+                # Issue JWT token
+                user_payload = user.to_dict()
+                token = Users.generate_token(user_payload)
+
+                ip_address = request.remote_addr
+                user_agent = request.headers.get("User-Agent")
+                Log_Service.add_logs(user.id, user.first_name + " " + user.last_name, user.department.name if user.department else "UNKNOWN", "LOGIN", "LOGIN", ip=ip_address, agent=user_agent)
+
+                return jsonify(message = "Authenticated.", token = token), 200
+            else:
+                return jsonify(error = "Invalid or expired OTP"), 400
+
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e),  "OPERATIONAL")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            db.session.rollback()
+            print(str(e), "EXCEPTION")
+            return jsonify(error = "Invalid or expired OTP"), 500
 
     def authenticate_user(login_data):
         print("entry pointof authentication")
@@ -985,9 +1023,12 @@ class Users():
                     ip_address = request.remote_addr
                     user_agent = request.headers.get("User-Agent")
                     
-                    res = Log_Service.add_logs(userCheck["id"], userCheck["first_name"] + " " + userCheck["last_name"], userCheck["department"]["name"], "LOGIN", "LOGIN", ip=ip_address, agent=user_agent)
-                    token = Users.generate_token(userCheck)
-                    return jsonify(message ="Authenticated.", token = token), 200
+                    # Generate OTP and send via email (expires in 5 minutes)
+
+                    otp = f"{secrets.randbelow(10**6):06d}"
+                    LoginOTP.create_for_user(userCheck["id"], otp, expires_minutes=5)
+                    send_email(userCheck["email"], f"Your CommitHub login OTP is {otp}. It expires in 5 minutes.")
+                    return jsonify(message ="OTP sent"), 200
                 
                 else:
                     return jsonify(error ="Incorrect Email or Password"), 400

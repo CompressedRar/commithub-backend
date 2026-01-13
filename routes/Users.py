@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, jsonify, request
-from app import db
+from app import db, limiter
 from utils.decorators import log_action,token_required
 from models.User import Users, Notification, Notification_Service
 from models.PCR import PCR_Service
+
 users = Blueprint("users", __name__, url_prefix="/api/v1/users")
 
 
@@ -40,6 +41,7 @@ def update_user():
     return Users.update_user(data["id"], data, req)
 
 @users.route("/reset-password/<user_id>", methods = ["PATCH"])
+@limiter.limit("3 per hour")
 def reset_password_user(user_id):
     
     return Users.reset_password(user_id)

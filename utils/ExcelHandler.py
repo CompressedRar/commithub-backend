@@ -412,7 +412,7 @@ def createNewOPCR(data, assigned, admin_data):
     #prepare category name    
     # Save changes
     id = random.randint(1,999999)
-    filename = f"OPCR-NC-{period}-{admin_data["givenName"]}-{admin_data["middleName"]}-{admin_data["lastName"]}-{datee}-{id}"
+    filename = f"OPCR - NC - {period} - {admin_data["lastName"]} - {id}"
     link = f"excels/OPCR/{filename}.xlsx"
     wb.save(link)
 
@@ -820,7 +820,7 @@ def createNewWeightedOPCR(data, assigned, admin_data):
     #prepare category name    
     # Save changes
     id = random.randint(1,999999)
-    filename = f"OPCR-NC-{period}-{admin_data["givenName"]}-{admin_data["middleName"]}-{admin_data["lastName"]}-{datee}-{id}"
+    filename = f"OPCR-NC - {period} - {admin_data["lastName"]} - {id}"
     link = f"excels/OPCR/{filename}.xlsx"
     wb.save(link)
 
@@ -1099,7 +1099,7 @@ def createNewMasterOPCR(data, assigned, admin_data):
     #prepare category name    
     # Save changes
     id = random.randint(1,999999)
-    filename = f"MOPCR-NC-{period}-{admin_data["fullName"]}-{datee}-{id}"
+    filename = f"MOPCR-NC - {period} - {id}"
     link = f"excels/OPCR/{filename}.xlsx"
     wb.save(link)
 

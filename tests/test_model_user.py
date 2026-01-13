@@ -89,3 +89,43 @@ def test_reset_password(
     assert status == 200
     mock_send.assert_called_once()
     mock_notify.assert_called_once()
+
+@patch("models.Users.send_email")
+@patch("models.Users.PasswordHasher.verify")
+def test_login_sends_otp(mock_verify, mock_send, monkeypatch, client, db_session):
+    mock_verify.return_value = True
+    monkeypatch.setattr("models.Users.secrets.randbelow", lambda n: 123456)
+
+    user = create_user(email="otp@test.com", password="hashed")
+
+    login_data = {
+        "email": "otp@test.com",
+        "password": "secret"
+    }
+
+    res, status = Users.authenticate_user(login_data)
+
+    assert status == 200
+    assert res.json["message"] == "OTP sent"
+    mock_send.assert_called_once()
+
+@patch("models.Users.send_email")
+@patch("models.Users.PasswordHasher.verify")
+def test_verify_otp_success(mock_verify, mock_send, monkeypatch, client, db_session):
+    mock_verify.return_value = True
+    monkeypatch.setattr("models.Users.secrets.randbelow", lambda n: 123456)
+
+    user = create_user(email="otp2@test.com", password="hashed")
+
+    login_data = {
+        "email": "otp2@test.com",
+        "password": "secret"
+    }
+
+    res, status = Users.authenticate_user(login_data)
+    assert status == 200
+
+    res, status = Users.verify_login_otp("otp2@test.com", "123456")
+
+    assert status == 200
+    assert "token" in res.json

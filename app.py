@@ -3,6 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 import os
 from utils.Email import mail, send_email
@@ -11,6 +13,7 @@ from utils.Email import mail, send_email
 db = SQLAlchemy()
 migrate = Migrate()
 socketio = SocketIO()
+limiter = Limiter(key_func=get_remote_address)
 
 
 def create_app():
@@ -20,7 +23,7 @@ def create_app():
     CORS(app, supports_credentials=True)
     
     app.config["SECRET_KEY"] = "hannelore"
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("AWS_DATABASE_URL")
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("LOCAL_DATABASE_URL")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'
     app.config['MAIL_PORT'] = 587
@@ -33,6 +36,7 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     socketio.init_app(app, cors_allowed_origins="*")
+    limiter.init_app(app)
 
     
 

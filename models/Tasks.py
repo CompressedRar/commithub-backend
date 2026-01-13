@@ -1045,8 +1045,8 @@ class Tasks_Service():
             user = User.query.get(user_id)
             socketio.emit("user_assigned", "user assigned")
 
-            Notification_Service.notify_user(user_id, msg=f"The output: { main_task.mfo} has been assigned to this account.")
-            Notification_Service.notify_presidents( msg=f"The output: { main_task.mfo} has been assigned to {user.first_name + " " + user.last_name}.")
+            Notification_Service.notify_user(user_id, msg=f"The task: { main_task.mfo} has been assigned to this account.")
+            Notification_Service.notify_presidents( msg=f"The task: { main_task.mfo} has been assigned to {user.first_name + " " + user.last_name}.")
             
 
             return jsonify(message = "Member successfully assigned."), 200
@@ -1167,9 +1167,9 @@ class Tasks_Service():
             print("task id: ", task_id)
             print("dept id: ", dept_id)
 
-            Notification_Service.notify_department(dept_id=dept_id, msg=f"The output: {task.mfo} has been assigned to the office.")
-            Notification_Service.notify_administrators(msg=f"The output: {task.mfo} has been assigned to {department.name}.")
-            Notification_Service.notify_presidents(msg=f"The output: {task.mfo} has been assigned to {department.name}.")
+            Notification_Service.notify_department(dept_id=dept_id, msg=f"The task: {task.mfo} has been assigned to the office.")
+            Notification_Service.notify_administrators(msg=f"The task: {task.mfo} has been assigned to {department.name}.")
+            Notification_Service.notify_presidents(msg=f"The task: {task.mfo} has been assigned to {department.name}.")
             socketio.emit("department_assigned", "department assigned")
             socketio.emit("user_assigned", "user assigned")
 
@@ -1422,7 +1422,7 @@ class Tasks_Service():
             db.session.commit()
             socketio.emit("task_modified", "task modified")
             socketio.emit("department_assigned", "task modified")
-            Notification_Service.notify_department(dept_id, f"The output: {found_task.mfo} has been removed from this office.")
+            Notification_Service.notify_department(dept_id, f"The task: {found_task.mfo} has been removed from this office.")
 
             return jsonify(message = "Output successfully removed."), 200
         
