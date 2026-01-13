@@ -3081,22 +3081,29 @@ class PCR_Service():
         current_period = settings.current_period_id
 
         # Aggregate averages per department through user → sub_task relationship
+        # NOTE: use Sub_Task.period because Output is not joined here and Sub_Task.average
+        # may not be persisted reliably; compute Average from components to avoid
+        # relying on the stored `average` column.
+        avg_quantity = func.avg(Sub_Task.quantity)
+        avg_efficiency = func.avg(Sub_Task.efficiency)
+        avg_timeliness = func.avg(Sub_Task.timeliness)
+
         results = (
             db.session.query(
                 Department.id.label("dept_id"),
                 Department.name.label("name"),
-                func.avg(Sub_Task.quantity).label("Quantity"),
-                func.avg(Sub_Task.efficiency).label("Efficiency"),
-                func.avg(Sub_Task.timeliness).label("Timeliness"),
-                func.avg(Sub_Task.average).label("Average")
+                avg_quantity.label("Quantity"),
+                avg_efficiency.label("Efficiency"),
+                avg_timeliness.label("Timeliness"),
+                ((func.coalesce(avg_quantity, 0) + func.coalesce(avg_efficiency, 0) + func.coalesce(avg_timeliness, 0)) / 3.0).label("Average")
             )
             .join(User, User.department_id == Department.id)
             .join(IPCR, IPCR.user_id == User.id)
             .join(Sub_Task, Sub_Task.ipcr_id == IPCR.id)
             .filter(
-                Output.period == current_period, 
+                Sub_Task.period == current_period,
                 Sub_Task.status == 1,
-                Output.status == 1
+                IPCR.status == 1
             )
             .group_by(Department.id)
             .all()
@@ -3105,6 +3112,9 @@ class PCR_Service():
         # Include all departments (even without any subtasks)
         departments = Department.query.all()
         data = []
+
+        for i in results:
+            print("RESULT", i)
 
         for dept in departments:
             # find match from query results

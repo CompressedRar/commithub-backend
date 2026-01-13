@@ -330,19 +330,35 @@ class Category_Service():
         # Build query: left outer join so tasks without subtasks are included
 
         from models.System_Settings import System_Settings
+        from models.PCR import IPCR
         settings = System_Settings.query.first()
+
+        # Consolidate Sub_Task columns directly (no formula calculations).
+        # Only include Sub_Tasks that are active, in the current period, and whose IPCR is active.
+        cond = and_(Sub_Task.status == 1, Sub_Task.period == settings.current_period_id, IPCR.status == 1)
+
+        qty_col = case((cond, Sub_Task.quantity), else_=None)
+        eff_col = case((cond, Sub_Task.efficiency), else_=None)
+        tim_col = case((cond, Sub_Task.timeliness), else_=None)
+        avg_col = case((cond, Sub_Task.average), else_=None)
+
         results = (
             db.session.query(
                 Main_Task.id.label("task_id"),
                 Main_Task.mfo.label("task_name"),
-                func.avg(qty_rating).label("avg_quantity"),
-                func.avg(eff_rating).label("avg_efficiency"),
-                func.avg(tim_rating).label("avg_timeliness"),
-                # average of the three computed ratings per sub_task
-                func.avg((qty_rating + eff_rating + tim_rating) / 3.0).label("avg_overall")
+                func.avg(qty_col).label("avg_quantity"),
+                func.avg(eff_col).label("avg_efficiency"),
+                func.avg(tim_col).label("avg_timeliness"),
+                # average of stored sub_task.average values
+                func.avg(avg_col).label("avg_overall")
             )
             .outerjoin(Sub_Task, Sub_Task.main_task_id == Main_Task.id)
-            .filter(Main_Task.category_id == category_id, Main_Task.status == 1, Main_Task.period == settings.current_period_id)
+            .outerjoin(IPCR, IPCR.id == Sub_Task.ipcr_id)
+            .filter(
+                Main_Task.category_id == category_id,
+                Main_Task.status == 1,
+                Main_Task.period == settings.current_period_id
+            )
             .group_by(Main_Task.id)
             .all()
         )
@@ -362,9 +378,9 @@ class Category_Service():
     
     def calculate_category_performance(category_id):
         """
-        Calculate the average quantity, efficiency, timeliness, and overall average
-        for all tasks under a given category.
-        
+        Compute category averages by first calculating per-main-task averages
+        (each task weighted equally) and then averaging across tasks.
+
         Returns:
         {
             "quantity": 4.2,
@@ -378,48 +394,78 @@ class Category_Service():
         from models.System_Settings import System_Settings
         settings = System_Settings.query.first()
 
-        print(category)
         if not category:
             return {"quantity": 0, "efficiency": 0, "timeliness": 0, "overall_average": 0}
 
-        total_quantity = 0
-        total_efficiency = 0
-        total_timeliness = 0
-        total_average = 0
-        count = 0
+        # Totals over tasks (each task contributes one averaged value)
+        total_quantity = 0.0
+        total_efficiency = 0.0
+        total_timeliness = 0.0
+        total_overall = 0.0
+        task_count = 0
 
         for main_task in category.main_tasks:
-            print(main_task.status)
-            if main_task.status == 1 and main_task.period == settings.current_period_id:
+            if main_task.status != 1 or main_task.period != settings.current_period_id:
+                continue
 
-                for sub_task in main_task.sub_tasks:
-                    # Ensure calculations are up to date
-                    quantity = sub_task.calculateQuantity()
-                    efficiency = sub_task.calculateEfficiency()
-                    timeliness = sub_task.calculateTimeliness()
-                    average = sub_task.calculateAverage()
+            # compute per-task averages across valid subtasks
+            task_q_sum = 0.0
+            task_e_sum = 0.0
+            task_t_sum = 0.0
+            sub_count = 0
 
-                    total_quantity += quantity
-                    total_efficiency += efficiency
-                    total_timeliness += timeliness
-                    total_average += average
-                    count += 1
+            for sub_task in main_task.sub_tasks:
+                # include only valid subtasks for current period and active ipcr
+                if sub_task.status != 1:
+                    continue
+                if sub_task.period != settings.current_period_id:
+                    continue
+                if not sub_task.ipcr or sub_task.ipcr.status != 1:
+                    continue
 
-                    print("merrpon")
+                q = sub_task.calculateQuantity()
+                e = sub_task.calculateEfficiency()
+                t = sub_task.calculateTimeliness()
 
-        if count == 0:
+                task_q_sum += q
+                task_e_sum += e
+                task_t_sum += t
+                sub_count += 1
+
+            if sub_count == 0:
+                # skip tasks without valid subtasks
+                continue
+
+            task_q_avg = task_q_sum / sub_count
+            task_e_avg = task_e_sum / sub_count
+            task_t_avg = task_t_sum / sub_count
+            task_overall = (task_q_avg + task_e_avg + task_t_avg) / 3.0
+
+            total_quantity += task_q_avg
+            total_efficiency += task_e_avg
+            total_timeliness += task_t_avg
+            total_overall += task_overall
+            task_count += 1
+
+        if task_count == 0:
             return {"quantity": 0, "efficiency": 0, "timeliness": 0, "overall_average": 0}
-        
+
         data = {
-            "quantity": round(total_quantity / count, 2),
-            "efficiency": round(total_efficiency / count, 2),
-            "timeliness": round(total_timeliness / count, 2),
-            "overall_average": round(total_average / count, 2)
+            "quantity": round(total_quantity / task_count, 2),
+            "efficiency": round(total_efficiency / task_count, 2),
+            "timeliness": round(total_timeliness / task_count, 2),
+            "overall_average": round(total_overall / task_count, 2)
         }
+
+        print("CALCULATED CATEGORY PERFORMANCE", data)
         return jsonify(data), 200 
     
     def calculate_category_performance_per_department(category_id):
         """
+        For each department, compute the per-task averages first (for tasks that have
+        subtasks in that department) and then average those task-level values so
+        each main task contributes equally to the department result.
+
         Returns:
         [
             {
@@ -441,47 +487,78 @@ class Category_Service():
         if not category:
             return jsonify([]), 200
 
-        depts = {}
+        depts = {}  # dept_name -> accumulators of per-task averages
 
         for main_task in category.main_tasks:
-            if main_task.status == 1 and main_task.period == settings.current_period_id:
+            if main_task.status != 1 or main_task.period != settings.current_period_id:
+                continue
 
-                for sub_task in main_task.sub_tasks:
-                    # Defensive checks
-                    if not sub_task.output or not sub_task.output.user:
-                        continue
+            # For this task, collect subtask aggregates per department
+            task_dept = {}
 
-                    dept_name = sub_task.output.user.department.name
+            for sub_task in main_task.sub_tasks:
+                # Defensive checks + period + ipcr status
+                if sub_task.status != 1:
+                    continue
+                if sub_task.period != settings.current_period_id:
+                    continue
+                if not sub_task.output or not sub_task.output.user or not sub_task.ipcr or sub_task.ipcr.status != 1:
+                    continue
 
-                    if dept_name not in depts:
-                        depts[dept_name] = {
-                            "quantity": 0,
-                            "efficiency": 0,
-                            "timeliness": 0,
-                            "average": 0,
-                            "count": 0
-                        }
+                dept_name = sub_task.output.user.department.name
 
-                    depts[dept_name]["quantity"] += sub_task.calculateQuantity()
-                    depts[dept_name]["efficiency"] += sub_task.calculateEfficiency()
-                    depts[dept_name]["timeliness"] += sub_task.calculateTimeliness()
-                    depts[dept_name]["average"] += sub_task.calculateAverage()
-                    depts[dept_name]["count"] += 1
+                if dept_name not in task_dept:
+                    task_dept[dept_name] = {
+                        "q_sum": 0.0,
+                        "e_sum": 0.0,
+                        "t_sum": 0.0,
+                        "count": 0
+                    }
+
+                task_dept[dept_name]["q_sum"] += sub_task.calculateQuantity()
+                task_dept[dept_name]["e_sum"] += sub_task.calculateEfficiency()
+                task_dept[dept_name]["t_sum"] += sub_task.calculateTimeliness()
+                task_dept[dept_name]["count"] += 1
+
+            # Convert task_dept -> add per-task averages into global dept accumulators
+            for dept_name, vals in task_dept.items():
+                if vals["count"] == 0:
+                    continue
+
+                task_q_avg = vals["q_sum"] / vals["count"]
+                task_e_avg = vals["e_sum"] / vals["count"]
+                task_t_avg = vals["t_sum"] / vals["count"]
+                task_overall = (task_q_avg + task_e_avg + task_t_avg) / 3.0
+
+                if dept_name not in depts:
+                    depts[dept_name] = {
+                        "quantity_total": 0.0,
+                        "efficiency_total": 0.0,
+                        "timeliness_total": 0.0,
+                        "overall_total": 0.0,
+                        "task_count": 0
+                    }
+
+                depts[dept_name]["quantity_total"] += task_q_avg
+                depts[dept_name]["efficiency_total"] += task_e_avg
+                depts[dept_name]["timeliness_total"] += task_t_avg
+                depts[dept_name]["overall_total"] += task_overall
+                depts[dept_name]["task_count"] += 1
 
         # Convert to response format
         response = []
 
         for dept_name, values in depts.items():
-            count = values["count"]
-            if count == 0:
+            tc = values["task_count"]
+            if tc == 0:
                 continue
 
             response.append({
                 "name": dept_name,
-                "quantity": round(values["quantity"] / count, 2),
-                "efficiency": round(values["efficiency"] / count, 2),
-                "timeliness": round(values["timeliness"] / count, 2),
-                "average": round(values["average"] / count, 2)
+                "quantity": round(values["quantity_total"] / tc, 2),
+                "efficiency": round(values["efficiency_total"] / tc, 2),
+                "timeliness": round(values["timeliness_total"] / tc, 2),
+                "average": round(values["overall_total"] / tc, 2)
             })
 
         return jsonify(response), 200
