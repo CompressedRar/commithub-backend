@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, jsonify, request
 from app import db
 from utils.decorators import log_action, token_required
+from utils.permissions import permissions_required
 from models.Departments import Department_Service
 from models.Tasks import Tasks_Service
 
@@ -27,7 +28,7 @@ def get_general_tasks():
     return Tasks_Service.get_all_general_tasks()
 
 @department.route("/ipcr/<id>", methods = ["GET"])
-@token_required(allowed_roles=["administrator", "head"])
+@permissions_required("ipcr.view")
 def get_department_ipcr(id):
     return Department_Service.get_all_department_ipcr(id)
 
@@ -37,12 +38,12 @@ def get_department_head(dept_id):
     return Department_Service.get_department_head(dept_id)
 
 @department.route("/opcr/<dept_id>", methods = ["GET"])
-@token_required(allowed_roles=["administrator", "head"])
+@permissions_required("ipcr.view")
 def get_department_opcr(dept_id):
     return Department_Service.get_all_department_opcr(dept_id=dept_id)
 
 @department.route("/tasks/<task_id>&<dept_id>", methods = ["POST"])
-@token_required(allowed_roles=["administrator", "head"])
+@permissions_required("departments.manage")
 def assign_department_tasks(task_id, dept_id):
     return Tasks_Service.assign_department(task_id, dept_id)
 

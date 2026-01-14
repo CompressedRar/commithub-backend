@@ -41,6 +41,9 @@ def token_required(allowed_roles=None):
             if not user_id or not role:
                 return jsonify({"error": "Invalid token payload"}), 401
 
+            # expose payload to downstream handlers
+            request.user_payload = payload
+
             if allowed_roles and role not in allowed_roles:
                 return jsonify({"error": "Forbidden"}), 403
 

@@ -2,7 +2,9 @@ from flask import Blueprint, render_template, jsonify, request
 from app import db, limiter
 from app import socketio
 
+from models.AdminConfirmation import AdminConfirmation
 from models.User import Users, User
+from models.AdminConfirmation import AdminConfirmation
 from models.Positions import Position, Positions
 from models.Categories import Category
 from models.Tasks import Sub_Task, Main_Task
@@ -61,6 +63,7 @@ def check_email(email):
 
 @auth.route("/verify-admin-password", methods=["POST"])
 @token_required(allowed_roles=["administrator"])
+@limiter.limit("5 per minute")
 def verify_admin_password():
     data = request.get_json() or request.form
     password = data.get("password")
@@ -68,16 +71,10 @@ def verify_admin_password():
     if not password:
         return jsonify(error="Password is required"), 400
 
-    # decode token to get user id
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return jsonify(error="Authorization header missing"), 401
-
-    token = auth_header.split(" ", 1)[1].strip()
-    try:
-        payload = jwt.decode(token, "priscilla", algorithms=["HS256"])
-    except Exception as e:
-        return jsonify(error="Invalid token"), 401
+    # get user id from payload attached by token_required
+    payload = getattr(request, "user_payload", None)
+    if not payload:
+        return jsonify(error="Invalid token payload"), 401
 
     user_id = payload.get("id")
     if not user_id:
@@ -90,6 +87,8 @@ def verify_admin_password():
     ph = PasswordHasher()
     try:
         ph.verify(hash=user.password, password=password)
-        return jsonify(message="Verified"), 200
+        # create short-lived confirmation token
+        token = AdminConfirmation.create_for_user(user_id, minutes=10)
+        return jsonify(message="Verified", confirmation_token=token, expires_in_minutes=10), 200
     except Exception:
         return jsonify(error="Invalid password"), 401

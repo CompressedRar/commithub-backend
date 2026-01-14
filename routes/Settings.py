@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, jsonify, request
 from app import db
 from utils.decorators import log_action, token_required
+from utils.permissions import permissions_required
 from models.Positions import Positions
 from json import loads
 from datetime import datetime, date
@@ -11,12 +12,12 @@ settings = Blueprint("settings", __name__, url_prefix="/api/v1/settings")
 
 
 @settings.route("/", methods = ["GET"])
-@token_required(allowed_roles=["administrator"])
+@permissions_required("settings.view")
 def get_settings():
     return System_Settings_Service.get_settings()
 
 @settings.route("/", methods = ["PATCH"])
-@token_required(allowed_roles=["administrator"])
+@permissions_required("settings.edit", require_admin_confirm=True)
 def update_settings():
     new_settings = request.get_json()
     return System_Settings_Service.update_settings(new_settings)
