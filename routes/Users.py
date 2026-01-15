@@ -38,6 +38,9 @@ def get_user_notifications(id):
 def update_user():
     data = request.form
     req = request
+
+    
+    print("UPDATE USRE DATA",data)
     return Users.update_user(data["id"], data, req)
 
 @users.route("/reset-password/<user_id>", methods = ["PATCH"])

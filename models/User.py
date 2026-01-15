@@ -372,6 +372,9 @@ class User(db.Model):
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id"), default=1, nullable = True)
     department = db.relationship("Department", back_populates="users")
 
+    recovery_email = db.Column(db.String(255), nullable=True)
+    two_factor_enabled = db.Column(db.Boolean, default=False, nullable=False)
+
     outputs = db.relationship("Output", back_populates="user")
 
     ipcrs = db.relationship("IPCR", back_populates="user")
@@ -396,6 +399,8 @@ class User(db.Model):
             "department_id":self.department_id,
             "department": self.department.info() if self.department else "NONE",
             "department_name": self.department.info()["name"] if self.department else "NONE",
+            "recovery_email": self.recovery_email,
+            "two_factor_enabled": self.two_factor_enabled
         }
     
     def tasks(self):
@@ -447,6 +452,8 @@ class User(db.Model):
             "active_status": self.active_status,
             "account_status": self.account_status,
             "created_at": str(self.created_at),
+            "recovery_email": self.recovery_email,
+            "two_factor_enabled": self.two_factor_enabled,
 
             "avg_performance": self.calculatePerformance(),
             "position":self.position.info() if self.position else "NONE",
@@ -614,10 +621,13 @@ class Users():
                 user.profile_picture_link = res
 
             # Basic info updates
-            fields = ["first_name", "last_name", "middle_name", "email", "password", "role"]
+            fields = ["first_name", "last_name", "middle_name", "email", "password", "role", "recovery_email" ]
             for field in fields:
                 if field in data:
                     setattr(user, field, data[field])
+
+            if "two_factor_enabled" in data:
+                user.two_factor_enabled = bool(int(data["two_factor_enabled"]))
 
             # Handle position (since it's likely a foreign key)
             if "position" in data:
@@ -1023,12 +1033,20 @@ class Users():
                     ip_address = request.remote_addr
                     user_agent = request.headers.get("User-Agent")
                     
-                    # Generate OTP and send via email (expires in 5 minutes)
-
-                    otp = f"{secrets.randbelow(10**6):06d}"
-                    LoginOTP.create_for_user(userCheck["id"], otp, expires_minutes=5)
-                    send_email(userCheck["email"], f"Your CommitHub login OTP is {otp}. It expires in 5 minutes.")
-                    return jsonify(message ="OTP sent"), 200
+                    # Check if user has 2FA enabled
+                    user = User.query.get(userCheck["id"])
+                    if user and user.two_factor_enabled:
+                        # Generate OTP and send via email (expires in 5 minutes)
+                        otp = f"{secrets.randbelow(10**6):06d}"
+                        LoginOTP.create_for_user(userCheck["id"], otp, expires_minutes=5)
+                        send_email(userCheck["email"], f"Your CommitHub login OTP is {otp}. It expires in 5 minutes.")
+                        return jsonify(message="OTP sent", two_factor_enabled=True, email=email), 200
+                    else:
+                        # 2FA is not enabled, generate JWT token directly
+                        payload = user.to_dict()
+                        token = jwt.encode(payload, "priscilla", algorithm="HS256")
+                        Log_Service.add_logs(userCheck["id"], user.first_name + " " + user.last_name, userCheck.get("department_name", "NONE"), "LOGIN", "User Account", f"{userCheck['email']} logged in", ip_address, user_agent)
+                        return jsonify(message="Login successful", token=token, two_factor_enabled=False), 200
                 
                 else:
                     return jsonify(error ="Incorrect Email or Password"), 400
