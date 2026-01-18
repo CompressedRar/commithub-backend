@@ -1983,8 +1983,11 @@ class PCR_Service():
             from models.System_Settings import System_Settings
             from models.Categories import Category
             from models.PCR import PCR_Service
+            
+            settings = System_Settings.query.first()
+            current_period = settings.current_period
 
-            opcrs = OPCR.query.filter_by(status=1, isMain=True).all()
+            opcrs = OPCR.query.filter_by(status=1, isMain=True, period = current_period).all()
             if not opcrs:
                 return jsonify(error="There is no OPCR to consolidate"), 400
 
@@ -2133,17 +2136,14 @@ class PCR_Service():
 
 
             # ✅ PRESIDENT / HEAD INFO (UNCHANGED)
-            head = User.query.filter_by(role="president").first()
-            if not head:
-                return jsonify(error="No president user found"), 400
 
             settings = System_Settings.query.first()
 
             head_data = {
                 "fullName": settings.current_president_fullname,
-                "givenName": head.first_name,
-                "middleName": head.middle_name,
-                "lastName": head.last_name,
+                "givenName": "",
+                "middleName": "",
+                "lastName": "",
                 "position": "College President",
                 "individuals": {
                     "review": {"name": settings.current_president_fullname, "position": "College President", "date": ""},
@@ -2800,7 +2800,10 @@ class PCR_Service():
             from models.Categories import Category
             from models.PCR import PCR_Service
 
-            opcrs = OPCR.query.filter_by(status=1, isMain=True).all()
+            settings = System_Settings.query.first()
+            current_period = settings.current_period
+
+            opcrs = OPCR.query.filter_by(status=1, isMain=True, period = current_period).all()
             if not opcrs:
                 return jsonify(error="There is no OPCR to consolidate"), 400
 
@@ -2950,18 +2953,14 @@ class PCR_Service():
 
 
 
-            # ✅ PRESIDENT / HEAD INFO (UNCHANGED)
-            head = User.query.filter_by(role="president").first()
-            if not head:
-                return jsonify(error="No president user found"), 400
 
             settings = System_Settings.query.first()
 
             head_data = {
                 "fullName": settings.current_president_fullname,
-                "givenName": head.first_name,
-                "middleName": head.middle_name,
-                "lastName": head.last_name,
+                "givenName": "",
+                "middleName": "",
+                "lastName": "",
                 "position": "College President",
                 "individuals": {
                     "review": {"name": settings.current_president_fullname, "position": "College President", "date": ""},

@@ -4,6 +4,8 @@ from datetime import datetime, date
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
+import uuid
+import secrets
 
 class System_Settings(db.Model):
     __tablename__ = "system_settings"
@@ -129,6 +131,8 @@ class System_Settings_Service:
         if not settings:
             settings = System_Settings()
             db.session.add(settings)
+
+        print("PATCHING SETTINGS")
         
         settings.rating_thresholds = new_settings.get("rating_thresholds", settings.rating_thresholds)
         settings.quantity_formula = new_settings.get("quantity_formula", settings.quantity_formula)
@@ -151,6 +155,7 @@ class System_Settings_Service:
         settings.current_mayor_fullname = new_settings.get("current_mayor_fullname", settings.current_mayor_fullname)
 
         try:
+            print("SETTINGS PATCHED")
             db.session.commit()
             return jsonify({"status":"success", "data":settings.to_dict()}), 200
         except (IntegrityError, OperationalError, DataError, ProgrammingError) as e:
@@ -176,3 +181,43 @@ class System_Settings_Service:
         is_between = start_date <= today <= end_date
         print("IS RATING PERIOD?", is_between)
         return is_between
+    
+    def change_period():
+        """
+        Generate a new random period ID and set it as the current period.
+        Returns the updated settings with the new period ID.
+        """
+        try:
+            settings = System_Settings.query.first()
+            if not settings:
+                settings = System_Settings()
+                db.session.add(settings)
+            
+            # Generate a random period ID (UUID format: e.g., "PERIOD-2024-f7b3c8a1")
+            random_id = f"PERIOD-{datetime.now().year}-{str(uuid.uuid4().hex[:8]).upper()}"
+            
+            # Update the current period ID
+            settings.current_period_id = random_id
+            settings.updated_at = datetime.now()
+            
+            db.session.commit()
+            
+            return jsonify({
+                "status": "success",
+                "message": f"Period changed successfully",
+                "new_period_id": random_id,
+                "data": settings.to_dict()
+            }), 200
+            
+        except (IntegrityError, OperationalError, DataError, ProgrammingError) as e:
+            db.session.rollback()
+            return jsonify({
+                "status": "error",
+                "message": f"Database error: {str(e)}"
+            }), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({
+                "status": "error",
+                "message": f"An error occurred: {str(e)}"
+            }), 500

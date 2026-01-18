@@ -1019,8 +1019,11 @@ class Users():
             password = login_data["password"]
 
             userCheck = Users.authenticate_if_email_exists(email)
+
+            
             
             if userCheck:
+                print("USER DETECTED")
                 
                 ph = PasswordHasher()
                 

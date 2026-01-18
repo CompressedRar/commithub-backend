@@ -23,6 +23,7 @@ class AdminConfirmation(db.Model):
     @staticmethod
     def verify(user_id, token):
         try:
+            print("VERIFYING TOKEN")
             conf = AdminConfirmation.query.filter_by(user_id=user_id, token=token, used=False).first()
             if not conf:
                 return False

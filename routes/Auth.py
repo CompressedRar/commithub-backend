@@ -87,6 +87,7 @@ def verify_admin_password():
     ph = PasswordHasher()
     try:
         ph.verify(hash=user.password, password=password)
+        print("VERIFIED")
         # create short-lived confirmation token
         token = AdminConfirmation.create_for_user(user_id, minutes=10)
         return jsonify(message="Verified", confirmation_token=token, expires_in_minutes=10), 200

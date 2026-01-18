@@ -4,6 +4,7 @@ from utils.decorators import log_action, token_required
 from utils.permissions import permissions_required
 from models.Departments import Department_Service
 from models.Tasks import Tasks_Service
+from utils.DepartmentReportHandler import create_department_performance_report
 
 department = Blueprint("department", __name__, url_prefix="/api/v1/department")
 
@@ -127,3 +128,23 @@ def get_assigned_department(dept_id):
 def update_assigned_department_formulas(assigned_dept_id):
     new_data = request.get_json() 
     return Tasks_Service.update_department_task_formula(assigned_dept_id=assigned_dept_id, data=new_data)
+
+@department.route("/<dept_id>/performance-report", methods = ["GET"])
+@token_required()
+@log_action(action = "DOWNLOAD", target="DEPARTMENT")
+def generate_performance_report(dept_id):
+    """
+    Generate and download a performance assessment report for a department.
+    Returns an Excel file with average performance of all members.
+    """
+    try:
+        file_url = create_department_performance_report(dept_id)
+        return jsonify({
+            "status": "success",
+            "message": "Report generated successfully",
+            "download_url": file_url
+        }), 200
+    except ValueError as e:
+        return jsonify({"status": "error", "message": str(e)}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Failed to generate report: {str(e)}"}), 500

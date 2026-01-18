@@ -20,6 +20,7 @@ def get_settings():
 @permissions_required("settings.edit", require_admin_confirm=True)
 def update_settings():
     new_settings = request.get_json()
+    print("NEQW SETYTING", new_settings)
     return System_Settings_Service.update_settings(new_settings)
 
 @settings.route("/validate-formula", methods = ["POST"])
@@ -62,3 +63,7 @@ def test_check_time():
     is_between = start_date <= today <= end_date
     
     return str(is_between)
+
+@settings.route("/reset", methods = ["PATCH"])
+def reset_period():
+    return System_Settings_Service.change_period()
