@@ -1,0 +1,176 @@
+@base_url = http://localhost:5000
+@token = your_jwt_token_here
+
+### ============================================
+### AUTH ENDPOINTS
+### ============================================
+
+### Login
+POST {{base_url}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "password123"
+}
+
+### Register New User
+POST {{base_url}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "newuser@test.com",
+  "password": "secure123",
+  "first_name": "John",
+  "last_name": "Doe"
+}
+
+### ============================================
+### DEPARTMENT ENDPOINTS
+### ============================================
+
+### Get All Departments
+GET {{base_url}}/api/v1/departments
+
+### Get Department by ID
+GET {{base_url}}/api/v1/departments/1
+
+### Create Department (requires auth)
+POST {{base_url}}/api/v1/departments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "New Department",
+  "description": "Test department"
+}
+
+### Update Department
+PATCH {{base_url}}/api/v1/departments/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Updated Department"
+}
+
+### Get Department Performance Report
+GET {{base_url}}/api/v1/departments/1/performance-report
+Authorization: Bearer {{token}}
+
+### ============================================
+### SYSTEM SETTINGS ENDPOINTS
+### ============================================
+
+### Get System Settings
+GET {{base_url}}/api/v1/settings
+
+### Update Settings
+PATCH {{base_url}}/api/v1/settings
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "quantity_formula": "(actual/target)*5"
+}
+
+### Reset Period
+PATCH {{base_url}}/api/v1/settings/reset
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}
+
+### ============================================
+### PCR/OPCR ENDPOINTS
+### ============================================
+
+### Create OPCR
+POST {{base_url}}/api/v1/pcr/opcr
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "department_id": 1,
+  "ipcr_ids": [1, 2, 3]
+}
+
+### Get OPCR
+GET {{base_url}}/api/v1/pcr/opcr/1
+Authorization: Bearer {{token}}
+
+### Create IPCR
+POST {{base_url}}/api/v1/pcr/ipcr
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "main_task_ids": [1, 2, 3]
+}
+
+### Get IPCR
+GET {{base_url}}/api/v1/pcr/ipcr/1
+Authorization: Bearer {{token}}
+
+### ============================================
+### TASK ENDPOINTS
+### ============================================
+
+### Get All Tasks
+GET {{base_url}}/api/v1/tasks
+
+### Create Task
+POST {{base_url}}/api/v1/tasks
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "mfo": "Task-001",
+  "category_id": 1,
+  "target_quantity": 10
+}
+
+### ============================================
+### CATEGORY ENDPOINTS
+### ============================================
+
+### Get All Categories
+GET {{base_url}}/api/v1/categories
+
+### Create Category
+POST {{base_url}}/api/v1/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "New Category",
+  "priority_order": 1
+}
+
+### ============================================
+### LOG ENDPOINTS
+### ============================================
+
+### Get Activity Logs
+GET {{base_url}}/api/v1/logs
+Authorization: Bearer {{token}}
+
+### Filter Logs by Action
+GET {{base_url}}/api/v1/logs?action=LOGIN
+Authorization: Bearer {{token}}
+
+### ============================================
+### ERROR TEST CASES
+### ============================================
+
+### Test 404
+GET {{base_url}}/api/v1/nonexistent
+
+### Test 401 (unauthorized)
+GET {{base_url}}/api/v1/users/profile
+
+### Test Invalid JSON
+POST {{base_url}}/api/v1/auth/login
+Content-Type: application/json
+
+invalid json

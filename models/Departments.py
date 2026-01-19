@@ -69,7 +69,10 @@ class Department(db.Model):
         
         for opcr in self.opcrs:
             if opcr.status == 1 and opcr.period == settings.current_period_id:
+                print("MERON OPCR NGAYON PERIOD")
                 all_ipcr.append(opcr.to_dict())
+
+        print("COUNT OF CURRENT PERIOD OPCR", len(all_ipcr))
 
         return all_ipcr
 

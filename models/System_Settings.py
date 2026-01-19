@@ -179,7 +179,6 @@ class System_Settings_Service:
         
 
         is_between = start_date <= today <= end_date
-        print("IS RATING PERIOD?", is_between)
         return is_between
     
     def change_period():
@@ -199,6 +198,9 @@ class System_Settings_Service:
             # Update the current period ID
             settings.current_period_id = random_id
             settings.updated_at = datetime.now()
+            
+            from models.PCR import OPCR, OPCR_Rating, OPCR_Supporting_Document
+            
             
             db.session.commit()
             

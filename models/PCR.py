@@ -1187,99 +1187,155 @@ class PCR_Service():
             return jsonify(error=str(e)), 500
         
 
-    #create a many to many relationship between ipcr and opcr
-    #fix the creation of opcr
+    @staticmethod
+    def _create_or_archive_opcrs_for_period(dept_id, current_period_id):
+        """Helper: Create new OPCR if missing, archive old period OPCRs."""
+        existing_opcr = OPCR.query.filter_by(
+            department_id=dept_id, isMain=True, period=current_period_id
+        ).first()
+
+        if existing_opcr:
+            return existing_opcr
+
+        # Create new OPCR for current period
+        new_opcr = OPCR(department_id=dept_id, isMain=True, period=current_period_id)
+        db.session.add(new_opcr)
+        db.session.flush()
+
+        # Archive old period OPCRs (mark as not main)
+        OPCR.query.filter_by(department_id=dept_id).filter(
+            OPCR.period != current_period_id
+        ).update({"isMain": False, "status": 0}, synchronize_session=False)
+
+        return new_opcr
+
+    @staticmethod
+    def _mark_main_opcr(dept_id, new_opcr_id, current_period_id):
+        """Helper: Ensure only one OPCR is marked as main in current period."""
+        OPCR.query.filter_by(department_id=dept_id, period=current_period_id).update(
+            {"isMain": False, "status": 0}, synchronize_session=False
+        )
+        OPCR.query.filter_by(id=new_opcr_id).update(
+            {"isMain": True, "status": 1}, synchronize_session=False
+        )
+
+    @staticmethod
+    def _add_mfo_ratings(new_opcr, current_period_id, ipcr_ids):
+        """Helper: Add OPCR_Rating entries for unique MFOs across IPCRs."""
+        existing_mfos = {r.mfo for r in new_opcr.opcr_ratings}
+        mfos_to_add = set()
+
+        # Collect all unique MFOs from IPCR sub_tasks
+        for ipcr_id in ipcr_ids:
+            ipcr = IPCR.query.get(ipcr_id)
+            if not ipcr or ipcr.period != current_period_id:
+                continue
+            for sub_task in ipcr.sub_tasks:
+                if sub_task.status != 0 and sub_task.main_task.mfo not in existing_mfos:
+                    mfos_to_add.add(sub_task.main_task.mfo)
+
+        # Bulk add new ratings
+        for mfo in mfos_to_add:
+            db.session.add(OPCR_Rating(
+                mfo=mfo, opcr_id=new_opcr.id, period=current_period_id
+            ))
+            existing_mfos.add(mfo)
+
+    @staticmethod
+    def _assign_pcrs_to_opcr(new_opcr, dept_id, current_period_id, ipcr_ids):
+        """Helper: Create Assigned_PCR entries for valid IPCRs."""
+        # Get all valid IPCRs for current period
+        valid_ipcrs = IPCR.query.filter(
+            IPCR.id.in_(ipcr_ids), IPCR.period == current_period_id
+        ).all()
+
+        # Get existing assignments to avoid duplicates
+        existing_ids = {
+            (a.ipcr_id,) for a in Assigned_PCR.query.filter_by(
+                opcr_id=new_opcr.id, department_id=dept_id
+            ).all()
+        }
+
+        # Add only new assignments
+        for ipcr in valid_ipcrs:
+            if (ipcr.id,) not in existing_ids:
+                db.session.add(Assigned_PCR(
+                    opcr_id=new_opcr.id, ipcr_id=ipcr.id,
+                    department_id=dept_id, period=current_period_id
+                ))
+
     def create_opcr(dept_id, ipcr_ids):
+        """
+        Create or update OPCR for a department in the current period.
+        
+        - Validates department & period exist
+        - Creates new OPCR if period changed, archives old period OPCRs
+        - Adds MFO ratings from IPCR sub_tasks
+        - Creates Assigned_PCR relationships
+        
+        Args:
+            dept_id: Department ID
+            ipcr_ids: List of IPCR IDs to assign to OPCR
+            
+        Returns:
+            tuple: (jsonify response, HTTP status code)
+        """
         try:
+            from models.System_Settings import System_Settings
 
-            print("creating opcr")
-            # Check if there's already an existing OPCR for this department
-            from models.System_Settings import System_Settings            
+            # Validate inputs
+            if not dept_id or not isinstance(ipcr_ids, list):
+                return jsonify(error="Invalid department ID or IPCR list"), 400
+
+            # Get current period
             current_settings = System_Settings.query.first()
+            if not current_settings or not current_settings.current_period_id:
+                return jsonify(error="System period not configured"), 400
 
-            existing_opcr = OPCR.query.filter_by(department_id=dept_id, isMain=True, period = current_settings.current_period_id).first()
+            current_period_id = current_settings.current_period_id
 
-            # If no OPCR exists, create one
-            if not existing_opcr:
+            # Verify department exists
+            dept = Department.query.get(dept_id)
+            if not dept:
+                return jsonify(error=f"Department {dept_id} not found"), 404
 
-                print("no existing opcr, creating new one")
-                new_opcr = OPCR(department_id=dept_id, isMain=True, period = current_settings.current_period_id if current_settings else None)
-                db.session.add(new_opcr)
-                db.session.flush()  # Get new_opcr.id
-            else:
-                new_opcr = existing_opcr
+            # Create/get OPCR and archive old periods
+            new_opcr = PCR_Service._create_or_archive_opcrs_for_period(
+                dept_id, current_period_id
+            )
 
-            # Ensure all existing OPCRs for this dept are marked properly
-            all_opcr = OPCR.query.filter_by(department_id=dept_id).all()
-            for opcr in all_opcr:
-                opcr.isMain = (opcr.id == new_opcr.id)
-                opcr.status = 1 if opcr.isMain else 0
+            # Ensure this is the main OPCR for current period
+            PCR_Service._mark_main_opcr(dept_id, new_opcr.id, current_period_id)
 
-            # Track MFOs already added to avoid duplicates
-            existing_mfos = {r.mfo for r in new_opcr.opcr_ratings}
+            # Add MFO ratings
+            PCR_Service._add_mfo_ratings(new_opcr, current_period_id, ipcr_ids)
 
-            for ipcr_id in ipcr_ids:
-                ipcr = IPCR.query.get(ipcr_id)
-                if not ipcr or ipcr.period != current_settings.current_period_id:
-                    continue
-
-                # For each subtask of the IPCR, ensure the MFO exists in OPCR_Rating
-                for sub_task in ipcr.sub_tasks:
-                    if sub_task.main_task.mfo not in existing_mfos:
-                        new_rating = OPCR_Rating(
-                            mfo=sub_task.main_task.mfo,
-                            opcr_id=new_opcr.id,
-                            period = current_settings.current_period_id if current_settings else None
-                        )
-                        db.session.add(new_rating)
-                        existing_mfos.add(sub_task.main_task.mfo)
-
-                # Check if Assigned_PCR already exists to avoid duplicates
-                existing_assignment = Assigned_PCR.query.filter_by(
-                    opcr_id=new_opcr.id,
-                    ipcr_id=ipcr_id,
-                    department_id=dept_id,
-                    period = current_settings.current_period_id
-
-                ).first()
-
-                if not existing_assignment:
-                    assigned_pcr = Assigned_PCR(
-                        opcr_id=new_opcr.id,
-                        ipcr_id=ipcr_id,
-                        department_id=dept_id,
-                        period = current_settings.current_period_id if current_settings else None
-                    )
-                    db.session.add(assigned_pcr)
-
+            # Assign IPCRs to OPCR
+            PCR_Service._assign_pcrs_to_opcr(
+                new_opcr, dept_id, current_period_id, ipcr_ids
+            )
 
             db.session.commit()
 
+            # Notify clients
             socketio.emit("opcr", "created")
             socketio.emit("opcr_created", "created")
-            #Notification_Service.notify_department(dept_id, f"OPCR for this department has been created or updated.")
 
-            return jsonify(message="OPCR successfully created or updated."), 200
+            return jsonify(
+                message="OPCR successfully created or updated.",
+                opcr_id=new_opcr.id
+            ), 200
+
+        except IntegrityError as e:
+            db.session.rollback()
+            return jsonify(error="Data integrity error"), 400
 
         except OperationalError as e:
             db.session.rollback()
-            print(str(e))
             return jsonify(error="Database connection error"), 500
 
         except Exception as e:
             db.session.rollback()
-            print(str(e))
-            return jsonify(error=str(e)), 500
-
-
-        except OperationalError as e:
-            db.session.rollback()
-            print(str(e))
-            return jsonify(error="Database connection error"), 500
-
-        except Exception as e:
-            db.session.rollback()
-            print(str(e))
             return jsonify(error=str(e)), 500
 
 
@@ -1293,7 +1349,7 @@ class PCR_Service():
         assigned = {}
 
         from models.Tasks import Assigned_Department
-
+        settings = System_Settings.query.first()
 
         assigned_dept_configs = {
             ad.main_task_id: {
@@ -1304,7 +1360,8 @@ class PCR_Service():
                 "weight": float(ad.task_weight / 100)
             }
             for ad in Assigned_Department.query.filter_by(
-                department_id=opcr.department_id
+                department_id=opcr.department_id,
+                period=settings.current_period
             ).all()
         }
 
@@ -1322,11 +1379,11 @@ class PCR_Service():
 
 
         # load settings once
-        settings = System_Settings.query.first()
+       
 
         assigned_dept_tasks = (
             Assigned_Department.query
-            .filter_by(department_id=opcr.department_id)
+            .filter_by(department_id=opcr.department_id, period = settings.current_period_id)
             .join(Assigned_Department.main_task)
             .all()
         )
@@ -1575,6 +1632,7 @@ class PCR_Service():
         assigned = {}
 
         from models.Tasks import Assigned_Department
+        settings = System_Settings.query.first()
 
         assigned_dept_configs = {
             ad.main_task_id: {
@@ -1585,13 +1643,13 @@ class PCR_Service():
                 "weight": float(ad.task_weight / 100)
             }
             for ad in Assigned_Department.query.filter_by(
-                department_id=opcr.department_id
+                department_id=opcr.department_id, period = settings.current_period_id
             ).all()
         }
 
 
         # load settings once
-        settings = System_Settings.query.first()
+        
 
         for assigned_pcr in opcr.assigned_pcrs:
             if assigned_pcr.ipcr.status == 0:
@@ -1985,7 +2043,7 @@ class PCR_Service():
             from models.PCR import PCR_Service
             
             settings = System_Settings.query.first()
-            current_period = settings.current_period
+            current_period = settings.current_period_id
 
             opcrs = OPCR.query.filter_by(status=1, isMain=True, period = current_period).all()
             if not opcrs:
@@ -1995,7 +2053,7 @@ class PCR_Service():
             assigned = {}
 
             # ✅ PASS 0 — LOAD ALL CATEGORIES (NO DEPT FILTER)
-            categories = Category.query.filter_by(status=1).order_by(
+            categories = Category.query.filter_by(status=1, period = current_period).order_by(
                 Category.priority_order.desc()
             ).all()
 
@@ -2170,9 +2228,13 @@ class PCR_Service():
         assigned = {}
 
         from models.Tasks import Assigned_Department
+        from models.System_Settings import System_Settings
+        settings = System_Settings.query.first()
 
         assigned_departments = Assigned_Department.query.filter_by(
-            department_id=department_id
+            department_id=department_id,
+            period = settings.current_period_id
+
         ).all()
 
         for ad in assigned_departments:
@@ -2346,10 +2408,16 @@ class PCR_Service():
         assigned = {}
 
         from models.Tasks import Assigned_Department
+        from models.System_Settings import System_Settings
+
+        settings = System_Settings.query.first()
 
         assigned_departments = Assigned_Department.query.filter_by(
-            department_id=department_id
+            department_id=department_id,
+            period = settings.current_period_id
         ).all()
+
+        print("DRAFTED OPCR ASSIGNED DEPARTMENT TASK LENGTH", len(assigned_departments))
 
         for ad in assigned_departments:
             cat = ad.main_task.category
@@ -2523,7 +2591,7 @@ class PCR_Service():
         assigned = {}
 
         from models.Tasks import Assigned_Department
-
+        settings = System_Settings.query.first()
 
         assigned_dept_configs = {
             ad.main_task_id: {
@@ -2534,9 +2602,12 @@ class PCR_Service():
                 "weight": float(ad.task_weight / 100)
             }
             for ad in Assigned_Department.query.filter_by(
-                department_id=opcr.department_id
+                department_id=opcr.department_id,
+                period = settings.current_period_id
             ).all()
         }
+
+        print("ASSIGNED DEPT CONFIGS",assigned_dept_configs)
 
         for assigned_pcr in opcr.assigned_pcrs:
             if assigned_pcr.ipcr.status == 0:
@@ -2552,11 +2623,11 @@ class PCR_Service():
 
 
         # load settings once
-        settings = System_Settings.query.first()
+        
 
         assigned_dept_tasks = (
             Assigned_Department.query
-            .filter_by(department_id=opcr.department_id)
+            .filter_by(department_id=opcr.department_id, period = settings.current_period)
             .join(Assigned_Department.main_task)
             .all()
         )
@@ -2801,9 +2872,11 @@ class PCR_Service():
             from models.PCR import PCR_Service
 
             settings = System_Settings.query.first()
-            current_period = settings.current_period
+            current_period = str(settings.current_period)
 
             opcrs = OPCR.query.filter_by(status=1, isMain=True, period = current_period).all()
+            print("TOTAL OPCRS:", len(opcrs))
+            print("CURRENT PERIOD:", current_period)
             if not opcrs:
                 return jsonify(error="There is no OPCR to consolidate"), 400
 
@@ -2811,7 +2884,7 @@ class PCR_Service():
             assigned = {}
 
             # ✅ PASS 0 — LOAD ALL CATEGORIES (NO DEPT FILTER)
-            categories = Category.query.filter_by(status=1).order_by(
+            categories = Category.query.filter_by(status=1, period = current_period).order_by(
                 Category.priority_order.desc()
             ).all()
 
