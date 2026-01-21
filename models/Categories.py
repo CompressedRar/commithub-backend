@@ -12,7 +12,7 @@ from app import socketio
 class Category(db.Model):
     __tablename__ = "categories"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False, unique = True )
+    name = db.Column(db.String(50), nullable=False)
     status = db.Column(db.Integer, default = 1)
     type = db.Column(db.String(50), default = "Core Function" )
 
@@ -158,7 +158,7 @@ class Category_Service():
                 return jsonify(error="Category name is required."), 400
 
             # Check if the category already exists
-            existing_category = Category.query.filter_by(name=category_name).first()
+            existing_category = Category.query.filter_by(name=category_name, period = current_settings.current_period_id).first()
             if existing_category:
                 return jsonify(error="Category name already exists."), 400
 
