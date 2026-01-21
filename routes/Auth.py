@@ -19,7 +19,7 @@ auth = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 @auth.route("/login", methods = ["POST"])
 @limiter.limit("5 per minute")
 def authenticate_user():
-    data = request.form
+    data = request.form or request.json
     print("Data received: ", data.keys())
     return Users.authenticate_user(data)
 

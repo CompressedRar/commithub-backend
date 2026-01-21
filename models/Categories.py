@@ -72,7 +72,7 @@ class Category_Service():
     def get_all():
         try:
             from models.System_Settings import System_Settings
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
 
             all_categories = (
                 Category.query
@@ -95,7 +95,7 @@ class Category_Service():
     def get_all_with_tasks():
         try:
             from models.System_Settings import System_Settings
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
             all_categories = Category.query.filter_by(status = 1, period = settings.current_period_id).all()
             
             converted_categories = [category.to_dict() for category in all_categories]
@@ -148,7 +148,7 @@ class Category_Service():
     def create_category(data):
         try:
             from models.System_Settings import System_Settings            
-            current_settings = System_Settings.query.first()
+            current_settings = System_Settings.get_default_settings()
 
             category_name = data.get("category_name", "").strip()
             category_type = data.get("category_type", "").strip()
@@ -331,7 +331,7 @@ class Category_Service():
 
         from models.System_Settings import System_Settings
         from models.PCR import IPCR
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
 
         # Consolidate Sub_Task columns directly (no formula calculations).
         # Only include Sub_Tasks that are active, in the current period, and whose IPCR is active.
@@ -392,7 +392,7 @@ class Category_Service():
 
         category = Category.query.get(category_id)
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
 
         if not category:
             return {"quantity": 0, "efficiency": 0, "timeliness": 0, "overall_average": 0}
@@ -482,7 +482,7 @@ class Category_Service():
         from models.System_Settings import System_Settings
 
         category = Category.query.get(category_id)
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
 
         if not category:
             return jsonify([]), 200

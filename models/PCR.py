@@ -196,7 +196,7 @@ class IPCR(db.Model):
 
         from models.System_Settings import System_Settings
 
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
         president = settings.current_president_fullname if settings.current_president_fullname else ""
         mayor = settings.current_mayor_fullname if settings.current_mayor_fullname else ""
 
@@ -395,7 +395,7 @@ class OPCR(db.Model):
         dept_middle_name = department_head.middle_name[0] + ". " if department_head and department_head.middle_name else " "
 
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
         president = settings.current_president_fullname if settings.current_president_fullname else ""
         mayor = settings.current_mayor_fullname if settings.current_mayor_fullname else ""
 
@@ -592,7 +592,7 @@ class PCR_Service():
             from models.System_Settings import System_Settings
             current_batch_id = str(uuid.uuid4())
 
-            current_period = System_Settings.query.first().current_period_id
+            current_period = System_Settings.get_default_settings().current_period_id
 
             new_ipcr = IPCR(user_id=user_id, batch_id=current_batch_id, form_status="submitted", period=current_period, isMain=True)
             db.session.add(new_ipcr)
@@ -653,7 +653,7 @@ class PCR_Service():
             from models.System_Settings import System_Settings
             current_batch_id = str(uuid.uuid4())
 
-            current_period = System_Settings.query.first().current_period_id
+            current_period = System_Settings.get_default_settings().current_period_id
             current_period_ipcr = IPCR.query.filter_by(user_id=user_id, period=current_period).first()
 
             if current_period_ipcr:
@@ -1098,7 +1098,7 @@ class PCR_Service():
     def record_supporting_document(file_type, file_name, ipcr_id, batch_id, sub_task_id = None):
         try:
             from models.System_Settings import System_Settings            
-            current_settings = System_Settings.query.first()
+            current_settings = System_Settings.get_default_settings()
 
             ipcr = IPCR.query.get(ipcr_id)
             new_supporting_document = Supporting_Document(file_type = file_type, file_name = file_name, ipcr_id = ipcr_id, batch_id = batch_id, sub_task_id = sub_task_id, period = current_settings.current_period_id)
@@ -1288,7 +1288,7 @@ class PCR_Service():
                 return jsonify(error="Invalid department ID or IPCR list"), 400
 
             # Get current period
-            current_settings = System_Settings.query.first()
+            current_settings = System_Settings.get_default_settings()
             if not current_settings or not current_settings.current_period_id:
                 return jsonify(error="System period not configured"), 400
 
@@ -1349,7 +1349,7 @@ class PCR_Service():
         assigned = {}
 
         from models.Tasks import Assigned_Department
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
 
         assigned_dept_configs = {
             ad.main_task_id: {
@@ -1361,7 +1361,7 @@ class PCR_Service():
             }
             for ad in Assigned_Department.query.filter_by(
                 department_id=opcr.department_id,
-                period=settings.current_period
+                period=settings.current_period_id
             ).all()
         }
 
@@ -1632,7 +1632,7 @@ class PCR_Service():
         assigned = {}
 
         from models.Tasks import Assigned_Department
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
 
         assigned_dept_configs = {
             ad.main_task_id: {
@@ -2042,7 +2042,7 @@ class PCR_Service():
             from models.Categories import Category
             from models.PCR import PCR_Service
             
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
             current_period = settings.current_period_id
 
             opcrs = OPCR.query.filter_by(status=1, isMain=True, period = current_period).all()
@@ -2157,7 +2157,7 @@ class PCR_Service():
                         task["working_days"]["actual"] += actual_days
                         task["frequency"] += 1
 
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
 
             for task in task_index.values():
                 if task["frequency"] == 0:
@@ -2195,7 +2195,7 @@ class PCR_Service():
 
             # ✅ PRESIDENT / HEAD INFO (UNCHANGED)
 
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
 
             head_data = {
                 "fullName": settings.current_president_fullname,
@@ -2229,7 +2229,7 @@ class PCR_Service():
 
         from models.Tasks import Assigned_Department
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
 
         assigned_departments = Assigned_Department.query.filter_by(
             department_id=department_id,
@@ -2410,7 +2410,7 @@ class PCR_Service():
         from models.Tasks import Assigned_Department
         from models.System_Settings import System_Settings
 
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
 
         assigned_departments = Assigned_Department.query.filter_by(
             department_id=department_id,
@@ -2591,7 +2591,7 @@ class PCR_Service():
         assigned = {}
 
         from models.Tasks import Assigned_Department
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
 
         assigned_dept_configs = {
             ad.main_task_id: {
@@ -2627,7 +2627,7 @@ class PCR_Service():
 
         assigned_dept_tasks = (
             Assigned_Department.query
-            .filter_by(department_id=opcr.department_id, period = settings.current_period)
+            .filter_by(department_id=opcr.department_id, period = settings.current_period_id)
             .join(Assigned_Department.main_task)
             .all()
         )
@@ -2871,8 +2871,8 @@ class PCR_Service():
             from models.Categories import Category
             from models.PCR import PCR_Service
 
-            settings = System_Settings.query.first()
-            current_period = str(settings.current_period)
+            settings = System_Settings.get_default_settings()
+            current_period = str(settings.current_period_id)
 
             opcrs = OPCR.query.filter_by(status=1, isMain=True, period = current_period).all()
             print("TOTAL OPCRS:", len(opcrs))
@@ -2988,7 +2988,7 @@ class PCR_Service():
                         task["working_days"]["actual"] += actual_days
                         task["frequency"] += 1
 
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
 
             for task in task_index.values():
                 if task["frequency"] == 0:
@@ -3027,7 +3027,7 @@ class PCR_Service():
 
 
 
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
 
             head_data = {
                 "fullName": settings.current_president_fullname,
@@ -3149,7 +3149,7 @@ class PCR_Service():
         ]
         """
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
         current_period = settings.current_period_id
 
         # Aggregate averages per department through user → sub_task relationship

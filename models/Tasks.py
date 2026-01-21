@@ -392,7 +392,7 @@ class Main_Task(db.Model):
         }
         from models.PCR import PCR_Service 
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first() 
+        settings = System_Settings.get_default_settings() 
 
         for output in self.outputs:
             user_department = output.user.department.id
@@ -591,7 +591,7 @@ class Sub_Task(db.Model):
             return getattr(assigned, f"{metric}_formula")
 
         # Fallback to system settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
         return getattr(settings, f"{metric}_formula")
 
 
@@ -728,7 +728,7 @@ class Tasks_Service():
         return jsonify(ipcr.to_dict()), 200
     def get_main_tasks():
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
 
         try:
             all_main_tasks = Main_Task.query.filter_by(status = 1, period = settings.current_period_id).all()
@@ -765,7 +765,7 @@ class Tasks_Service():
         try:
 
             from models.System_Settings import System_Settings
-            current_settings = System_Settings.query.first()
+            current_settings = System_Settings.get_default_settings()
 
             found_assigned_department = Assigned_Department.query.filter_by(department_id = dept_id, period = current_settings.current_period_id).all()
             converted = [assigned_department.info() for assigned_department in found_assigned_department]
@@ -780,7 +780,7 @@ class Tasks_Service():
         try:
 
             from models.System_Settings import System_Settings
-            current_settings = System_Settings.query.first()
+            current_settings = System_Settings.get_default_settings()
 
             found_assigned_department = Assigned_Department.query.filter_by(department_id = dept_id, period = current_settings.current_period_id).all()
             converted = [assigned_department.to_dict() for assigned_department in found_assigned_department]
@@ -812,7 +812,7 @@ class Tasks_Service():
         try:
             print("creating task right now")
             from models.System_Settings import System_Settings            
-            current_settings = System_Settings.query.first()
+            current_settings = System_Settings.get_default_settings()
 
             
             
@@ -897,7 +897,7 @@ class Tasks_Service():
         
 
             from models.System_Settings import System_Settings            
-            current_settings = System_Settings.query.first()
+            current_settings = System_Settings.get_default_settings()
 
             for current_id in updated_departments:
                 print(current_id)
@@ -1008,7 +1008,7 @@ class Tasks_Service():
         try:
             #search ko muna lahat ng assigned task kung existing na siya
             from models.System_Settings import System_Settings            
-            current_settings = System_Settings.query.first()
+            current_settings = System_Settings.get_default_settings()
 
             from models.PCR import IPCR, PCR_Service
 
@@ -1070,7 +1070,7 @@ class Tasks_Service():
         try:
 
             from models.System_Settings import System_Settings            
-            current_settings = System_Settings.query.first()
+            current_settings = System_Settings.get_default_settings()
 
             new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = current_batch_id, ipcr_id=ipcr_id, period = current_settings.current_period_id if current_settings else None)
             print("new output", new_output.batch_id)
@@ -1099,7 +1099,7 @@ class Tasks_Service():
     def create_task_for_ipcr(task_id, user_id, current_batch_id, ipcr_id):
         try:
             from models.System_Settings import System_Settings            
-            current_settings = System_Settings.query.first()
+            current_settings = System_Settings.get_default_settings()
 
             new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = current_batch_id, ipcr_id=ipcr_id, period = current_settings.current_period_id if current_settings else None)
             new_assigned_tasks = Assigned_Task(user_id=user_id, main_task_id = task_id, batch_id = current_batch_id, period = current_settings.current_period_id if current_settings else None, is_assigned=True)
@@ -1140,7 +1140,7 @@ class Tasks_Service():
             # ngayon madami na 
 
             from models.System_Settings import System_Settings
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
 
             """for output in task.outputs:
                 if not output.user.department.id == dept_id:
@@ -1312,7 +1312,7 @@ class Tasks_Service():
     def get_general_tasks():
         try:
             from models.System_Settings import System_Settings
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
 
             all_general_tasks = Main_Task.query.filter(Main_Task.department_id.is_(None), Main_Task.status == 1, Main_Task.period == settings.current_period_id).all()
             converted = [task.info() for task in all_general_tasks]
@@ -1329,7 +1329,7 @@ class Tasks_Service():
     def get_tasks_by_department(id):
         try:
             from models.System_Settings import System_Settings
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
 
             all_department_tasks = Assigned_Department.query.filter_by(department_id = id, period = settings.current_period_id).all()
             converted = []
@@ -1358,7 +1358,7 @@ class Tasks_Service():
         try:
 
             from models.System_Settings import System_Settings
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
             all_general_tasks = Main_Task.query.filter_by(department_id = None, status = 1, period = settings.current_period_id).all()
             converted = [task.info() for task in all_general_tasks]
 
@@ -1410,7 +1410,7 @@ class Tasks_Service():
         try:
             found_task = Main_Task.query.get(id)
             from models.System_Settings import System_Settings
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
 
 
             found_assigned_department = Assigned_Department.query.filter_by(main_task_id = id, department_id = dept_id, period = settings.current_period_id).first()
@@ -1654,7 +1654,7 @@ class Tasks_Service():
         """
 
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
 
 
         results = (
@@ -1807,7 +1807,7 @@ class Tasks_Service():
         """
 
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
 
         results = (
             db.session.query(
@@ -1847,7 +1847,7 @@ class Tasks_Service():
         """
 
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
 
 
         all_tasks = Main_Task.query.filter_by(status=1, period = settings.current_period_id).all()

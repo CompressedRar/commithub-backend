@@ -120,7 +120,7 @@ def _build_data_from_ipcr(ipcr):
         }
 
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
         rating_thresholds = settings.rating_thresholds if settings else {
             "POOR": {"min": 1, "max": 1.9},
             "UNSATISFACTORY": {"min": 2, "max": 2.9},
@@ -497,7 +497,7 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     ws[f"K{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
     from models.System_Settings import System_Settings
-    settings = System_Settings.query.first()
+    settings = System_Settings.get_default_settings()
     rating_thresholds = settings.rating_thresholds if settings else {
         "POOR": {"min": 0, "max": 1.49},
         "UNSATISFACTORY": {"min": 1.5, "max": 2.49},
@@ -984,7 +984,7 @@ def createNewWeightedIPCR_from_db(ipcr_id, individuals=None, filename_prefix=Non
     ws[f"L{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
     from models.System_Settings import System_Settings
-    settings = System_Settings.query.first()
+    settings = System_Settings.get_default_settings()
     rating_thresholds = settings.rating_thresholds if settings else {
         "POOR": {"min": 1, "max": 1.9},
         "UNSATISFACTORY": {"min": 2, "max": 2.9},

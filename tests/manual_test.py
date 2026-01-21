@@ -108,6 +108,7 @@ def run_tests():
     # Test 1: Public endpoints (no auth)
     print("\n📌 TEST 1: PUBLIC ENDPOINTS")
     print("-" * 60)
+
     
     print("\n1. Get all departments:")
     tester.get("/api/v1/department")

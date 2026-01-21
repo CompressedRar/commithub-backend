@@ -14,12 +14,18 @@ ROLES_PERMISSIONS = {
     ],
     "president": [
         "settings.view",
+        "ipcr.view",
     ],
     "head": [
         "departments.manage",
+        "settings.view",
         "ipcr.view",
     ],
-    "faculty": [],
+    "faculty": [
+        "settings.view",
+        "ipcr.view",
+        "notifications.manage",
+    ],
 }
 
 

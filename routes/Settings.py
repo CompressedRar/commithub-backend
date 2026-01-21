@@ -49,7 +49,7 @@ def validate_formula():
 def test_check_time():
     from models.System_Settings import System_Settings
 
-    setting = System_Settings.query.first()
+    setting = System_Settings.get_default_settings()
 
     start = str(setting.rating_start_date)
     end = str(setting.rating_end_date)

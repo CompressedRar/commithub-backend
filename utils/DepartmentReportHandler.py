@@ -48,7 +48,7 @@ def create_department_performance_report(department_id, filename_prefix=None):
     users = User.query.filter_by(department_id=department_id, account_status=1).all()
     
     # Get system settings for rating thresholds
-    settings = System_Settings.query.first()
+    settings = System_Settings.get_default_settings()
     rating_thresholds = settings.rating_thresholds if settings else {
         "Outstanding": {"min": 4.5, "max": 5.0},
         "Very Satisfactory": {"min": 3.5, "max": 4.49},

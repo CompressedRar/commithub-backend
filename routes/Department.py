@@ -102,7 +102,7 @@ def remove_user_from_department(id):
 @token_required()
 @log_action(action = "UPDATE", target="DEPARTMENT")
 def update_department():
-    data = request.form
+    data = request.form or request.json
     return Department_Service.update_department(data["id"],data)
     
 

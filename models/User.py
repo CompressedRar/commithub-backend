@@ -416,7 +416,7 @@ class User(db.Model):
     def calculatePerformance(self):
         from models.System_Settings import System_Settings
 
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
         all_output_total = 0
         total = 0
         for output in self.outputs:
@@ -432,7 +432,7 @@ class User(db.Model):
 
         from models.System_Settings import System_Settings
 
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
         active_ipcrs = []
 
         for ipcr in self.ipcrs:
@@ -1015,12 +1015,16 @@ class Users():
     def authenticate_user(login_data):
         print("entry pointof authentication")
         try:
-            email = login_data["email"]
-            password = login_data["password"]
 
-            userCheck = Users.authenticate_if_email_exists(email)
-
+            if "email" not in login_data:
+                return jsonify(error ="Missing Email"), 400
             
+            if "password" not in login_data:
+                return jsonify(error ="Missing Password"), 400
+            
+            email = login_data["email"]
+            password = login_data["password"]        
+            userCheck = Users.authenticate_if_email_exists(email)
             
             if userCheck:
                 print("USER DETECTED")

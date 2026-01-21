@@ -38,7 +38,6 @@ def get_user_notifications(id):
 def update_user():
     data = request.form
     req = request
-
     
     print("UPDATE USRE DATA",data)
     return Users.update_user(data["id"], data, req)
@@ -53,6 +52,7 @@ def reset_password_user(user_id):
 @token_required()
 def change_password_user(user_id):
     new_pass = request.json.get("password")
+    print("CHANGING PASS",user_id, new_pass)
     return Users.change_password(user_id, new_pass)
 
 @users.route("/<id>", methods = ["DELETE"])

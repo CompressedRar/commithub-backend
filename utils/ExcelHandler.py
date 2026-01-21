@@ -134,12 +134,12 @@ def createNewOPCR(data, assigned, admin_data):
 
                 if a["description"]["timeliness_mode"] == "deadline":
                     prepareCells(ws, f"E{row+2}", f"G{row+3}")
-                    ws[f"E{row+2}"] = f"on the set deadline"
+                    ws[f"E{row+2}"] = f"on the set deadline with"
                     ws[f"E{row+2}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
                 else:
                     prepareCells(ws, f"E{row+2}", f"G{row+3}")
-                    ws[f"E{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                    ws[f"E{row+2}"] = str(a["description"]["time"] or "") + " with"
                     ws[f"E{row+2}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
                 
@@ -196,11 +196,11 @@ def createNewOPCR(data, assigned, admin_data):
                     target_deadline_desc = "on the set deadline"
 
                     if a["working_days"]["actual"] == 0:
-                        actual_deadline_desc = "on the set deadline"
+                        actual_deadline_desc = "on the set deadline with"
                     elif a["working_days"]["actual"] > 0:
-                        actual_deadline_desc = "day/s late in average"
+                        actual_deadline_desc = "day/s late with"
                     else:
-                        actual_deadline_desc = "day/s early in average"
+                        actual_deadline_desc = "day/s early with"
 
                     prepareCells(ws, f"K{row+2}", f"M{row+3}")
                     ws[f"K{row+2}"] = actual_deadline_desc
@@ -208,11 +208,11 @@ def createNewOPCR(data, assigned, admin_data):
 
                 else:
                     prepareCells(ws, f"K{row+2}", f"M{row+3}")
-                    ws[f"K{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                    ws[f"K{row+2}"] = str(a["description"]["time"] or "") + " with"
                     ws[f"K{row+2}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
                 
                 prepareCells(ws, str("K"+str(row+4)), str("M"+str(row + 5)))
-                ws["K"+str(row+4)] = a["description"]["alterations"] + "/s in average" # desc quant
+                ws["K"+str(row+4)] = a["description"]["alterations"] + "/s" # desc quant
                 ws[f"K{row+4}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
                 
                 #dito yung ratings
@@ -238,7 +238,7 @@ def createNewOPCR(data, assigned, admin_data):
                 
                 #remarks na wala talagang laman
                 from models.System_Settings import System_Settings
-                settings = System_Settings.query.first()
+                settings = System_Settings.get_default_settings()
                 rating_thresholds = settings.rating_thresholds if settings else {
                     "POOR": {"min": 1, "max": 1.9},
                     "UNSATISFACTORY": {"min": 2, "max": 2.9},
@@ -536,12 +536,12 @@ def createNewWeightedOPCR(data, assigned, admin_data):
 
                 if a["description"]["timeliness_mode"] == "deadline":
                     prepareCells(ws, f"F{row+2}", f"G{row+3}")
-                    ws[f"F{row+2}"] = f"on the set deadline"
+                    ws[f"F{row+2}"] = f"on the set deadline with"
                     ws[f"F{row+2}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
                 else:
                     prepareCells(ws, f"F{row+2}", f"G{row+3}")
-                    ws[f"F{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                    ws[f"F{row+2}"] = str(a["description"]["time"] or "") + " with"
                     ws[f"F{row+2}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
                 
@@ -597,11 +597,11 @@ def createNewWeightedOPCR(data, assigned, admin_data):
                     target_deadline_desc = "on the set deadline"
 
                     if a["working_days"]["actual"] == 0:
-                        actual_deadline_desc = "on the set deadline"
+                        actual_deadline_desc = "on the set deadline with"
                     elif a["working_days"]["actual"] > 0:
-                        actual_deadline_desc = "day/s late in average"
+                        actual_deadline_desc = "day/s late with"
                     else:
-                        actual_deadline_desc = "day/s early in average"
+                        actual_deadline_desc = "day/s early with"
 
                     prepareCells(ws, f"K{row+2}", f"M{row+3}")
                     ws[f"K{row+2}"] = actual_deadline_desc
@@ -609,11 +609,11 @@ def createNewWeightedOPCR(data, assigned, admin_data):
 
                 else:
                     prepareCells(ws, f"K{row+2}", f"M{row+3}")
-                    ws[f"K{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                    ws[f"K{row+2}"] = str(a["description"]["time"] or "") + " with"
                     ws[f"K{row+2}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
                 
                 prepareCells(ws, str("K"+str(row+4)), str("M"+str(row + 5)))
-                ws["K"+str(row+4)] = a["description"]["alterations"] + "/s in average" # desc quant
+                ws["K"+str(row+4)] = a["description"]["alterations"] + "/s" # desc quant
                 ws[f"K{row+4}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
                 
                 #dito yung ratings
@@ -639,7 +639,7 @@ def createNewWeightedOPCR(data, assigned, admin_data):
                 
                 #remarks na wala talagang laman
                 from models.System_Settings import System_Settings
-                settings = System_Settings.query.first()
+                settings = System_Settings.get_default_settings()
                 rating_thresholds = settings.rating_thresholds if settings else {
                     "POOR": {"min": 1, "max": 1.9},
                     "UNSATISFACTORY": {"min": 2, "max": 2.9},
@@ -966,7 +966,7 @@ def createNewMasterOPCR(data, assigned, admin_data):
                 ws["K"+str(row)].alignment = Alignment(wrap_text=True, horizontal="left", vertical = "center")
                 
                 prepareCells(ws, str("K"+str(row+2)), str("M"+str(row + 3)))
-                ws["K"+str(row+2)] = a["description"]["time"] + "/s in average" # desc quant
+                ws["K"+str(row+2)] = a["description"]["time"] + "/s with" # desc quant
                 
                 prepareCells(ws, str("K"+str(row+4)), str("M"+str(row + 5)))
                 ws["K"+str(row+4)] = a["description"]["alterations"] # desc quant
@@ -1211,7 +1211,7 @@ def createNewIPCR(data, given, middle, last, individuals, position, dates):
                 ws.row_dimensions[row].height = 45
                 
                 prepareCells(ws, str("G"+str(row+2)), str("I"+str(row + 3)))
-                ws["G"+str(row+2)] = a["description"]["time"] + " spent" # time quant
+                ws["G"+str(row+2)] = a["description"]["time"] + " with" # time quant
                 
                 prepareCells(ws, str("G"+str(row+4)), str("I"+str(row + 5)))
                 ws["G"+str(row+4)] = a["description"]["alterations"]  # correct quant
@@ -1237,7 +1237,7 @@ def createNewIPCR(data, given, middle, last, individuals, position, dates):
                 ws["K"+str(row)].alignment = Alignment(wrap_text=True, horizontal="left", vertical = "center")
                 
                 prepareCells(ws, str("K"+str(row+2)), str("M"+str(row + 3)))
-                ws["K"+str(row+2)] = a["description"]["time"] + " spent" # desc quant
+                ws["K"+str(row+2)] = a["description"]["time"] + " with" # desc quant
                 
                 prepareCells(ws, str("K"+str(row+4)), str("M"+str(row + 5)))
                 ws["K"+str(row+4)] = a["description"]["alterations"] # desc quant

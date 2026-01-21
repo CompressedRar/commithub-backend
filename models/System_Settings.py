@@ -116,6 +116,42 @@ class System_Settings(db.Model):
             "current_phase": self.get_current_period()            
         }
     
+    @staticmethod
+    def get_default_settings():
+        """
+        Safe getter: Returns current settings or creates default if none exists.
+        This ensures the application never breaks if settings are deleted.
+        """
+        settings = System_Settings.query.first()
+        
+        if not settings:
+            # Create default settings
+            settings = System_Settings(
+                rating_thresholds={
+                    "outstanding": {"min": 1.30},
+                    "very_satisfactory": {"min": 1.15, "max": 1.29},
+                    "satisfactory": {"min": 0.90, "max": 1.14},
+                    "unsatisfactory": {"min": 0.51, "max": 0.89},
+                    "poor": {"max": 0.50}
+                },
+                quantity_formula={"expression": "(actual / target) if target > 0 else 0", "rating_scale": {"1": {"lt": 0.7}, "2": {"gte": 0.7, "lte": 0.899}, "3": {"gte": 0.9, "lte": 1}, "4": {"gte": 1.01, "lte": 1.299}, "5": {"gte": 1.3}}},
+                efficiency_formula={"expression": "actual", "rating_scale": {"1": {"gte": 7}, "2": {"gte": 5, "lte": 6}, "3": {"gte": 3, "lte": 4}, "4": {"gte": 1, "lte": 2}, "5": {"eq": 0}}},
+                timeliness_formula={"expression": "(((target - actual) / target) + 1) if target > 0 else 1", "rating_scale": {"1": {"lt": 0.51}, "2": {"gte": 0.51, "lte": 0.89}, "3": {"gte": 0.9, "lte": 1.14}, "4": {"gte": 1.15, "lte": 1.29}, "5": {"gte": 1.3}}},
+                current_period_id=f"PERIOD-{datetime.now().year}-{secrets.token_hex(4).upper()}",
+                current_phase="planning",
+                current_president_fullname="Dr. Ma. Liberty DG. Pascual",
+                current_mayor_fullname="Hon. Maria Elena Germar"
+            )
+            try:
+                db.session.add(settings)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                # If creation fails, query again (concurrent creation)
+                settings = System_Settings.query.first()
+        
+        return settings
+    
 
 class System_Settings_Service:
     @staticmethod

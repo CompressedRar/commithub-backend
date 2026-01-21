@@ -53,7 +53,7 @@ class Department(db.Model):
     
     def collect_all_ipcr(self):
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
         all_ipcr = []
         for user in self.users:
             for ipcr in user.ipcrs:
@@ -64,7 +64,7 @@ class Department(db.Model):
     
     def collect_all_opcr(self):
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
         all_ipcr = []
         
         for opcr in self.opcrs:
@@ -84,10 +84,7 @@ class Department(db.Model):
             "manager": self.manager_id,
             "icon": self.icon,
             "users": [user.to_dict() for user in self.users],
-            "opcrs":[opcr.to_dict() for opcr in self.opcrs],
             "user_count": self.count_users(),
-            "opcr_count": self.count_opcr(),
-            "ipcr_count": self.count_ipcr(),
             "main_tasks": [main_task.info() for main_task in self.main_tasks],
             "main_tasks_count": self.count_tasks(),     
             "is_head_occupied": self.is_head_occupied()       #true or false
@@ -99,6 +96,8 @@ class Department_Service():
         try:
             all_depts = Department.query.filter_by(status=1).all()
             all_converted = [dept.to_dict() for dept in all_depts]
+
+            
 
             return jsonify(all_converted), 200
         except OperationalError:
@@ -319,7 +318,7 @@ class Department_Service():
     def get_all_department_ipcr(dept_id):
         try:
             from models.System_Settings import System_Settings
-            settings = System_Settings.query.first()
+            settings = System_Settings.get_default_settings()
 
             dept_members = User.query.filter_by(department_id = dept_id).all()
 
@@ -402,7 +401,7 @@ class Department_Service():
 
         from models.System_Settings import System_Settings
 
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
         current_period = settings.current_period_id
 
         results = (
@@ -485,7 +484,7 @@ class Department_Service():
         """
 
         from models.System_Settings import System_Settings
-        settings = System_Settings.query.first()
+        settings = System_Settings.get_default_settings()
         current_period = settings.current_period_id
 
         # Query department averages based on Sub_Task ratings through user relationships
