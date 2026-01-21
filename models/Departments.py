@@ -440,6 +440,57 @@ class Department_Service():
             })
 
         return jsonify(data), 200
+    
+    def get_performance_summary_by_department():
+        """
+        Returns department performance averages for CURRENT PERIOD only:
+        [
+            { "name": "Education", "value": 3.5 },
+            { "name": "Registrar", "value": 4.1 }
+        ]
+        """
+
+        from models.System_Settings import System_Settings
+
+        settings = System_Settings.get_default_settings()
+        current_period = settings.current_period_id
+
+        results = (
+            db.session.query(
+                Department.name.label("name"),
+                func.avg(
+                    (
+                        func.coalesce(Sub_Task.quantity, 0) +
+                        func.coalesce(Sub_Task.efficiency, 0) +
+                        func.coalesce(Sub_Task.timeliness, 0)
+                    ) / 3.0
+                ).label("value")
+            )
+            .join(User, User.department_id == Department.id)
+            .join(Output, Output.user_id == User.id)
+            .join(Sub_Task, Sub_Task.output_id == Output.id)
+            .filter(
+                Output.period == current_period,
+                Sub_Task.status == 1,
+                Output.status == 1
+            )
+            .group_by(Department.id)
+            .all()
+        )
+
+        # Ensure all departments appear
+        departments = Department.query.all()
+        data = []
+
+        for dept in departments:
+            match = next((r for r in results if r.name == dept.name), None)
+            avg_value = round(match.value, 2) if match and match.value else 0
+            data.append({
+                "name": dept.name,
+                "value": avg_value
+            })
+
+        return data
 
 
     

@@ -593,6 +593,40 @@ class Sub_Task(db.Model):
         # Fallback to system settings
         settings = System_Settings.get_default_settings()
         return getattr(settings, f"{metric}_formula")
+    
+
+    def calculate_with_override(self, metric, target, actual):
+
+        from models.System_Settings import System_Settings
+        settings = System_Settings.get_default_settings()
+
+        assigned_dept_configs = {
+            ad.main_task_id: {
+                "enable": ad.enable_formulas,
+                "quantity": ad.quantity_formula,
+                "efficiency": ad.efficiency_formula,
+                "timeliness": ad.timeliness_formula,
+                "weight": float(ad.task_weight / 100)
+            }
+            for ad in Assigned_Department.query.filter_by(
+                department_id=self.ipcr.user.department.id,
+                period = settings.current_period_id
+            ).all()
+        }
+
+        engine = Formula_Engine()
+        dept_cfg = assigned_dept_configs.get(self.main_task_id)
+
+        if dept_cfg and dept_cfg["enable"]:
+            formula = dept_cfg[metric]
+        else:
+            formula = getattr(settings, f"{metric}_formula")
+
+        return engine.compute_rating(
+                formula=formula,
+                target=target,
+                actual=actual
+        )
 
 
     def calculateQuantity(self):
@@ -1862,9 +1896,23 @@ class Tasks_Service():
 
             for sub_task in task.sub_tasks:
                 # Dynamically compute each rating
-                quantity = sub_task.calculateQuantity()
-                efficiency = sub_task.calculateEfficiency()
-                timeliness = sub_task.calculateTimeliness()
+
+                timeliness = 0
+
+                if task.timeliness_mode == "timeframe":
+                    timeliness = sub_task.calculate_with_override("timeliness", sub_task.target_time, sub_task.actual_time)
+                else:
+                    days_late = (
+                                    sub_task.actual_deadline
+                                    - sub_task.main_task.target_deadline
+                                ).days
+                    actual_working_days = days_late
+                    target_working_days = 1
+                    timeliness = sub_task.calculate_with_override("timeliness", target_working_days, actual_working_days)
+
+                quantity = sub_task.calculate_with_override("quantity", sub_task.target_acc, sub_task.actual_acc)
+                
+                efficiency = sub_task.calculate_with_override("efficiency", sub_task.target_mod, sub_task.actual_mod)
                 average = sub_task.calculateAverage()
 
                 total_quantity += quantity
@@ -1895,3 +1943,76 @@ class Tasks_Service():
                 })
 
         return jsonify(data), 200
+    
+    def calculate_all_tasks_average_summary():
+        """
+        Calculates the real average performance for ALL main tasks
+        (across all categories), using Sub_Task's calculation methods.
+        """
+
+        from models.System_Settings import System_Settings
+        settings = System_Settings.get_default_settings()
+
+
+        all_tasks = Main_Task.query.filter_by(status=1, period = settings.current_period_id).all()
+        data = []
+
+        for task in all_tasks:
+            total_quantity = 0
+            total_efficiency = 0
+            total_timeliness = 0
+            total_average = 0
+            count = 0
+
+            for sub_task in task.sub_tasks:
+                # Dynamically compute each rating
+
+                timeliness = 0
+
+                if task.timeliness_mode == "timeframe":
+                    timeliness = sub_task.calculate_with_override("timeliness", sub_task.target_time, sub_task.actual_time)
+                else:
+                    days_late = (
+                                    sub_task.actual_deadline
+                                    - sub_task.main_task.target_deadline
+                                ).days
+                    actual_working_days = days_late
+                    target_working_days = 1
+                    timeliness = sub_task.calculate_with_override("timeliness", target_working_days, actual_working_days)
+
+                quantity = sub_task.calculate_with_override("quantity", sub_task.target_acc, sub_task.actual_acc)
+                
+                efficiency = sub_task.calculate_with_override("efficiency", sub_task.target_mod, sub_task.actual_mod)
+                average = sub_task.calculateAverage()
+
+                total_quantity += quantity
+                total_efficiency += efficiency
+                total_timeliness += timeliness
+                total_average += average
+                count += 1
+
+            if count > 0:
+                data.append({
+                    "task_id": task.id,
+                    "category_id": task.category_id,
+                    "task_name": task.mfo,
+                    "average_quantity": round(total_quantity / count, 2),
+                    "average_efficiency": round(total_efficiency / count, 2),
+                    "average_timeliness": round(total_timeliness / count, 2),
+                    "overall_average": round(total_average / count, 2),
+                })
+            else:
+                data.append({
+                    "task_id": task.id,
+                    "category_id": task.category_id,
+                    "task_name": task.mfo,
+                    "average_quantity": 0,
+                    "average_efficiency": 0,
+                    "average_timeliness": 0,
+                    "overall_average": 0,
+                })
+
+        return data
+    
+
+    

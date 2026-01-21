@@ -374,7 +374,7 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
 
                     else:
                         prepareCells(ws, f"G{row+2}", f"I{row+3}")
-                        ws[f"G{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                        ws[f"G{row+2}"] = str(a["description"]["time"] or "") + " with"
                         ws[f"G{row+2}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
                     prepareCells(ws, f"G{row+4}", f"I{row+5}")
@@ -414,7 +414,7 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
 
                     else:
                         prepareCells(ws, f"K{row+2}", f"M{row+3}")
-                        ws[f"K{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                        ws[f"K{row+2}"] = str(a["description"]["time"] or "") + " with"
                         ws[f"K{row+2}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
 
                     prepareCells(ws, f"K{row+4}", f"M{row+5}")
@@ -824,7 +824,7 @@ def createNewWeightedIPCR_from_db(ipcr_id, individuals=None, filename_prefix=Non
 
                     else:
                         prepareCells(ws, f"G{row+2}", f"I{row+3}")
-                        ws[f"G{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                        ws[f"G{row+2}"] = str(a["description"]["time"] or "") + " with"
                         ws[f"G{row+2}"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
                     prepareCells(ws, f"G{row+4}", f"I{row+5}")
@@ -864,7 +864,7 @@ def createNewWeightedIPCR_from_db(ipcr_id, individuals=None, filename_prefix=Non
 
                     else:
                         prepareCells(ws, f"K{row+2}", f"M{row+3}")
-                        ws[f"K{row+2}"] = str(a["description"]["time"] or "") + " spent"
+                        ws[f"K{row+2}"] = str(a["description"]["time"] or "") + " with"
                         ws[f"K{row+2}"].alignment = Alignment(wrap_text=True, horizontal="left", vertical="center")
 
                     prepareCells(ws, f"K{row+4}", f"M{row+5}")

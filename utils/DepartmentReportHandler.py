@@ -5,9 +5,10 @@ from openpyxl.utils import get_column_letter
 import datetime
 import random
 from utils.FileStorage import upload_file
-from models.Departments import Department
+from models.Departments import Department, Department_Service
 from models.User import User
 from models.System_Settings import System_Settings
+from models.Tasks import Tasks_Service
 
 def prepareCells(workshop, start, end):
     workshop.merge_cells(f"{start}:{end}")
@@ -208,6 +209,372 @@ def create_department_performance_report(department_id, filename_prefix=None):
     prefix = filename_prefix if filename_prefix else "Department Performance"
     period = f"{datetime.datetime.now().strftime('%B %Y')}"
     filename = f"{prefix} - {dept.name} - {period} - {id_rand}"
+    
+    filepath = f"excels/DepartmentReports/{filename}.xlsx"
+    wb.save(filepath)
+    
+    # Upload to cloud storage
+    file_url = upload_file(filepath, "commithub-bucket", f"DepartmentReports/{filename}.xlsx")
+    
+    return file_url
+
+
+def create_all_departments_performance_report(filename_prefix=None):
+    """
+    Create an Excel sheet showing average performance of members in a department.
+    
+    Layout:
+    - Header: Office name | Performance Assessment: Rating
+    - Columns: Name | Numerical | Adjective
+    - Data rows with employee ratings
+    - Footer: Total, No. of Employees, Average Ratings
+    
+    Args:
+        department_id: The department DB id
+        filename_prefix: Optional prefix for filename
+    
+    Returns:
+        download link from FileStorage
+    """
+    
+    # Query department and members
+    depts = Department_Service.get_performance_summary_by_department()
+        
+    # Get system settings for rating thresholds
+    settings = System_Settings.get_default_settings()
+    rating_thresholds = settings.rating_thresholds if settings else {
+        "Outstanding": {"min": 4.5, "max": 5.0},
+        "Very Satisfactory": {"min": 3.5, "max": 4.49},
+        "Satisfactory": {"min": 2.5, "max": 3.49},
+        "Unsatisfactory": {"min": 1.5, "max": 2.49},
+        "Poor": {"min": 0, "max": 1.49}
+    }
+    
+    # Create new workbook
+    wb = load_workbook("excels/OfficeSummaryReport.xlsx")
+    
+    ws = wb.active
+    ws.title = "Office Performance"
+    
+    
+    border_style = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin")
+    )
+    total_fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+    total_font = Font(bold=True)
+    
+    # Row 1-3: Headers
+    ws["G8"] = "NORZAGARAY COLLEGE"
+    
+    member_data = []
+    total_rating = 0
+    
+    for department in depts:
+        # Calculate average performance for this user
+        # Using IPCR final average if available, otherwise 0
+        
+        
+        member_data.append({
+                'name': department["name"],
+                'rating': round(department["value"], 2)
+            })
+        
+        total_rating += round(department["value"], 2)
+    
+    # Sort by name
+
+    print("TOTAL RATING:",total_rating)
+    member_data.sort(key=lambda x: x['name'])
+    
+    # Write member data rows
+    row = 10
+    for member in member_data:
+        prepareCells(ws, "G"+str(row), "I"+str(row))
+        prepareCells(ws, "J"+str(row), "L"+str(row))
+        prepareCells(ws, "M"+str(row), "O"+str(row))
+        name = member['name']
+        rating = member['rating']
+        
+        # Determine adjective rating
+        adjective = "UNRATED"
+        for rating_name, thresholds in rating_thresholds.items():
+            min_val = thresholds.get("min", 0)
+            max_val = thresholds.get("max", 5)
+            if min_val <= rating <= max_val:
+                adjective = str(rating_name).replace("_", " ").upper()
+                break
+        
+        # Write row
+        ws[f'G{row}'] = name
+        ws[f'J{row}'] = rating
+        ws[f'M{row}'] = adjective
+        
+        # Apply formatting
+        for col in ['G', 'J', 'M']:
+            cell = ws[f'{col}{row}']
+            cell.border = border_style
+            cell.alignment = Alignment(horizontal="left" if col == 'G' else "center", vertical="center")
+            if col == 'J':
+                cell.number_format = '0.00'
+        
+        row += 1
+    
+    # Empty row
+    row += 1
+
+    prepareCells(ws, "G"+str(row), "I"+str(row))
+    prepareCells(ws, "J"+str(row), "L"+str(row))
+    prepareCells(ws, "M"+str(row), "O"+str(row))
+    
+    # Total row
+    ws[f'G{row}'] = "Total"
+    ws[f'J{row}'] = round(total_rating, 2) if member_data else 0
+    
+    for col in ['G', 'J']:
+        cell = ws[f'{col}{row}']
+        cell.font = total_font
+        cell.border = border_style
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+        if col == 'J':
+            cell.number_format = '0.00'
+    
+    row += 1
+
+    prepareCells(ws, "G"+str(row), "I"+str(row))
+    prepareCells(ws, "J"+str(row), "L"+str(row))
+    prepareCells(ws, "M"+str(row), "O"+str(row))
+    
+    # No. of Employees row
+    ws[f'G{row}'] = "No. of Offices"
+    ws[f'J{row}'] = len(member_data)
+    
+    for col in ['G', 'J']:
+        cell = ws[f'{col}{row}']
+        cell.font = total_font
+        cell.border = border_style
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+    
+    row += 1
+
+    prepareCells(ws, "G"+str(row), "I"+str(row))
+    prepareCells(ws, "J"+str(row), "L"+str(row))
+    prepareCells(ws, "M"+str(row), "O"+str(row))
+    
+    # Average Ratings row
+    avg_rating = total_rating / len(member_data) if member_data else 0
+    
+    # Determine average adjective
+    avg_adjective = "UNRATED"
+    for rating_name, thresholds in rating_thresholds.items():
+        min_val = thresholds.get("min", 0)
+        max_val = thresholds.get("max", 5)
+        if min_val <= avg_rating <= max_val:
+            avg_adjective = str(rating_name).replace("_", " ").upper()
+            break
+    
+    ws[f'G{row}'] = "Average Ratings of Office"
+    ws[f'J{row}'] = round(avg_rating, 2)
+    ws[f'M{row}'] = str(avg_adjective).replace("_", " ").upper()
+    
+    for col in ['G', 'J', 'M']:
+        cell = ws[f'{col}{row}']
+        cell.font = total_font
+        cell.border = border_style
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+        if col == 'J':
+            cell.number_format = '0.00'
+    
+    # Save and upload
+    id_rand = random.randint(1, 999999)
+    prefix = filename_prefix if filename_prefix else "Department Performance Summary"
+    period = f"{datetime.datetime.now().strftime('%B %Y')}"
+    filename = f"{prefix} - {"NORZAGARAY COLLEGE"} - {period} - {id_rand}"
+    
+    filepath = f"excels/DepartmentReports/{filename}.xlsx"
+    wb.save(filepath)
+    
+    # Upload to cloud storage
+    file_url = upload_file(filepath, "commithub-bucket", f"DepartmentReports/{filename}.xlsx")
+    
+    return file_url
+
+
+def create_all_tasks_summary_report(filename_prefix=None):
+    """
+    Create an Excel sheet showing average performance of members in a department.
+    
+    Layout:
+    - Header: Office name | Performance Assessment: Rating
+    - Columns: Name | Numerical | Adjective
+    - Data rows with employee ratings
+    - Footer: Total, No. of Employees, Average Ratings
+    
+    Args:
+        department_id: The department DB id
+        filename_prefix: Optional prefix for filename
+    
+    Returns:
+        download link from FileStorage
+    """
+    
+    # Query department and members
+    depts = Tasks_Service.calculate_all_tasks_average_summary()
+        
+    # Get system settings for rating thresholds
+    settings = System_Settings.get_default_settings()
+    rating_thresholds = settings.rating_thresholds if settings else {
+        "Outstanding": {"min": 4.5, "max": 5.0},
+        "Very Satisfactory": {"min": 3.5, "max": 4.49},
+        "Satisfactory": {"min": 2.5, "max": 3.49},
+        "Unsatisfactory": {"min": 1.5, "max": 2.49},
+        "Poor": {"min": 0, "max": 1.49}
+    }
+    
+    # Create new workbook
+    wb = load_workbook("excels/TaskSummaryReport.xlsx")
+    
+    ws = wb.active
+    ws.title = "Performance Summary"
+    
+    
+    border_style = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin")
+    )
+    total_fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+    total_font = Font(bold=True)
+    
+    # Row 1-3: Headers
+    ws["G8"] = "NORZAGARAY COLLEGE"
+    
+    member_data = []
+    total_rating = 0
+    
+    for department in depts:
+        # Calculate average performance for this user
+        # Using IPCR final average if available, otherwise 0
+        
+        
+        member_data.append({
+                'name': department["task_name"],
+                'rating': round(department["overall_average"], 2)
+            })
+        
+        total_rating += round(department["overall_average"], 2)
+    
+    # Sort by name
+
+    print("TOTAL RATING:",total_rating)
+    member_data.sort(key=lambda x: x['name'])
+    
+    # Write member data rows
+    row = 10
+    for member in member_data:
+        prepareCells(ws, "G"+str(row), "I"+str(row))
+        prepareCells(ws, "J"+str(row), "L"+str(row))
+        prepareCells(ws, "M"+str(row), "O"+str(row))
+        name = member['name']
+        rating = member['rating']
+        
+        # Determine adjective rating
+        adjective = "UNRATED"
+        for rating_name, thresholds in rating_thresholds.items():
+            min_val = thresholds.get("min", 0)
+            max_val = thresholds.get("max", 5)
+            if min_val <= rating <= max_val:
+                adjective = str(rating_name).replace("_", " ").upper()
+                break
+        
+        # Write row
+        ws[f'G{row}'] = name
+        ws[f'J{row}'] = rating
+        ws[f'M{row}'] = adjective
+        
+        # Apply formatting
+        for col in ['G', 'J', 'M']:
+            cell = ws[f'{col}{row}']
+            cell.border = border_style
+            cell.alignment = Alignment(horizontal="left" if col == 'G' else "center", vertical="center")
+            if col == 'J':
+                cell.number_format = '0.00'
+        
+        row += 1
+    
+    # Empty row
+    row += 1
+
+    prepareCells(ws, "G"+str(row), "I"+str(row))
+    prepareCells(ws, "J"+str(row), "L"+str(row))
+    prepareCells(ws, "M"+str(row), "O"+str(row))
+    
+    # Total row
+    ws[f'G{row}'] = "Total"
+    ws[f'J{row}'] = round(total_rating, 2) if member_data else 0
+    
+    for col in ['G', 'J']:
+        cell = ws[f'{col}{row}']
+        cell.font = total_font
+        cell.border = border_style
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+        if col == 'J':
+            cell.number_format = '0.00'
+    
+    row += 1
+
+    prepareCells(ws, "G"+str(row), "I"+str(row))
+    prepareCells(ws, "J"+str(row), "L"+str(row))
+    prepareCells(ws, "M"+str(row), "O"+str(row))
+    
+    # No. of Employees row
+    ws[f'G{row}'] = "No. of Tasks"
+    ws[f'J{row}'] = len(member_data)
+    
+    for col in ['G', 'J']:
+        cell = ws[f'{col}{row}']
+        cell.font = total_font
+        cell.border = border_style
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+    
+    row += 1
+
+    prepareCells(ws, "G"+str(row), "I"+str(row))
+    prepareCells(ws, "J"+str(row), "L"+str(row))
+    prepareCells(ws, "M"+str(row), "O"+str(row))
+    
+    # Average Ratings row
+    avg_rating = total_rating / len(member_data) if member_data else 0
+    
+    # Determine average adjective
+    avg_adjective = "UNRATED"
+    for rating_name, thresholds in rating_thresholds.items():
+        min_val = thresholds.get("min", 0)
+        max_val = thresholds.get("max", 5)
+        if min_val <= avg_rating <= max_val:
+            avg_adjective = str(rating_name).replace("_", " ").upper()
+            break
+    
+    ws[f'G{row}'] = "Average Task Rating"
+    ws[f'J{row}'] = round(avg_rating, 2)
+    ws[f'M{row}'] = str(avg_adjective).replace("_", " ").upper()
+    
+    for col in ['G', 'J', 'M']:
+        cell = ws[f'{col}{row}']
+        cell.font = total_font
+        cell.border = border_style
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+        if col == 'J':
+            cell.number_format = '0.00'
+    
+    # Save and upload
+    id_rand = random.randint(1, 999999)
+    prefix = filename_prefix if filename_prefix else "Performance Summary"
+    period = f"{datetime.datetime.now().strftime('%B %Y')}"
+    filename = f"{prefix} - {"NORZAGARAY COLLEGE"} - {period} - {id_rand}"
     
     filepath = f"excels/DepartmentReports/{filename}.xlsx"
     wb.save(filepath)
