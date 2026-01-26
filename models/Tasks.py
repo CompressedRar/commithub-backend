@@ -720,6 +720,27 @@ class Sub_Task(db.Model):
 
         from models.System_Settings import System_Settings_Service
 
+        timeliness = 0
+
+        if self.main_task.timeliness_mode == "timeframe" and not System_Settings_Service.check_if_rating_period():
+            timeliness = self.calculate_with_override("timeliness", self.main_task.target_timeframe, self.actual_time)
+        else:
+            if self.actual_deadline and self.main_task.target_deadline:
+                days_late = (
+                    self.actual_deadline - self.main_task.target_deadline
+                ).days
+                actual_working_days = days_late
+                target_working_days = 1
+                timeliness = self.calculate_with_override("timeliness", target_working_days, actual_working_days)
+            else:
+                timeliness = self.timeliness
+        
+        self.timeliness = timeliness if not System_Settings_Service.check_if_rating_period() else self.timeliness
+        self.efficiency = self.calculate_with_override("efficiency", self.main_task.target_efficiency, self.actual_mod) if not System_Settings_Service.check_if_rating_period() else self.efficiency
+        self.quantity = self.calculate_with_override("quantity", self.main_task.target_quantity, self.actual_acc) if not System_Settings_Service.check_if_rating_period() else self.quantity
+         
+
+        
 
 
         return {
@@ -737,9 +758,9 @@ class Sub_Task(db.Model):
             "status": self.status,
             "batch_id": self.batch_id,
 
-            "quantity": self.calculateQuantity() if not System_Settings_Service.check_if_rating_period() else self.quantity, 
-            "efficiency": self.calculateEfficiency() if not System_Settings_Service.check_if_rating_period() else self.efficiency,
-            "timeliness": self.calculateTimeliness() if not System_Settings_Service.check_if_rating_period() else self.timeliness,
+            "quantity":  self.quantity, 
+            "efficiency": self.efficiency,
+            "timeliness": self.timeliness,
             "average": self.calculateAverage(),        
 
             "ipcr": self.ipcr.info(),
@@ -1874,6 +1895,8 @@ class Tasks_Service():
 
         return data
     
+    
+    
     def get_all_tasks_average_summary():
         """
         Calculates the real average performance for ALL main tasks
@@ -1902,13 +1925,17 @@ class Tasks_Service():
                 if task.timeliness_mode == "timeframe":
                     timeliness = sub_task.calculate_with_override("timeliness", sub_task.target_time, sub_task.actual_time)
                 else:
-                    days_late = (
-                                    sub_task.actual_deadline
-                                    - sub_task.main_task.target_deadline
-                                ).days
-                    actual_working_days = days_late
-                    target_working_days = 1
-                    timeliness = sub_task.calculate_with_override("timeliness", target_working_days, actual_working_days)
+                    # Handle deadline-based timeliness with proper null checks
+                    if sub_task.actual_deadline and sub_task.main_task.target_deadline:
+                        days_late = (
+                            sub_task.actual_deadline - sub_task.main_task.target_deadline
+                        ).days
+                        actual_working_days = days_late
+                        target_working_days = 1
+                        timeliness = sub_task.calculate_with_override("timeliness", target_working_days, actual_working_days)
+                    else:
+                        # Fallback if deadlines are missing: use default rating
+                        timeliness = 0
 
                 quantity = sub_task.calculate_with_override("quantity", sub_task.target_acc, sub_task.actual_acc)
                 
@@ -1972,13 +1999,17 @@ class Tasks_Service():
                 if task.timeliness_mode == "timeframe":
                     timeliness = sub_task.calculate_with_override("timeliness", sub_task.target_time, sub_task.actual_time)
                 else:
-                    days_late = (
-                                    sub_task.actual_deadline
-                                    - sub_task.main_task.target_deadline
-                                ).days
-                    actual_working_days = days_late
-                    target_working_days = 1
-                    timeliness = sub_task.calculate_with_override("timeliness", target_working_days, actual_working_days)
+                    # Handle deadline-based timeliness with proper null checks
+                    if sub_task.actual_deadline and sub_task.main_task.target_deadline:
+                        days_late = (
+                            sub_task.actual_deadline - sub_task.main_task.target_deadline
+                        ).days
+                        actual_working_days = days_late
+                        target_working_days = 1
+                        timeliness = sub_task.calculate_with_override("timeliness", target_working_days, actual_working_days)
+                    else:
+                        # Fallback if deadlines are missing: use default rating
+                        timeliness = 0
 
                 quantity = sub_task.calculate_with_override("quantity", sub_task.target_acc, sub_task.actual_acc)
                 

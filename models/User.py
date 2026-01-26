@@ -381,6 +381,10 @@ class User(db.Model):
     notifications = db.relationship("Notification", back_populates="user", cascade = "all, delete")
 
     assigned_tasks = db.relationship("Assigned_Task", back_populates="user")
+
+    def full_name(self):
+        middle_initial = self.middle_name[0].upper() + ". " if self.middle_name else " "
+        return self.first_name + " " + middle_initial + self.last_name
     
     def info(self):
 

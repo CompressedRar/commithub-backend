@@ -84,8 +84,9 @@ class Supporting_Document(db.Model):
             "status": self.status,
             "download_url": FileStorage.get_file("documents/" + self.file_name),
             "task_name": self.sub_task.main_task.mfo if self.sub_task else "",
-            "task_id": self.sub_task.id if self.sub_task else ""
-
+            "task_id": self.sub_task.id if self.sub_task else "",
+            "user_name": self.ipcr.user.full_name(),
+            "department_name": self.ipcr.user.department.name
         }
     
 class OPCR_Supporting_Document(db.Model):
@@ -3057,6 +3058,23 @@ class PCR_Service():
             print("Error in get_master_opcr:", str(e))
             return jsonify(error=str(e)), 500
   
+
+    def collect_all_supporting_documents_by_department(dept_id):
+        try:
+            from models.System_Settings import System_Settings
+            settings = System_Settings.get_default_settings()
+            all_supporting_documents = Supporting_Document.query.filter_by(period = settings.current_period_id).all()
+
+            filtered_documents = []
+
+            for document in all_supporting_documents:
+                print("COMparing docs", document.ipcr.user.department.id, dept_id)
+                if str(document.ipcr.user.department.id) == dept_id:
+                    filtered_documents.append(document.to_dict())
+
+            return jsonify(message = filtered_documents), 200
+        except Exception as e:
+            return jsonify(error= "Collecting supporting documents failed"), 500
 
     def calculateQuantity(target_acc, actual_acc):
         rating = 0

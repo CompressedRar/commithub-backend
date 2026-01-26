@@ -134,6 +134,10 @@ def download_ipcr(ipcr_id):
 def get_supporting_documents(ipcr_id):
     return PCR_Service.get_ipcr_supporting_document(ipcr_id=ipcr_id)
 
+@pcrs.route("/documents/<dept_id>", methods = ["GET"])
+def collect_supporting_documents(dept_id):
+    return PCR_Service.collect_all_supporting_documents_by_department(dept_id)
+
 @pcrs.route("/opcr/documents/<opcr_id>", methods = ["GET"])
 @token_required()
 def get_supporting_documents_for_opcr(opcr_id):
