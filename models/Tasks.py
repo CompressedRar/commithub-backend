@@ -466,6 +466,7 @@ class Main_Task(db.Model):
             "target_timeframe": self.target_timeframe,
             "timeliness_mode": self.timeliness_mode,
             "target_deadline": str(self.target_deadline) if self.target_deadline else None,
+            "required_documents": self.require_documents
         }
 
     def info(self):
@@ -738,11 +739,7 @@ class Sub_Task(db.Model):
         self.timeliness = timeliness if not System_Settings_Service.check_if_rating_period() else self.timeliness
         self.efficiency = self.calculate_with_override("efficiency", self.main_task.target_efficiency, self.actual_mod) if not System_Settings_Service.check_if_rating_period() else self.efficiency
         self.quantity = self.calculate_with_override("quantity", self.main_task.target_quantity, self.actual_acc) if not System_Settings_Service.check_if_rating_period() else self.quantity
-         
-
-        
-
-
+      
         return {
             "id": self.id,
             "period_id": self.period,
@@ -1616,6 +1613,21 @@ class Tasks_Service():
         calculations = q + e + t
         result = calculations/3
         return result
+    
+    def get_department_task(dept_id):
+        try:
+            from models.System_Settings import System_Settings
+
+            settings = System_Settings.get_default_settings()
+
+            all_assigned_tasks = Assigned_Department.query.filter_by(period = settings.current_period_id , department_id = dept_id).all()
+
+            all_converted_tasks = [task.main_task.ipcr_info() for task in all_assigned_tasks]
+
+            return jsonify(tasks=all_converted_tasks), 200
+
+        except Exception as e:
+            return jsonify(error = "There is an error fetching tasks."), 500
 
 
         

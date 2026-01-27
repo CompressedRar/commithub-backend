@@ -85,6 +85,7 @@ class Supporting_Document(db.Model):
             "download_url": FileStorage.get_file("documents/" + self.file_name),
             "task_name": self.sub_task.main_task.mfo if self.sub_task else "",
             "task_id": self.sub_task.id if self.sub_task else "",
+            "main_task_id": self.sub_task.main_task.id,
             "user_name": self.ipcr.user.full_name(),
             "department_name": self.ipcr.user.department.name
         }
