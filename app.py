@@ -86,7 +86,7 @@ def create_app():
 
     @app.route("/")
     def home():
-        return "working now 2.1"
+        return "working now 2.2"
     
     @app.route("/nice")
     def homes():
