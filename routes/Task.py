@@ -15,9 +15,6 @@ def get_tasks_count():
 def get_tasks():
     return Tasks_Service.get_main_tasks()
 
-
-
-
 @task.route("/general", methods = ["GET"])
 @token_required()
 def get_general_tasks():

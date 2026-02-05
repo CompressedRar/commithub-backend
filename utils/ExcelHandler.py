@@ -38,7 +38,7 @@ def createNewOPCR(data, assigned, admin_data):
         
     print("ADMIN DATA", admin_data)
 
-    print("OPCR_DATA",data)
+    print("OPCR_DATA", data)
 
     wb = load_workbook("excels/OPCRTest.xlsx")
     ws = wb.active

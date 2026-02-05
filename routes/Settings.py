@@ -23,8 +23,8 @@ def update_settings():
     print("NEQW SETYTING", new_settings)
     return System_Settings_Service.update_settings(new_settings)
 
-@settings.route("/validate-formula", methods = ["POST"])
-@token_required(allowed_roles=["administrator"])
+@settings.route("/validate-formula", methods = ["POST", "PATCH"])
+@token_required(allowed_roles=["administrator", "head"])
 def validate_formula():
     new_settings = request.get_json()
     formula = loads(new_settings.get("formula"))

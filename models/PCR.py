@@ -1496,32 +1496,11 @@ class PCR_Service():
                     if task["frequency"] == 0:
                         continue
 
-                    quantity = PCR_Service.compute_rating_with_override(
-                        "quantity",
-                        task["summary"]["target"],
-                        task["summary"]["actual"],
-                        task["_task_id"],
-                        settings,
-                        assigned_dept_configs
-                    )
+                    quantity = 5
 
-                    efficiency = PCR_Service.compute_rating_with_override(
-                        "efficiency",
-                        task["corrections"]["target"],
-                        task["corrections"]["actual"],
-                        task["_task_id"],
-                        settings,
-                        assigned_dept_configs
-                    )
+                    efficiency = 5
 
-                    timeliness = PCR_Service.compute_rating_with_override(
-                        "timeliness",
-                        task["working_days"]["target"],
-                        task["working_days"]["actual"],
-                        task["_task_id"],
-                        settings,
-                        assigned_dept_configs
-                    )
+                    timeliness = 5
 
                     avg = PCR_Service.calculateAverage(quantity, efficiency, timeliness)
 
@@ -1721,30 +1700,9 @@ class PCR_Service():
                                         actual_working_days = days_late
                                         target_working_days = 1  
 
-                                        quantity = quantity = PCR_Service.compute_rating_with_override(
-                                            "quantity",
-                                            sub_task.target_acc,
-                                            sub_task.actual_acc,
-                                            sub_task.main_task.id,
-                                            settings,
-                                            assigned_dept_configs
-                                        )
-                                        efficiency = PCR_Service.compute_rating_with_override(
-                                            "efficiency",
-                                            sub_task.target_mod,
-                                            sub_task.actual_mod,
-                                            sub_task.main_task.id,
-                                            settings,
-                                            assigned_dept_configs
-                                        )
-                                        timeliness = PCR_Service.compute_rating_with_override(
-                                            "timeliness",
-                                            target_working_days,
-                                            actual_working_days,
-                                            sub_task.main_task.id,
-                                            settings,
-                                            assigned_dept_configs
-                                        )
+                                        quantity = 5
+                                        efficiency = 5
+                                        timeliness = 5
 
 
                                         rating_data = {
@@ -1767,30 +1725,9 @@ class PCR_Service():
                                         data[current_data_index][name][current_task_index]["frequency"] += 1
                                     else:
 
-                                        quantity = quantity = PCR_Service.compute_rating_with_override(
-                                            "quantity",
-                                            sub_task.target_acc,
-                                            sub_task.actual_acc,
-                                            sub_task.main_task.id,
-                                            settings,
-                                            assigned_dept_configs
-                                        )
-                                        efficiency = PCR_Service.compute_rating_with_override(
-                                            "efficiency",
-                                            sub_task.target_mod,
-                                            sub_task.actual_mod,
-                                            sub_task.main_task.id,
-                                            settings,
-                                            assigned_dept_configs
-                                        )
-                                        timeliness = PCR_Service.compute_rating_with_override(
-                                            "timeliness",
-                                            sub_task.target_time,
-                                            sub_task.actual_time,
-                                            sub_task.main_task.id,
-                                            settings,
-                                            assigned_dept_configs
-                                        )
+                                        quantity = 5
+                                        efficiency = 5
+                                        timeliness = 5
 
                                         rating_data = {
                                             "quantity": quantity,
@@ -1825,30 +1762,9 @@ class PCR_Service():
                                     actual_working_days = days_late
                                     target_working_days = 1  
 
-                                    quantity = quantity = PCR_Service.compute_rating_with_override(
-                                            "quantity",
-                                            sub_task.target_acc,
-                                            sub_task.actual_acc,
-                                            sub_task.main_task.id,
-                                            settings,
-                                            assigned_dept_configs
-                                        )
-                                    efficiency = PCR_Service.compute_rating_with_override(
-                                            "efficiency",
-                                            sub_task.target_mod,
-                                            sub_task.actual_mod,
-                                            sub_task.main_task.id,
-                                            settings,
-                                            assigned_dept_configs
-                                        )
-                                    timeliness = PCR_Service.compute_rating_with_override(
-                                            "timeliness",
-                                            target_working_days,
-                                            actual_working_days,
-                                            sub_task.main_task.id,
-                                            settings,
-                                            assigned_dept_configs
-                                        )
+                                    quantity =  5
+                                    efficiency = 5
+                                    timeliness = 5
 
 
                                     rating_data = {
@@ -1888,30 +1804,9 @@ class PCR_Service():
                                     # Positive if actual submission is AFTER target (late)
                                     
 
-                                    quantity = quantity = PCR_Service.compute_rating_with_override(
-                                            "quantity",
-                                            sub_task.target_acc,
-                                            sub_task.actual_acc,
-                                            sub_task.main_task.id,
-                                            settings,
-                                            assigned_dept_configs
-                                        )
-                                    efficiency = PCR_Service.compute_rating_with_override(
-                                            "efficiency",
-                                            sub_task.target_mod,
-                                            sub_task.actual_mod,
-                                            sub_task.main_task.id,
-                                            settings,
-                                            assigned_dept_configs
-                                        )
-                                    timeliness = PCR_Service.compute_rating_with_override(
-                                            "timeliness",
-                                            sub_task.target_time,
-                                            sub_task.actual_time,
-                                            sub_task.main_task.id,
-                                            settings,
-                                            assigned_dept_configs
-                                        )
+                                    quantity = 5
+                                    efficiency = 5
+                                    timeliness = 5
 
                                     rating_data = {
                                             "quantity": quantity,
@@ -2165,23 +2060,11 @@ class PCR_Service():
                 if task["frequency"] == 0:
                     continue
 
-                quantity = PCR_Service.compute_quantity_rating(
-                    task["summary"]["target"],
-                    task["summary"]["actual"],
-                    settings
-                )
+                quantity = 5
 
-                efficiency = PCR_Service.compute_efficiency_rating(
-                    task["corrections"]["target"],
-                    task["corrections"]["actual"],
-                    settings
-                )
+                efficiency = 5
 
-                timeliness = PCR_Service.compute_timeliness_rating(
-                    task["working_days"]["target"],
-                    task["working_days"]["actual"],
-                    settings
-                )
+                timeliness = 5
 
                 avg = PCR_Service.calculateAverage(quantity, efficiency, timeliness)
 
@@ -2740,32 +2623,11 @@ class PCR_Service():
                     if task["frequency"] == 0:
                         continue
 
-                    quantity = PCR_Service.compute_rating_with_override(
-                        "quantity",
-                        task["summary"]["target"],
-                        task["summary"]["actual"],
-                        task["_task_id"],
-                        settings,
-                        assigned_dept_configs
-                    )
+                    quantity = 5
 
-                    efficiency = PCR_Service.compute_rating_with_override(
-                        "efficiency",
-                        task["corrections"]["target"],
-                        task["corrections"]["actual"],
-                        task["_task_id"],
-                        settings,
-                        assigned_dept_configs
-                    )
+                    efficiency = 5
 
-                    timeliness = PCR_Service.compute_rating_with_override(
-                        "timeliness",
-                        task["working_days"]["target"],
-                        task["working_days"]["actual"],
-                        task["_task_id"],
-                        settings,
-                        assigned_dept_configs
-                    )
+                    timeliness = 5
 
                     avg = PCR_Service.calculateAverage(quantity, efficiency, timeliness)
 
@@ -2996,23 +2858,11 @@ class PCR_Service():
                 if task["frequency"] == 0:
                     continue
 
-                quantity = PCR_Service.compute_quantity_rating(
-                    task["summary"]["target"],
-                    task["summary"]["actual"],
-                    settings
-                )
+                quantity = 5
 
-                efficiency = PCR_Service.compute_efficiency_rating(
-                    task["corrections"]["target"],
-                    task["corrections"]["actual"],
-                    settings
-                )
+                efficiency = 5
 
-                timeliness = PCR_Service.compute_timeliness_rating(
-                    task["working_days"]["target"],
-                    task["working_days"]["actual"],
-                    settings
-                )
+                timeliness = 5
 
                 avg = PCR_Service.calculateAverage(quantity, efficiency, timeliness)
 

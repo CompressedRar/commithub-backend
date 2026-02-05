@@ -195,6 +195,8 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     - filename_prefix: optional string to add to filename
     Returns: download link from UploadManager.upload_Report (same pattern as your original).
     """
+    wb = load_workbook("excels/IPCRTest.xlsx")
+    ws = wb.active
 
     ipcr = IPCR.query.get(ipcr_id)
     if not ipcr:
@@ -228,12 +230,9 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
             "confirm": _mk("confirmed_by")
         }
 
-    # Build 'data' structure from DB outputs/subtasks
-    
+    print(individuals)
 
-    # Now replicate your excel logic exactly (with the same cell positions & merges)
-    wb = load_workbook("excels/IPCRTest.xlsx")
-    ws = wb.active
+    
 
     datee = datetime.datetime.now().month
     year = str(datetime.datetime.now().year)
