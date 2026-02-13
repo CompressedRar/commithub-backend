@@ -81,7 +81,8 @@ def _build_data_from_ipcr(ipcr):
             "corrections": {
                 "target": getattr(sub, "target_mod", 0),
                 "actual": getattr(sub, "actual_mod", 0)
-            }
+            },
+            "sub_task_id": getattr(sub, "id", 0)
         }
 
         # Timeliness modes -------------------------------------
@@ -279,6 +280,17 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
     ws["N10"] = ""
     ws["N10"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws["N10"].font = Font(bold=True, name="Calibri", size="11")
+    
+    
+    #metadata here
+    ws["A8"] = ipcr_id
+    print("EXCEL IPCR ID", ipcr_id)
+    ws["A8"].font = Font(bold=True, name="Calibri", size="1", color="FFFFFF")
+
+    ws["A9"] = user.id
+    print("USERID", user.id)
+    ws["A9"].font = Font(bold=True, name="Calibri", size="1", color="FFFFFF")
+    
 
     # individuals: review / approve
     ws["A13"] = individuals.get("review", {}).get("name", "")
@@ -448,6 +460,11 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
                     ws[f"R{row}"] = ""
                     ws[f"R{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     ws[f"R{row}"].font = Font(bold=True)
+                    
+                    ws[f"T{row}"] = a["sub_task_id"]
+                    ws[f"T{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    ws[f"T{row}"].font = Font(bold=True, color = "ffffff", size=1)
+                    
 
                     endrow = row
                     row = row + 6        

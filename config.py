@@ -26,3 +26,7 @@ class ProdConfig:
     MAIL_USERNAME = 'qwertythanzip1103@gmail.com'
     MAIL_PASSWORD = 'gldy eqwm hbgy xuee '
     MAIL_DEFAULT_SENDER = 'qwertythanzip1103@gmail.com'
+
+# Directory where uploaded Excel IPCR files are stored
+BASE_DIR = os.path.dirname(__file__)
+EXCEL_UPLOAD_FOLDER = os.path.join(BASE_DIR, "excels", "UploadedIPCR")

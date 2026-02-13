@@ -9,6 +9,7 @@ def send_email(recipient, message):
     try :
         msg = Message(subject = sub,recipients = [recipient], body = bd)
         mail.send(msg)
+        print("email_sent")
         return "email sent"
     except Exception as a:
         print(a)

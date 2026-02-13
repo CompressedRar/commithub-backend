@@ -24,6 +24,7 @@ class LoginOTP(db.Model):
 
     def verify_user_otp(user_id, otp_plain):
         try:
+            print()
             otps = LoginOTP.query.filter_by(user_id=user_id, used=False).filter(LoginOTP.expires_at >= datetime.now()).order_by(LoginOTP.created_at.desc()).all()
             if not otps:
                 return False

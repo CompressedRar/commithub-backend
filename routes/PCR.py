@@ -6,7 +6,11 @@ from models.PCR import PCR_Service
 from models.Tasks import Tasks_Service
 from utils import NewExcelHandler, FileStorage
 import datetime
+import os
+from werkzeug.utils import secure_filename
 pcrs = Blueprint("pcrs", __name__, url_prefix="/api/v1/pcr")
+
+from config import EXCEL_UPLOAD_FOLDER
 
 
 
@@ -273,3 +277,37 @@ def get_opcr_approved():
 @pcrs.route("/planned-opcr/<dept_id>", methods = ["GET"])
 def get_planned_opcr(dept_id):
     return PCR_Service.get_planned_opcr_by_department(dept_id)
+
+
+@pcrs.route("/upload-ipcr", methods=["POST"])
+@token_required()
+@log_action(action="UPLOAD", target="IPCR_FILE")
+def upload_ipcr_excel():
+    """Upload an Excel file to excels/UploadedIPCR folder"""
+    # Check if file is in the request
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    
+    # Check file type (only Excel files)
+    if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
+        return jsonify({"error": "Invalid file type. Please upload an Excel file (.xlsx, .xls, .xlsm)"}), 400
+    
+    # Create directory if it doesn't exist (use centralized path from config)
+    upload_folder = EXCEL_UPLOAD_FOLDER
+    os.makedirs(upload_folder, exist_ok=True)
+
+    # Save file with secure filename
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(upload_folder, filename)
+    file.save(filepath)
+
+    from utils.PCRReader import read_ipcr 
+
+    read_result = read_ipcr(file_path = filepath)
+    
+    return jsonify({"message": read_result, "filename": filename, "filepath": filepath}), 200
