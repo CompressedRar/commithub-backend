@@ -1001,7 +1001,7 @@ class Users():
                 ip_address = request.remote_addr
                 user_agent = request.headers.get("User-Agent")
                 Log_Service.add_logs(user.id, user.first_name + " " + user.last_name, user.department.name if user.department else "UNKNOWN", "LOGIN", "LOGIN", ip=ip_address, agent=user_agent)
-
+                print("authenticated")
                 return jsonify(message = "Authenticated.", token = token), 200
             else:
                 return jsonify(error = "Invalid or expired OTP"), 400
