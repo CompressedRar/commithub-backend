@@ -81,3 +81,11 @@ def update_assigned_department():
 @token_required()
 def get_tasks_assigned_by_dept(dept_id):
     return Tasks_Service.get_department_task(dept_id)
+
+
+@task.route("/assigned_department/<adept_id>", methods = ["PATCH"])
+@token_required()
+def update_dept_task_field(adept_id):
+    field = request.args.get("field")
+    value = request.args.get("value")
+    return Tasks_Service.update_assigned_dept(adept_id, field, value)

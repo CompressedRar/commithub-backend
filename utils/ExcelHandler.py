@@ -274,6 +274,12 @@ def createNewOPCR(data, assigned, admin_data):
                 
                 endrow = row
                 row = row + 6
+    
+    print("CURRENT ROW", row)
+
+    if row == startingrow:
+        row += 1
+
     prepareCells(ws, str("K"+str(row)), str("M"+str(row+1)))
     ws["K"+str(row)] = "Final Average Rating"
     ws["K"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)

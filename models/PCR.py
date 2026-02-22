@@ -1431,10 +1431,10 @@ class PCR_Service():
                     "task_weight": ad.task_weight / 100
                 },
                 "rating": {
-                    "quantity": 0,
-                    "efficiency": 0,
-                    "timeliness": 0,
-                    "average": 0,
+                    "quantity": ad.quantity,
+                    "efficiency": ad.efficiency,
+                    "timeliness": ad.timeliness,
+                    "average": Tasks_Service.calculateAverage(ad.quantity, ad.efficiency, ad.timeliness),
                     "weighted_avg": 0
                 },
                 "frequency": 0,
@@ -1505,11 +1505,11 @@ class PCR_Service():
                     avg = PCR_Service.calculateAverage(quantity, efficiency, timeliness)
 
                     task["rating"] = {
-                        "quantity": quantity,
-                        "efficiency": efficiency,
-                        "timeliness": timeliness,
-                        "average": avg,
-                        "weighted_avg": avg * task["description"]["task_weight"]
+                        "quantity": task["rating"]["quantity"],
+                        "efficiency": task["rating"]["efficiency"],
+                        "timeliness": task["rating"]["timeliness"],
+                        "average": task["rating"]["average"],
+                        "weighted_avg": task["rating"]["quantity"] * task["description"]["task_weight"]
                     }
 
                     task.pop("_task_id", None)
@@ -1621,6 +1621,9 @@ class PCR_Service():
                 "quantity": ad.quantity_formula,
                 "efficiency": ad.efficiency_formula,
                 "timeliness": ad.timeliness_formula,
+                "q": ad.quantity,
+                "e": ad.efficiency,
+                "t": ad.timeliness,
                 "weight": float(ad.task_weight / 100)
             }
             for ad in Assigned_Department.query.filter_by(
@@ -1676,6 +1679,11 @@ class PCR_Service():
                         print("may nahanap", sub_task.main_task.category.name == name)
                         if sub_task.main_task.category.name == name:
                             #check mo kung exzisting na yung task sa loob ng category
+
+                            if sub_task.main_task.status == 0 or sub_task.main_task.category.status == 0:
+                                continue
+
+
                             print("may nahanap", sub_task.main_task.category.name == name)
 
                             current_task_index = 0
@@ -1700,9 +1708,9 @@ class PCR_Service():
                                         actual_working_days = days_late
                                         target_working_days = 1  
 
-                                        quantity = 5
-                                        efficiency = 5
-                                        timeliness = 5
+                                        quantity = assigned_dept_configs.get(sub_task.main_task.id, {}).get("q", 0)
+                                        efficiency = assigned_dept_configs.get(sub_task.main_task.id, {}).get("e", 0)
+                                        timeliness = assigned_dept_configs.get(sub_task.main_task.id, {}).get("t", 0)
 
 
                                         rating_data = {
@@ -1725,9 +1733,9 @@ class PCR_Service():
                                         data[current_data_index][name][current_task_index]["frequency"] += 1
                                     else:
 
-                                        quantity = 5
-                                        efficiency = 5
-                                        timeliness = 5
+                                        quantity = assigned_dept_configs.get(sub_task.main_task.id, {}).get("q", 0)
+                                        efficiency = assigned_dept_configs.get(sub_task.main_task.id, {}).get("e", 0)
+                                        timeliness = assigned_dept_configs.get(sub_task.main_task.id, {}).get("t", 0)
 
                                         rating_data = {
                                             "quantity": quantity,
@@ -1762,9 +1770,9 @@ class PCR_Service():
                                     actual_working_days = days_late
                                     target_working_days = 1  
 
-                                    quantity =  5
-                                    efficiency = 5
-                                    timeliness = 5
+                                    quantity = assigned_dept_configs.get(sub_task.main_task.id, {}).get("q", 0)
+                                    efficiency = assigned_dept_configs.get(sub_task.main_task.id, {}).get("e", 0)
+                                    timeliness = assigned_dept_configs.get(sub_task.main_task.id, {}).get("t", 0)
 
 
                                     rating_data = {
@@ -1804,9 +1812,9 @@ class PCR_Service():
                                     # Positive if actual submission is AFTER target (late)
                                     
 
-                                    quantity = 5
-                                    efficiency = 5
-                                    timeliness = 5
+                                    quantity = assigned_dept_configs.get(sub_task.main_task.id, {}).get("q", 0)
+                                    efficiency = assigned_dept_configs.get(sub_task.main_task.id, {}).get("e", 0)
+                                    timeliness = assigned_dept_configs.get(sub_task.main_task.id, {}).get("t", 0)
 
                                     rating_data = {
                                             "quantity": quantity,
@@ -1962,8 +1970,9 @@ class PCR_Service():
                 task_list = []
 
                 for main_task in category.main_tasks:
-                    if main_task.status == 0:
+                    if main_task.status == 0 or category.status == 0:
                         continue
+               
 
                     task = {
                         "title": main_task.mfo,
@@ -2140,6 +2149,9 @@ class PCR_Service():
         for ad in assigned_departments:
             main_task = ad.main_task
             category_name = main_task.category.name
+
+            if main_task.category.status == 0 or main_task.status == 0:
+                continue
 
             current_data_index = next(
                 i for i, d in enumerate(data) if category_name in d
@@ -2322,6 +2334,9 @@ class PCR_Service():
         for ad in assigned_departments:
             main_task = ad.main_task
             category_name = main_task.category.name
+
+            if main_task.status == 0 or main_task.category.status == 0: 
+                continue
 
             current_data_index = next(
                 i for i, d in enumerate(data) if category_name in d
@@ -2558,10 +2573,11 @@ class PCR_Service():
                     "task_weight": ad.task_weight / 100
                 },
                 "rating": {
-                    "quantity": 0,
-                    "efficiency": 0,
-                    "timeliness": 0,
-                    "average": 0,
+                    "a_dept_id":ad.id,
+                    "quantity": ad.quantity,
+                    "efficiency": ad.efficiency,
+                    "timeliness": ad.timeliness,
+                    "average": Tasks_Service.calculateAverage(ad.quantity, ad.efficiency, ad.timeliness),
                     "weighted_avg": 0
                 },
                 "frequency": 0,
@@ -2632,11 +2648,12 @@ class PCR_Service():
                     avg = PCR_Service.calculateAverage(quantity, efficiency, timeliness)
 
                     task["rating"] = {
-                        "quantity": quantity,
-                        "efficiency": efficiency,
-                        "timeliness": timeliness,
-                        "average": avg,
-                        "weighted_avg": avg * task["description"]["task_weight"]
+                        "a_dept_id": task["rating"]["a_dept_id"],
+                        "quantity": task["rating"]["quantity"],
+                        "efficiency": task["rating"]["efficiency"],
+                        "timeliness": task["rating"]["timeliness"],
+                        "average": task["rating"]["average"],
+                        "weighted_avg": task["rating"]["quantity"] * task["description"]["task_weight"]
                     }
 
                     task.pop("_task_id", None)
@@ -2858,11 +2875,11 @@ class PCR_Service():
                 if task["frequency"] == 0:
                     continue
 
-                quantity = 5
+                quantity = 0
 
-                efficiency = 5
+                efficiency = 0
 
-                timeliness = 5
+                timeliness = 0
 
                 avg = PCR_Service.calculateAverage(quantity, efficiency, timeliness)
 

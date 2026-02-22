@@ -815,8 +815,8 @@ class Users():
     def add_new_user(data, profile_picture):
         print(profile_picture)
         try:
-            #new_default_password = generate_default_password()
-            new_default_password = "commithubnc"
+            new_default_password = generate_default_password()
+            #new_default_password = "commithubnc"
             msg = "Hello!, Your default password is: " + new_default_password 
 
             print(msg)

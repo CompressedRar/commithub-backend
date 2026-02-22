@@ -275,6 +275,10 @@ class Assigned_Department(db.Model):
     efficiency_formula = db.Column(JSON, default={})
     timeliness_formula = db.Column(JSON, default={})
 
+    quantity = db.Column(db.Integer)
+    efficiency = db.Column(db.Integer)
+    timeliness = db.Column(db.Integer)
+
     enable_formulas = db.Column(db.Boolean, default=False)
 
 
@@ -894,15 +898,19 @@ class Tasks_Service():
                 period = db.Column(db.Text, default ="")
             """
 
-            for department in data["department"].split(","):
-                print("Department ID", department)
-                new_assigned_department = Assigned_Department(
-                    department_id = department,
-                    main_task_id = new_main_task.id,
-                    period = current_settings.current_period_id if current_settings else None,
-                )
+            print("fetched dept", data["department"])
 
-                db.session.add(new_assigned_department)
+            if data["department"]:
+
+                for department in data["department"].split(","):
+                    print("Department ID", department)
+                    new_assigned_department = Assigned_Department(
+                        department_id = department,
+                        main_task_id = new_main_task.id,
+                        period = current_settings.current_period_id if current_settings else None,
+                    )
+
+                    db.session.add(new_assigned_department)
 
             print("registered task")
             Notification_Service.notify_department(dept_id=data["department"], msg="A new task has been added to the department.")
@@ -1382,14 +1390,15 @@ class Tasks_Service():
             converted = []
 
             for task in all_department_tasks:
-                data = task.main_task.info() 
-                data["quantity_formula"] = task.quantity_formula
-                data["efficiency_formula"] = task.efficiency_formula
-                data["timeliness_formula"] = task.timeliness_formula
-                data["assigned_dept_id"] = task.id  
-                data["enable_formulas"] = task.enable_formulas  
+                if task.main_task.status:
+                    data = task.main_task.info() 
+                    data["quantity_formula"] = task.quantity_formula
+                    data["efficiency_formula"] = task.efficiency_formula
+                    data["timeliness_formula"] = task.timeliness_formula
+                    data["assigned_dept_id"] = task.id  
+                    data["enable_formulas"] = task.enable_formulas  
 
-                converted.append(data)
+                    converted.append(data)
 
             return jsonify(converted), 200
         
@@ -1624,7 +1633,30 @@ class Tasks_Service():
         except Exception as e:
             return jsonify(error = "There is an error fetching tasks."), 500
 
+    def update_assigned_dept(assigned_dept_id, field, value):
+        try:
+            found_task = Assigned_Department.query.get(assigned_dept_id)
 
+            if not found_task:
+                return jsonify(error="Task is not found"), 400
+            
+            if field == "quantity":
+                found_task.quantity = value
+
+            if field == "efficiency":
+                found_task.efficiency = value
+
+            if field == "timeliness":
+                found_task.timeliness = value
+
+            db.session.commit()
+
+            return jsonify(message = "Updated Successfully"), 200
+
+        except Exception as e:
+            print(e)
+            db.session.rollback()
+            return jsonify(error="There is an error updating task"), 500
         
     def update_sub_task_fields(sub_task_id, field, value):
         try:
