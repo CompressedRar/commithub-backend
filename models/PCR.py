@@ -2649,11 +2649,11 @@ class PCR_Service():
 
                     task["rating"] = {
                         "a_dept_id": task["rating"]["a_dept_id"],
-                        "quantity": task["rating"]["quantity"],
-                        "efficiency": task["rating"]["efficiency"],
-                        "timeliness": task["rating"]["timeliness"],
+                        "quantity": task["rating"]["quantity"] if task["rating"]["quantity"] else 0,
+                        "efficiency": task["rating"]["efficiency"] if task["rating"]["efficiency"] else 0,
+                        "timeliness": task["rating"]["timeliness"] if task["rating"]["timeliness"] else 0,
                         "average": task["rating"]["average"],
-                        "weighted_avg": task["rating"]["quantity"] * task["description"]["task_weight"]
+                        "weighted_avg": task["rating"]["quantity"] * task["description"]["task_weight"] if task["rating"]["quantity"] else 0
                     }
 
                     task.pop("_task_id", None)

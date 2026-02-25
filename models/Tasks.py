@@ -1611,9 +1611,13 @@ class Tasks_Service():
     
     def calculateAverage(quantity, efficiency, timeliness):
 
-        q = 5 if quantity > 5 else quantity
-        e = 5 if efficiency > 5 else efficiency
-        t = 5 if timeliness > 5 else timeliness
+        normalized_quantity = quantity if quantity else 0
+        normalized_efficiency = efficiency if efficiency else 0
+        normalized_timeliness = timeliness if timeliness else 0
+
+        q = 5 if normalized_quantity > 5 else normalized_quantity
+        e = 5 if normalized_efficiency > 5 else normalized_efficiency
+        t = 5 if normalized_timeliness > 5 else normalized_timeliness
         calculations = q + e + t
         result = calculations/3
         return result
@@ -1650,6 +1654,7 @@ class Tasks_Service():
                 found_task.timeliness = value
 
             db.session.commit()
+            socketio.emit("rating", "change")
 
             return jsonify(message = "Updated Successfully"), 200
 
