@@ -3,7 +3,7 @@ from openpyxl.styles import Border, Side, Alignment, Font
 from openpyxl.drawing.image import Image
 import datetime 
 from utils.FileStorage import upload_file
-
+import math
 import random
 from datetime import date
 # Load an existing workbook
@@ -173,17 +173,17 @@ def createNewOPCR(data, assigned, admin_data):
 
                 if a["description"]["timeliness_mode"] == "deadline":
                     prepareCells(ws, f"J{row+2}", f"J{row+3}")
-                    ws[f"J{row+2}"] = abs(int(a["working_days"]["actual"] / a["frequency"])) if a["working_days"]["actual"] != 0 else 0 # desc quant
+                    ws[f"J{row+2}"] = abs(round(a["working_days"]["actual"] / a["frequency"])) if a["working_days"]["actual"] != 0 else 0 # desc quant
                     ws[f"J{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     ws[f"J{row+2}"].font = Font(bold=True)
                 else:
                     prepareCells(ws, f"J{row+2}", f"J{row+3}")
-                    ws[f"J{row+2}"] =  abs(int(a["working_days"]["actual"] / a["frequency"])) if a["working_days"]["actual"] != 0 else 0
+                    ws[f"J{row+2}"] =  abs(round(a["working_days"]["actual"] / a["frequency"])) if a["working_days"]["actual"] != 0 else 0
                     ws[f"J{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     ws[f"J{row+2}"].font = Font(bold=True)
                 
                 prepareCells(ws, str("J"+str(row+4)), str("J"+str(row + 5)))
-                ws["J"+str(row+4)] = int(a["corrections"]["actual"] / a["frequency"]) if a["corrections"]["actual"] != 0 else 0 # desc quant
+                ws["J"+str(row+4)] = round(a["corrections"]["actual"] / a["frequency"]) if a["corrections"]["actual"] != 0 else 0 # desc quant
                 ws["J"+str(row+4)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["J"+str(row+4)].font = Font(bold=True)
                 
@@ -580,17 +580,17 @@ def createNewWeightedOPCR(data, assigned, admin_data):
 
                 if a["description"]["timeliness_mode"] == "deadline":
                     prepareCells(ws, f"J{row+2}", f"J{row+3}")
-                    ws[f"J{row+2}"] = abs(int(a["working_days"]["actual"] / a["frequency"])) if a["working_days"]["actual"] != 0 else 0 # desc quant
+                    ws[f"J{row+2}"] = abs(round(a["working_days"]["actual"] / a["frequency"])) if a["working_days"]["actual"] != 0 else 0 # desc quant
                     ws[f"J{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     ws[f"J{row+2}"].font = Font(bold=True)
                 else:
                     prepareCells(ws, f"J{row+2}", f"J{row+3}")
-                    ws[f"J{row+2}"] =  abs(int(a["working_days"]["actual"] / a["frequency"])) if a["working_days"]["actual"] != 0 else 0
+                    ws[f"J{row+2}"] =  abs(round(a["working_days"]["actual"] / a["frequency"])) if a["working_days"]["actual"] != 0 else 0
                     ws[f"J{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     ws[f"J{row+2}"].font = Font(bold=True)
                 
                 prepareCells(ws, str("J"+str(row+4)), str("J"+str(row + 5)))
-                ws["J"+str(row+4)] = int(a["corrections"]["actual"] / a["frequency"]) if a["corrections"]["actual"] != 0 else 0 # desc quant
+                ws["J"+str(row+4)] = round(a["corrections"]["actual"] / a["frequency"]) if a["corrections"]["actual"] != 0 else 0 # desc quant
                 ws["J"+str(row+4)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["J"+str(row+4)].font = Font(bold=True)
                 

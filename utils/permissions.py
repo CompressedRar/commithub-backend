@@ -14,7 +14,11 @@ ROLES_PERMISSIONS = {
     ],
     "president": [
         "settings.view",
+        "settings.edit",
+        "users.manage",
+        "notifications.manage",
         "ipcr.view",
+        "departments.manage"
     ],
     "head": [
         "departments.manage",

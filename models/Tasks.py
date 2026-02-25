@@ -818,7 +818,11 @@ class Tasks_Service():
             current_settings = System_Settings.get_default_settings()
 
             found_assigned_department = Assigned_Department.query.filter_by(department_id = dept_id, period = current_settings.current_period_id).all()
-            converted = [assigned_department.info() for assigned_department in found_assigned_department]
+            converted = []
+            for assigned_department in found_assigned_department:
+                if assigned_department.main_task.status:
+                    print("active")
+                    converted.append(assigned_department.info())
 
             return jsonify(converted), 200
          
@@ -832,8 +836,14 @@ class Tasks_Service():
             from models.System_Settings import System_Settings
             current_settings = System_Settings.get_default_settings()
 
-            found_assigned_department = Assigned_Department.query.filter_by(department_id = dept_id, period = current_settings.current_period_id).all()
-            converted = [assigned_department.to_dict() for assigned_department in found_assigned_department]
+            found_assigned_department = Assigned_Department.query.filter_by(department_id = dept_id, period = current_settings.current_period_id, status = 1).all()
+            
+            converted = []
+            for assigned_department in found_assigned_department:
+                if assigned_department.main_task.status:
+                    print("active")
+                    converted.append(assigned_department.info())
+            
 
             return jsonify(converted), 200
          
@@ -947,7 +957,7 @@ class Tasks_Service():
             found_task = Main_Task.query.get(data["id"])
 
             all_previous_department = found_task.info()["department_ids"]
-            updated_departments = [int(i) for i in data["department"].split(",")]
+            updated_departments = [int(i) for i in data["department"].split(",")] if data["department"] else []
         
 
             from models.System_Settings import System_Settings            
@@ -969,6 +979,18 @@ class Tasks_Service():
                 if int(current_id) not in updated_departments:
                     found_assigned_department = Assigned_Department.query.filter_by(main_task_id = int(data["id"]), department_id = int(current_id)).first()
                     db.session.delete(found_assigned_department)
+
+                    found_assigned_tasks = Assigned_Task.query.filter_by(main_task_id = int(data["id"])).all()
+
+                    for ass_tasks in found_assigned_tasks:
+                        print("meron ass task")
+                        if ass_tasks.user.department.id == int(current_id):
+                            db.session.delete(Assigned_Task.query.get(ass_tasks.id))
+
+                        found_output = Output.query.filter_by(user_id = ass_tasks.user.id, main_task_id = id).all()
+                        for output in found_output:
+                            db.session.delete(output)
+
 
 
             if found_task == None:
@@ -1166,7 +1188,7 @@ class Tasks_Service():
             db.session.commit()
             socketio.emit("ipcr_added", "user assigned")
 
-            return jsonify(message = "Output successfully added."), 200
+            return jsonify(message = "Task successfully added."), 200
         except DataError as e:
             db.session.rollback()
             print(str(e))
@@ -1228,7 +1250,7 @@ class Tasks_Service():
             socketio.emit("department_assigned", "department assigned")
             socketio.emit("user_assigned", "user assigned")
 
-            return jsonify(message = "Output successfully assigned."), 200
+            return jsonify(message = "Task successfully assigned."), 200
         except DataError as e:
             db.session.rollback()
             print(str(e))
@@ -1474,6 +1496,20 @@ class Tasks_Service():
 
             if found_task == None:
                 return jsonify(message="No task with that ID"), 400
+            
+            found_assigned_tasks = Assigned_Task.query.filter_by(main_task_id = id).all()
+
+            for ass_tasks in found_assigned_tasks:
+                
+                if ass_tasks.user.department_id == int(dept_id):
+                    print("meron ass task")
+                    db.session.delete(ass_tasks)
+
+                found_output = Output.query.filter_by(user_id = ass_tasks.user.id, main_task_id = id).all()
+                for output in found_output:
+                    db.session.delete(output)
+
+
             
             db.session.commit()
             socketio.emit("task_modified", "task modified")

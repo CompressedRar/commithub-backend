@@ -142,6 +142,10 @@ def get_supporting_documents(ipcr_id):
 def collect_supporting_documents(dept_id):
     return PCR_Service.collect_all_supporting_documents_by_department(dept_id)
 
+@pcrs.route("/documents/all", methods = ["GET"])
+def collect_all_supporting_documents(dept_id):
+    return PCR_Service.collect_all_supporting_documents()
+
 @pcrs.route("/opcr/documents/<opcr_id>", methods = ["GET"])
 @token_required()
 def get_supporting_documents_for_opcr(opcr_id):
@@ -195,7 +199,7 @@ def create_opcr(dept_id):
 
 
 @pcrs.route("/opcr/download/<opcr_id>", methods = ["GET"])
-@token_required(allowed_roles=["administrator", "head"])
+@token_required(allowed_roles=["administrator","president", "head"])
 @log_action(action = "DOWNLOAD", target="OPCR")
 
 def test_opcr(opcr_id):
@@ -203,7 +207,7 @@ def test_opcr(opcr_id):
     return jsonify(link = file_link), 200
 
 @pcrs.route("/planned-opcr/download/<dept_id>", methods = ["GET"])
-@token_required(allowed_roles=["administrator", "head"])
+@token_required(allowed_roles=["administrator","president", "head"])
 @log_action(action = "DOWNLOAD", target="OPCR")
 
 def download_planned_opcr(dept_id):
@@ -211,7 +215,7 @@ def download_planned_opcr(dept_id):
     return jsonify(link = file_link), 200
 
 @pcrs.route("/weighted-opcr/download/<opcr_id>", methods = ["GET"])
-@token_required(allowed_roles=["administrator", "head"])
+@token_required(allowed_roles=["administrator","president", "head"])
 @log_action(action = "DOWNLOAD", target="OPCR")
 
 def download_weighted_opcr(opcr_id):
@@ -219,7 +223,7 @@ def download_weighted_opcr(opcr_id):
     return jsonify(link = file_link), 200
 
 @pcrs.route("/master-opcr/download/", methods = ["GET"])
-@token_required(allowed_roles=["administrator"])
+@token_required(allowed_roles=["administrator", "president"])
 @log_action(action = "DOWNLOAD", target="MASTER OPCR")
 
 def test_master_opcr():

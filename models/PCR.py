@@ -1435,7 +1435,7 @@ class PCR_Service():
                     "efficiency": ad.efficiency,
                     "timeliness": ad.timeliness,
                     "average": Tasks_Service.calculateAverage(ad.quantity, ad.efficiency, ad.timeliness),
-                    "weighted_avg": 0
+                    "weighted_avg": PCR_Service.calculateAverage(ad.quantity, ad.efficiency, ad.timeliness) * (ad.task_weight/100)
                 },
                 "frequency": 0,
                 "_task_id": main_task.id  # INTERNAL KEY
@@ -1509,7 +1509,7 @@ class PCR_Service():
                         "efficiency": task["rating"]["efficiency"],
                         "timeliness": task["rating"]["timeliness"],
                         "average": task["rating"]["average"],
-                        "weighted_avg": task["rating"]["quantity"] * task["description"]["task_weight"]
+                        "weighted_avg": task["rating"]["average"] * task["description"]["task_weight"] if task["rating"]["average"] else 0
                     }
 
                     task.pop("_task_id", None)
@@ -2578,7 +2578,7 @@ class PCR_Service():
                     "efficiency": ad.efficiency,
                     "timeliness": ad.timeliness,
                     "average": Tasks_Service.calculateAverage(ad.quantity, ad.efficiency, ad.timeliness),
-                    "weighted_avg": 0
+                    "weighted_avg": Tasks_Service.calculateAverage(ad.quantity, ad.efficiency, ad.timeliness) * (ad.task_weight/100)
                 },
                 "frequency": 0,
                 "_task_id": main_task.id  # INTERNAL KEY
@@ -2653,7 +2653,7 @@ class PCR_Service():
                         "efficiency": task["rating"]["efficiency"] if task["rating"]["efficiency"] else 0,
                         "timeliness": task["rating"]["timeliness"] if task["rating"]["timeliness"] else 0,
                         "average": task["rating"]["average"],
-                        "weighted_avg": task["rating"]["quantity"] * task["description"]["task_weight"] if task["rating"]["quantity"] else 0
+                        "weighted_avg": task["rating"]["average"] * task["description"]["task_weight"] if task["rating"]["average"] else 0
                     }
 
                     task.pop("_task_id", None)
@@ -2822,7 +2822,6 @@ class PCR_Service():
                 data.append({category.name: task_list})
 
 
-            # ✅ PASS 1 — COLLECT ASSIGNED USERS (UNCHANGED LOGIC)
             assigned = {}
 
             for opcr in opcrs:
@@ -2840,7 +2839,6 @@ class PCR_Service():
             assigned = {k: list(v) for k, v in assigned.items()}
 
 
-            # ✅ PASS 2 — AGGREGATE ALL TASKS (NO DEPARTMENT FILTER)
             for opcr in opcrs:
                 for assigned_pcr in opcr.assigned_pcrs:
                     ipcr = assigned_pcr.ipcr
@@ -2939,6 +2937,21 @@ class PCR_Service():
                 print("COMparing docs", document.ipcr.user.department.id, dept_id)
                 if str(document.ipcr.user.department.id) == dept_id:
                     filtered_documents.append(document.to_dict())
+
+            return jsonify(message = filtered_documents), 200
+        except Exception as e:
+            return jsonify(error= "Collecting supporting documents failed"), 500
+    
+    def collect_all_supporting_documents():
+        try:
+            from models.System_Settings import System_Settings
+            settings = System_Settings.get_default_settings()
+            all_supporting_documents = Supporting_Document.query.filter_by(period = settings.current_period_id).all()
+
+            filtered_documents = []
+
+            for document in all_supporting_documents:
+                filtered_documents.append(document.to_dict())
 
             return jsonify(message = filtered_documents), 200
         except Exception as e:
