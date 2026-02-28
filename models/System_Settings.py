@@ -114,7 +114,8 @@ class System_Settings(db.Model):
             "current_period_id": self.current_period_id,
             "current_president_fullname": self.current_president_fullname,
             "current_mayor_fullname": self.current_mayor_fullname,
-            "current_phase": self.get_current_period()            
+            "current_phase": self.get_current_period(),
+            "enable_formula": self.enable_formula            
         }
     
     @staticmethod
