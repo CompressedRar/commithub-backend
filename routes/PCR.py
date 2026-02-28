@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, jsonify, request
-from app import db
+from app import db, socketio
 from utils.decorators import log_action, token_required
 from models.User import Users
 from models.PCR import PCR_Service
@@ -311,7 +311,9 @@ def upload_ipcr_excel():
     file.save(filepath)
 
     from utils.PCRReader import read_ipcr 
+    
 
     read_result = read_ipcr(file_path = filepath)
+    socketio.emit("ipcr")
     
     return jsonify({"message": read_result, "filename": filename, "filepath": filepath}), 200

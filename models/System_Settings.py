@@ -24,6 +24,7 @@ class System_Settings(db.Model):
     #   "poor": {"max":0.50}
     # }
     rating_thresholds = db.Column(JSON, nullable=False, default={})
+    enable_formula = db.Column(db.Boolean, default = False)
 
     # -----------------------
     # COMPUTATION FORMULA SETTINGS (optional but powerful)
@@ -168,7 +169,7 @@ class System_Settings_Service:
             settings = System_Settings()
             db.session.add(settings)
 
-        print("PATCHING SETTINGS")
+        print("PATCHING SETTINGS" , new_settings)
         
         settings.rating_thresholds = new_settings.get("rating_thresholds", settings.rating_thresholds)
         settings.quantity_formula = new_settings.get("quantity_formula", settings.quantity_formula)
@@ -189,6 +190,8 @@ class System_Settings_Service:
 
         settings.current_president_fullname = new_settings.get("current_president_fullname", settings.current_president_fullname)
         settings.current_mayor_fullname = new_settings.get("current_mayor_fullname", settings.current_mayor_fullname)
+
+        settings.enable_formula = new_settings.get("enable_formula", settings.enable_formula)
 
         try:
             print("SETTINGS PATCHED")

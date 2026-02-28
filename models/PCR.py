@@ -1497,18 +1497,44 @@ class PCR_Service():
                         continue
 
                     quantity = 5
-
                     efficiency = 5
-
                     timeliness = 5
+
+                    if settings.enable_formula:
+                        quantity = PCR_Service.compute_rating_with_override(
+                            "quantity",
+                            task["summary"]["target"],
+                            task["summary"]["actual"],
+                            task["_task_id"],
+                            settings,
+                            assigned_dept_configs
+                        )
+
+                        efficiency = PCR_Service.compute_rating_with_override(
+                            "efficiency",
+                            task["corrections"]["target"],
+                            task["corrections"]["actual"],
+                            task["_task_id"],
+                            settings,
+                            assigned_dept_configs
+                        )
+
+                        timeliness = PCR_Service.compute_rating_with_override(
+                            "timeliness",
+                            task["working_days"]["target"],
+                            task["working_days"]["actual"],
+                            task["_task_id"],
+                            settings,
+                            assigned_dept_configs
+                        )
 
                     avg = PCR_Service.calculateAverage(quantity, efficiency, timeliness)
 
                     task["rating"] = {
-                        "quantity": task["rating"]["quantity"],
-                        "efficiency": task["rating"]["efficiency"],
-                        "timeliness": task["rating"]["timeliness"],
-                        "average": task["rating"]["average"],
+                        "quantity": task["rating"]["quantity"] if settings.enable_formula else quantity,
+                        "efficiency": task["rating"]["efficiency"] if settings.enable_formula else efficiency,
+                        "timeliness": task["rating"]["timeliness"] if settings.enable_formula else timeliness,
+                        "average": task["rating"]["average"] if settings.enable_formula else avg,
                         "weighted_avg": task["rating"]["average"] * task["description"]["task_weight"] if task["rating"]["average"] else 0
                     }
 
@@ -1712,6 +1738,32 @@ class PCR_Service():
                                         efficiency = assigned_dept_configs.get(sub_task.main_task.id, {}).get("e", 0)
                                         timeliness = assigned_dept_configs.get(sub_task.main_task.id, {}).get("t", 0)
 
+                                        if settings.enable_formula:
+                                            quantity = PCR_Service.compute_rating_with_override(
+                                                "quantity",
+                                                sub_task.target_acc,
+                                                sub_task.actual_acc,
+                                                sub_task.main_task.id,
+                                                settings,
+                                                assigned_dept_configs
+                                            )
+                                            efficiency = PCR_Service.compute_rating_with_override(
+                                                "efficiency",
+                                                sub_task.target_mod,
+                                                sub_task.actual_mod,
+                                                sub_task.main_task.id,
+                                                settings,
+                                                assigned_dept_configs
+                                            )
+                                            timeliness = PCR_Service.compute_rating_with_override(
+                                                "timeliness",
+                                                target_working_days,
+                                                actual_working_days,
+                                                sub_task.main_task.id,
+                                                settings,
+                                                assigned_dept_configs
+                                            )
+
 
                                         rating_data = {
                                             "quantity": quantity,
@@ -1736,6 +1788,31 @@ class PCR_Service():
                                         quantity = assigned_dept_configs.get(sub_task.main_task.id, {}).get("q", 0)
                                         efficiency = assigned_dept_configs.get(sub_task.main_task.id, {}).get("e", 0)
                                         timeliness = assigned_dept_configs.get(sub_task.main_task.id, {}).get("t", 0)
+                                        if settings.enable_formula:
+                                            quantity = PCR_Service.compute_rating_with_override(
+                                                "quantity",
+                                                sub_task.target_acc,
+                                                sub_task.actual_acc,
+                                                sub_task.main_task.id,
+                                                settings,
+                                                assigned_dept_configs
+                                            )
+                                            efficiency = PCR_Service.compute_rating_with_override(
+                                                "efficiency",
+                                                sub_task.target_mod,
+                                                sub_task.actual_mod,
+                                                sub_task.main_task.id,
+                                                settings,
+                                                assigned_dept_configs
+                                            )
+                                            timeliness = PCR_Service.compute_rating_with_override(
+                                                "timeliness",
+                                                target_working_days,
+                                                actual_working_days,
+                                                sub_task.main_task.id,
+                                                settings,
+                                                assigned_dept_configs
+                                            )
 
                                         rating_data = {
                                             "quantity": quantity,
@@ -1773,6 +1850,31 @@ class PCR_Service():
                                     quantity = assigned_dept_configs.get(sub_task.main_task.id, {}).get("q", 0)
                                     efficiency = assigned_dept_configs.get(sub_task.main_task.id, {}).get("e", 0)
                                     timeliness = assigned_dept_configs.get(sub_task.main_task.id, {}).get("t", 0)
+                                    if settings.enable_formula:
+                                        quantity = PCR_Service.compute_rating_with_override(
+                                                "quantity",
+                                                sub_task.target_acc,
+                                                sub_task.actual_acc,
+                                                sub_task.main_task.id,
+                                                settings,
+                                                assigned_dept_configs
+                                            )
+                                        efficiency = PCR_Service.compute_rating_with_override(
+                                                "efficiency",
+                                                sub_task.target_mod,
+                                                sub_task.actual_mod,
+                                                sub_task.main_task.id,
+                                                settings,
+                                                assigned_dept_configs
+                                            )
+                                        timeliness = PCR_Service.compute_rating_with_override(
+                                                "timeliness",
+                                                target_working_days,
+                                                actual_working_days,
+                                                sub_task.main_task.id,
+                                                settings,
+                                                assigned_dept_configs
+                                            )
 
 
                                     rating_data = {
@@ -2074,6 +2176,25 @@ class PCR_Service():
                 efficiency = 5
 
                 timeliness = 5
+
+                if settings.enable_formula:
+                    quantity = PCR_Service.compute_quantity_rating(
+                        task["summary"]["target"],
+                        task["summary"]["actual"],
+                        settings
+                    )
+
+                    efficiency = PCR_Service.compute_efficiency_rating(
+                        task["corrections"]["target"],
+                        task["corrections"]["actual"],
+                        settings
+                    )
+
+                    timeliness = PCR_Service.compute_timeliness_rating(
+                        task["working_days"]["target"],
+                        task["working_days"]["actual"],
+                        settings
+                    )
 
                 avg = PCR_Service.calculateAverage(quantity, efficiency, timeliness)
 
@@ -2493,6 +2614,9 @@ class PCR_Service():
         from models.Tasks import Assigned_Department
         settings = System_Settings.get_default_settings()
 
+        if settings.enable_formula:
+            print("formula activated")
+
         assigned_dept_configs = {
             ad.main_task_id: {
                 "enable": ad.enable_formulas,
@@ -2639,21 +2763,47 @@ class PCR_Service():
                     if task["frequency"] == 0:
                         continue
 
-                    quantity = 5
+                    quantity= task["rating"]["quantity"] if task["rating"]["quantity"] else 0
+                    efficiency= task["rating"]["efficiency"] if task["rating"]["efficiency"] else 0
+                    timeliness= task["rating"]["timeliness"] if task["rating"]["timeliness"] else 0
 
-                    efficiency = 5
+                    if settings.enable_formula:
+                        quantity = PCR_Service.compute_rating_with_override(
+                            "quantity",
+                            task["summary"]["target"],
+                            task["summary"]["actual"],
+                            task["_task_id"],
+                            settings,
+                            assigned_dept_configs
+                        )
 
-                    timeliness = 5
+                        efficiency = PCR_Service.compute_rating_with_override(
+                            "efficiency",
+                            task["corrections"]["target"],
+                            task["corrections"]["actual"],
+                            task["_task_id"],
+                            settings,
+                            assigned_dept_configs
+                        )
+
+                        timeliness = PCR_Service.compute_rating_with_override(
+                            "timeliness",
+                            task["working_days"]["target"],
+                            task["working_days"]["actual"],
+                            task["_task_id"],
+                            settings,
+                            assigned_dept_configs
+                        )
 
                     avg = PCR_Service.calculateAverage(quantity, efficiency, timeliness)
 
                     task["rating"] = {
                         "a_dept_id": task["rating"]["a_dept_id"],
-                        "quantity": task["rating"]["quantity"] if task["rating"]["quantity"] else 0,
-                        "efficiency": task["rating"]["efficiency"] if task["rating"]["efficiency"] else 0,
-                        "timeliness": task["rating"]["timeliness"] if task["rating"]["timeliness"] else 0,
-                        "average": task["rating"]["average"],
-                        "weighted_avg": task["rating"]["average"] * task["description"]["task_weight"] if task["rating"]["average"] else 0
+                        "quantity": quantity,
+                        "efficiency": efficiency,
+                        "timeliness": timeliness,
+                        "average": avg,
+                        "weighted_avg": avg * task["description"]["task_weight"] if avg else 0
                     }
 
                     task.pop("_task_id", None)
@@ -2878,6 +3028,25 @@ class PCR_Service():
                 efficiency = 0
 
                 timeliness = 0
+
+                if settings.enable_formula:
+                    quantity = PCR_Service.compute_quantity_rating(
+                        task["summary"]["target"],
+                        task["summary"]["actual"],
+                        settings
+                    )
+
+                    efficiency = PCR_Service.compute_efficiency_rating(
+                        task["corrections"]["target"],
+                        task["corrections"]["actual"],
+                        settings
+                    )
+
+                    timeliness = PCR_Service.compute_timeliness_rating(
+                        task["working_days"]["target"],
+                        task["working_days"]["actual"],
+                        settings
+                    )
 
                 avg = PCR_Service.calculateAverage(quantity, efficiency, timeliness)
 

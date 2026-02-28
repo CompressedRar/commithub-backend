@@ -422,10 +422,15 @@ class Category_Service():
                     continue
                 if not sub_task.ipcr or sub_task.ipcr.status != 1:
                     continue
-
+                
                 q = sub_task.quantity
                 e = sub_task.efficiency
                 t = sub_task.timeliness
+
+                if settings.enable_formula:
+                    q = sub_task.calculateQuantity()
+                    e = sub_task.calculateEfficiency()
+                    t = sub_task.calculateTimeliness()
 
                 task_q_sum += q
                 task_e_sum += e
@@ -515,9 +520,15 @@ class Category_Service():
                         "count": 0
                     }
 
-                task_dept[dept_name]["q_sum"] += sub_task.quantity
-                task_dept[dept_name]["e_sum"] += sub_task.efficiency
-                task_dept[dept_name]["t_sum"] += sub_task.timeliness
+                if settings.enable_formula:
+                    task_dept[dept_name]["q_sum"] += sub_task.calculateQuantity()
+                    task_dept[dept_name]["e_sum"] += sub_task.calculateEfficiency()
+                    task_dept[dept_name]["t_sum"] += sub_task.calculateTimeliness()
+                else:
+                    task_dept[dept_name]["q_sum"] += sub_task.quantity
+                    task_dept[dept_name]["e_sum"] += sub_task.efficiency
+                    task_dept[dept_name]["t_sum"] += sub_task.timeliness
+                
                 task_dept[dept_name]["count"] += 1
 
             # Convert task_dept -> add per-task averages into global dept accumulators

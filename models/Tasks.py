@@ -433,12 +433,19 @@ class Main_Task(db.Model):
                     all_sub_tasks["actual_mod"] += output.sub_task.actual_mod
                     all_sub_tasks["actual_time"] += output.sub_task.actual_time
                 
+                quantity = self.quantity
+                efficiency = self.efficiency
+                timeliness = self.timeliness
                 
+                if settings.enable_formula:
+                    quantity = PCR_Service.compute_quantity_rating(all_sub_tasks['target_acc'], all_sub_tasks['actual_acc'], settings)
+                    efficiency = PCR_Service.compute_efficiency_rating(all_sub_tasks['target_mod'], all_sub_tasks['actual_mod'], settings)
+                    timeliness = PCR_Service.compute_timeliness_rating(all_sub_tasks['target_time'], all_sub_tasks['actual_time'], settings)
 
                 rating_data = {
-                        "quantity": self.quantity,
-                        "efficiency": self.efficiency,
-                        "timeliness": self.timeliness,
+                        "quantity": quantity,
+                        "efficiency": efficiency,
+                        "timeliness": timeliness,
                         "average": PCR_Service.calculateAverage(self.quantity, self.efficiency, self.timeliness)
                     }
                 
@@ -675,6 +682,7 @@ class Sub_Task(db.Model):
             target = 1  # no late days expected
 
         engine = Formula_Engine()
+        
         formula = self._get_formula("timeliness")
 
         rating = engine.compute_rating(
@@ -720,26 +728,28 @@ class Sub_Task(db.Model):
 
     def to_dict(self):
 
-        from models.System_Settings import System_Settings_Service
+        from models.System_Settings import System_Settings_Service, System_Settings
+        settings = System_Settings.get_default_settings()
 
-        """timeliness = 0
+        if settings.enable_formula:
+            timeliness = 0
 
-        if self.main_task.timeliness_mode == "timeframe" and not System_Settings_Service.check_if_rating_period():
-            timeliness = self.calculate_with_override("timeliness", self.main_task.target_timeframe, self.actual_time)
-        else:
-            if self.actual_deadline and self.main_task.target_deadline:
-                days_late = (
-                    self.actual_deadline - self.main_task.target_deadline
-                ).days
-                actual_working_days = days_late
-                target_working_days = 1
-                timeliness = self.calculate_with_override("timeliness", target_working_days, actual_working_days)
+            if self.main_task.timeliness_mode == "timeframe" and not System_Settings_Service.check_if_rating_period():
+                timeliness = self.calculate_with_override("timeliness", self.main_task.target_timeframe, self.actual_time)
             else:
-                timeliness = self.timeliness
-        
-        self.timeliness = timeliness if not System_Settings_Service.check_if_rating_period() else self.timeliness
-        self.efficiency = self.calculate_with_override("efficiency", self.main_task.target_efficiency, self.actual_mod) if not System_Settings_Service.check_if_rating_period() else self.efficiency
-        self.quantity = self.calculate_with_override("quantity", self.main_task.target_quantity, self.actual_acc) if not System_Settings_Service.check_if_rating_period() else self.quantity"""
+                if self.actual_deadline and self.main_task.target_deadline:
+                    days_late = (
+                        self.actual_deadline - self.main_task.target_deadline
+                    ).days
+                    actual_working_days = days_late
+                    target_working_days = 1
+                    timeliness = self.calculate_with_override("timeliness", target_working_days, actual_working_days)
+                else:
+                    timeliness = self.timeliness
+            
+            self.timeliness = timeliness if not System_Settings_Service.check_if_rating_period() else self.timeliness
+            self.efficiency = self.calculate_with_override("efficiency", self.main_task.target_efficiency, self.actual_mod) if not System_Settings_Service.check_if_rating_period() else self.efficiency
+            self.quantity = self.calculate_with_override("quantity", self.main_task.target_quantity, self.actual_acc) if not System_Settings_Service.check_if_rating_period() else self.quantity
       
         return {
             "id": self.id,
@@ -1700,6 +1710,9 @@ class Tasks_Service():
             return jsonify(error="There is an error updating task"), 500
         
     def update_sub_task_fields(sub_task_id, field, value):
+
+        from models.System_Settings import System_Settings
+        settings = System_Settings.get_default_settings()
         try:
             ipcr = Sub_Task.query.get(sub_task_id)
 
@@ -1716,25 +1729,44 @@ class Tasks_Service():
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "actual_deadline":
+
                 ipcr.actual_deadline = datetime.fromisoformat(value.replace("Z", "+00:00"))
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "actual_acc":
                 ipcr.actual_acc = int(value)
+                db.session.commit()
+                
+                if settings.enable_formula:
+                    print("trigger formula")
+                    ipcr.calculate_with_override("quantity", ipcr.target_acc, int(value))
+
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "actual_time":
                 ipcr.actual_time = int(value)
+                db.session.commit()
+                
+                if settings.enable_formula:
+                    ipcr.calculate_with_override("timeliness", ipcr.target_acc, int(value))
+
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "actual_mod":
                 ipcr.actual_mod = int(value)
+                db.session.commit()
+                
+                if settings.enable_formula:
+                    ipcr.calculate_with_override("efficiency", ipcr.target_mod, int(value))
+
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
                 
 
 
             
             if field == "quantity":
+
+                
                 
                 ipcr.quantity = int(value)
                 db.session.commit()
@@ -1879,6 +1911,8 @@ class Tasks_Service():
             "overall_average": 4.0
         }
         """
+        from models.System_Settings import System_Settings
+        settings = System_Settings.get_default_settings()
 
         main_task = Main_Task.query.get(main_task_id)
 
@@ -1902,6 +1936,13 @@ class Tasks_Service():
             efficiency = sub_task.efficiency
             timeliness = sub_task.timeliness
             average = sub_task.calculateAverage()
+
+            if settings.enable_formula:
+                quantity = sub_task.calculateQuantity()
+                efficiency = sub_task.calculateEfficiency()
+                timeliness = sub_task.calculateTimeliness()
+
+            
 
             total_quantity += quantity
             total_efficiency += efficiency
@@ -2000,7 +2041,9 @@ class Tasks_Service():
             for sub_task in task.sub_tasks:
                 # Dynamically compute each rating
 
-                """timeliness = 0
+                timeliness = 0
+                actual_working_days = 0
+                target_working_days = 0
 
                 if task.timeliness_mode == "timeframe":
                     timeliness = sub_task.calculate_with_override("timeliness", sub_task.target_time, sub_task.actual_time)
@@ -2012,19 +2055,26 @@ class Tasks_Service():
                         ).days
                         actual_working_days = days_late
                         target_working_days = 1
-                        timeliness = sub_task.calculate_with_override("timeliness", target_working_days, actual_working_days)
+                        timeliness = sub_task.timeliness
                     else:
                         # Fallback if deadlines are missing: use default rating
-                        timeliness = 0"""
+                        timeliness = 0
 
-                quantity = sub_task.quantity
-                
+                quantity = sub_task.quantity                
                 efficiency = sub_task.efficiency
+
+
+                if settings.enable_formula:
+                    quantity = sub_task.calculate_with_override("quantity", sub_task.target_acc, sub_task.actual_acc)
+                    timeliness = sub_task.calculate_with_override("timeliness", target_working_days, actual_working_days)
+                    efficiency = sub_task.calculate_with_override("efficiency", sub_task.target_mod, sub_task.actual_mod)
+                
                 average = sub_task.calculateAverage()
 
                 total_quantity += quantity
                 total_efficiency += efficiency
-                total_timeliness += sub_task.timeliness
+                total_timeliness += timeliness
+
                 total_average += average
                 count += 1
 
@@ -2074,7 +2124,9 @@ class Tasks_Service():
             for sub_task in task.sub_tasks:
                 # Dynamically compute each rating
 
-                """timeliness = 0
+                timeliness = 0
+                actual_working_days = 0
+                target_working_days = 0
 
                 if task.timeliness_mode == "timeframe":
                     timeliness = sub_task.calculate_with_override("timeliness", sub_task.target_time, sub_task.actual_time)
@@ -2086,19 +2138,24 @@ class Tasks_Service():
                         ).days
                         actual_working_days = days_late
                         target_working_days = 1
-                        timeliness = sub_task.calculate_with_override("timeliness", target_working_days, actual_working_days)
+                        timeliness = sub_task.timeliness
                     else:
                         # Fallback if deadlines are missing: use default rating
-                        timeliness = 0"""
+                        timeliness = 0
 
-                quantity = sub_task.quantity
-                
+                quantity = sub_task.quantity                
                 efficiency = sub_task.efficiency
+
+                if settings.enable_formula:
+                    quantity = sub_task.calculate_with_override("quantity", sub_task.target_acc, sub_task.actual_acc)
+                    timeliness = sub_task.calculate_with_override("timeliness", target_working_days, actual_working_days)
+                    efficiency = sub_task.calculate_with_override("efficiency", sub_task.target_mod, sub_task.actual_mod)
+
                 average = sub_task.calculateAverage()
 
                 total_quantity += quantity
                 total_efficiency += efficiency
-                total_timeliness += sub_task.timeliness
+                total_timeliness += timeliness
                 total_average += average
                 count += 1
 

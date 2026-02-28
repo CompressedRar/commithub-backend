@@ -42,11 +42,11 @@ def send_templated_reset_email(recipient, message):
         return a
     
 
-def send_email_account_creation(recipient, message):
+def send_email_account_creation(recipient, message, password):
     sub = "Welcome to CommitHub – Let’s Get Started"
     bd = message
 
-    html_body = render_template("email.html",  LOGIN_URL = "google.com", YEAR = 2026)
+    html_body = render_template("email.html",  LOGIN_URL = "google.com", YEAR = 2026, password = password)
 
     try :
         msg = Message(subject = sub,recipients = [recipient], html=html_body)

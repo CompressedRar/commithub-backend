@@ -848,7 +848,7 @@ class Users():
             
             )
             db.session.flush()
-            send_email_account_creation(data["email"], msg)
+            send_email_account_creation(data["email"], msg, new_default_password)
 
             db.session.add(new_user)
             db.session.commit()
