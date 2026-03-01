@@ -5,8 +5,8 @@ from sqlalchemy.exc import IntegrityError, OperationalError, DataError, Programm
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.Tasks import Tasks_Service, Assigned_Task, Output, Sub_Task, Formula_Engine
-from models.User import Users, User, Notification_Service
-from models.Departments import Department_Service, Department
+from models.User import  User, Notification_Service
+from models.Departments import  Department
 from utils import FileStorage, ExcelHandler
 from sqlalchemy import func, outerjoin
 from pprint import pprint
@@ -3475,6 +3475,309 @@ class PCR_Service():
         except Exception as e:
             #db.session.rollback()
             return jsonify(error=str(e)), 500
+
+    # ============================================================
+    # ADVANCED ANALYTICS METHODS (Performance & Trends)
+    # ============================================================
+
+    @staticmethod
+    def get_performance_history(dept_id, start_date, end_date, metric_type='average'):
+        """Get historical performance data for a department within a date range"""
+        try:
+            from datetime import datetime as dt
+            from utils.TrendAnalysis import TrendAnalysis
+
+            # Parse dates
+            if isinstance(start_date, str):
+                start = dt.strptime(start_date, '%Y-%m-%d').date()
+            else:
+                start = start_date
+
+            if isinstance(end_date, str):
+                end = dt.strptime(end_date, '%Y-%m-%d').date()
+            else:
+                end = end_date
+
+            # Query Sub_Task data for the department in date range
+            sub_tasks = db.session.query(
+                func.date(Sub_Task.created_at).label('created_at'),
+                func.avg(Sub_Task.quantity).label('avg_qty'),
+                func.avg(Sub_Task.efficiency).label('avg_eff'),
+                func.avg(Sub_Task.timeliness).label('avg_time')
+            ).join(IPCR, Sub_Task.ipcr_id == IPCR.id).join(
+                User, IPCR.user_id == User.id
+            ).join(
+                Department, User.department_id == Department.id
+            ).filter(
+                Department.id == dept_id,
+                Sub_Task.created_at >= start,
+                Sub_Task.created_at <= end,
+                Sub_Task.status == 1
+            ).group_by(
+                func.date(Sub_Task.created_at)
+            ).order_by(
+                func.date(Sub_Task.created_at)
+            ).all()
+
+            # Format data
+            data = []
+            for task in sub_tasks:
+                avg_qty = float(task.avg_qty) if task.avg_qty else 0
+                avg_eff = float(task.avg_eff) if task.avg_eff else 0
+                avg_time = float(task.avg_time) if task.avg_time else 0
+
+                if metric_type == 'quantity':
+                    value = avg_qty
+                elif metric_type == 'efficiency':
+                    value = avg_eff
+                elif metric_type == 'timeliness':
+                    value = avg_time
+                else:  # average
+                    value = (avg_qty + avg_eff + avg_time) / 3
+
+                # Calculate trend direction
+                trend = 'stable'
+                if len(data) > 0:
+                    prev_value = data[-1]['value']
+                    if value > prev_value * 1.05:
+                        trend = 'improving'
+                    elif value < prev_value * 0.95:
+                        trend = 'declining'
+
+                data.append({
+                    'date': task.created_at.strftime('%Y-%m-%d'),
+                    'value': round(value, 2),
+                    'trend_direction': trend
+                })
+
+            return jsonify({'status': 'success', 'data': data}), 200
+
+        except Exception as e:
+            print(e)
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    @staticmethod
+    def get_performance_trends(dept_id, timeframe='monthly', periods=12):
+        """Get trend analysis with moving averages and forecasting"""
+        try:
+            from utils.TrendAnalysis import TrendAnalysis
+            from datetime import datetime as dt, timedelta
+
+            # Query aggregated data
+            query = db.session.query(
+                func.date(Sub_Task.created_at).label('date'),
+                func.avg(Sub_Task.quantity).label('avg_qty'),
+                func.avg(Sub_Task.efficiency).label('avg_eff'),
+                func.avg(Sub_Task.timeliness).label('avg_time')
+            ).join(IPCR, Sub_Task.ipcr_id == IPCR.id).join(
+                User, IPCR.user_id == User.id
+            ).join(
+                Department, User.department_id == Department.id
+            ).filter(
+                Department.id == dept_id,
+                Sub_Task.status == 1
+            ).group_by(
+                func.date(Sub_Task.created_at)
+            ).order_by(
+                func.date(Sub_Task.created_at)
+            ).all()
+
+            # Aggregate by timeframe
+            data_by_period = {}
+            for row in query:
+                if timeframe == 'monthly':
+                    period_key = row.date.strftime('%Y-%m')
+                elif timeframe == 'quarterly':
+                    quarter = (row.date.month - 1) // 3 + 1
+                    period_key = f"{row.date.year}-Q{quarter}"
+                else:  # yearly
+                    period_key = str(row.date.year)
+
+                if period_key not in data_by_period:
+                    data_by_period[period_key] = {'qty': [], 'eff': [], 'time': []}
+
+                data_by_period[period_key]['qty'].append(float(row.avg_qty) if row.avg_qty else 0)
+                data_by_period[period_key]['eff'].append(float(row.avg_eff) if row.avg_eff else 0)
+                data_by_period[period_key]['time'].append(float(row.avg_time) if row.avg_time else 0)
+
+            # Calculate period averages
+            historical_data = []
+            for period, values in sorted(data_by_period.items()):
+                avg_qty = sum(values['qty']) / len(values['qty']) if values['qty'] else 0
+                avg_eff = sum(values['eff']) / len(values['eff']) if values['eff'] else 0
+                avg_time = sum(values['time']) / len(values['time']) if values['time'] else 0
+                avg_all = (avg_qty + avg_eff + avg_time) / 3
+
+                historical_data.append({
+                    'period': period,
+                    'actual': round(avg_all, 2),
+                    'quantity': round(avg_qty, 2),
+                    'efficiency': round(avg_eff, 2),
+                    'timeliness': round(avg_time, 2)
+                })
+
+            # Calculate moving averages
+            values = [d['actual'] for d in historical_data]
+            ma3 = TrendAnalysis.calculate_moving_average(values, 3)
+            ma6 = TrendAnalysis.calculate_moving_average(values, 6)
+
+            # Add moving averages to data
+            for i, item in enumerate(historical_data):
+                item['moving_avg_3'] = ma3[i]
+                item['moving_avg_6'] = ma6[i]
+
+            # Generate forecast
+            forecast_data = TrendAnalysis.forecast_next_period(
+                [{'date': d['period'], 'value': d['actual']} for d in historical_data],
+                periods_ahead=max(1, periods - len(historical_data))
+            )
+
+            # Add forecasts to the end
+            for forecast in forecast_data:
+                historical_data.append({
+                    'period': f"Forecast+{forecast['period']}",
+                    'actual': forecast['forecasted_value'],
+                    'moving_avg_3': None,
+                    'moving_avg_6': None,
+                    'forecast': True,
+                    'confidence_lower': forecast['confidence_lower'],
+                    'confidence_upper': forecast['confidence_upper']
+                })
+
+            return jsonify({'status': 'success', 'data': historical_data}), 200
+
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    @staticmethod
+    def get_comparative_analytics(dept_ids, metric_type='average', date_range=None):
+        """Compare performance across multiple departments (peer benchmarking)"""
+        try:
+            from datetime import datetime as dt, timedelta
+
+            if not dept_ids:
+                return jsonify({'status': 'error', 'message': 'No departments specified'}), 400
+
+            # Parse department IDs
+            if isinstance(dept_ids, str):
+                dept_list = [int(x.strip()) for x in dept_ids.split(',')]
+            else:
+                dept_list = dept_ids
+
+            # Set date range
+            if date_range and date_range == 'last_year':
+                start_date = dt.now().date() - timedelta(days=365)
+            else:
+                start_date = dt.now().date() - timedelta(days=90)  # Default 3 months
+
+            # Query each department
+            comparative_data = []
+            for dept_id in dept_list:
+                dept = Department.query.get(dept_id)
+                if not dept:
+                    continue
+
+                metrics = db.session.query(
+                    func.avg(Sub_Task.quantity).label('qty'),
+                    func.avg(Sub_Task.efficiency).label('eff'),
+                    func.avg(Sub_Task.timeliness).label('time')
+                ).join(IPCR).join(User).filter(
+                    User.department_id == dept_id,
+                    Sub_Task.created_at >= start_date,
+                    Sub_Task.status == 1
+                ).first()
+
+                avg_qty = float(metrics.qty) if metrics and metrics.qty else 0
+                avg_eff = float(metrics.eff) if metrics and metrics.eff else 0
+                avg_time = float(metrics.time) if metrics and metrics.time else 0
+                overall = (avg_qty + avg_eff + avg_time) / 3
+
+                comparative_data.append({
+                    'department': dept.name,
+                    'department_id': dept.id,
+                    'quantity': round(avg_qty, 2),
+                    'efficiency': round(avg_eff, 2),
+                    'timeliness': round(avg_time, 2),
+                    'average': round(overall, 2),
+                    'trend': 'stable'  # Could calculate trend if historical data available
+                })
+
+            # Sort by selected metric
+            if metric_type == 'quantity':
+                comparative_data.sort(key=lambda x: x['quantity'], reverse=True)
+            elif metric_type == 'efficiency':
+                comparative_data.sort(key=lambda x: x['efficiency'], reverse=True)
+            elif metric_type == 'timeliness':
+                comparative_data.sort(key=lambda x: x['timeliness'], reverse=True)
+            else:
+                comparative_data.sort(key=lambda x: x['average'], reverse=True)
+
+            return jsonify({'status': 'success', 'data': comparative_data}), 200
+
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    @staticmethod
+    def get_performance_forecast(dept_id, periods_ahead=3):
+        """Forecast future performance using trend analysis"""
+        try:
+            from utils.TrendAnalysis import TrendAnalysis
+            from datetime import datetime as dt, timedelta
+
+            # Get recent historical data
+            recent_data = db.session.query(
+                func.date(Sub_Task.created_at).label('date'),
+                func.avg(Sub_Task.quantity).label('avg_qty'),
+                func.avg(Sub_Task.efficiency).label('avg_eff'),
+                func.avg(Sub_Task.timeliness).label('avg_time')
+            ).join(IPCR, Sub_Task.ipcr_id == IPCR.id).join(
+                User, IPCR.user_id == User.id
+            ).join(
+                Department, User.department_id == Department.id
+            ).filter(
+                Department.id == dept_id,
+                Sub_Task.created_at >= dt.now().date() - timedelta(days=365),
+                Sub_Task.status == 1
+            ).group_by(
+                func.date(Sub_Task.created_at)
+            ).order_by(
+                func.date(Sub_Task.created_at)
+            ).all()
+
+            if not recent_data:
+                return jsonify({'status': 'error', 'message': 'Insufficient data for forecasting'}), 400
+
+            # Prepare data for forecasting
+            historical = []
+            for row in recent_data:
+                avg_all = ((float(row.avg_qty) or 0) + (float(row.avg_eff) or 0) + (float(row.avg_time) or 0)) / 3
+                historical.append({
+                    'date': row.date.strftime('%Y-%m-%d'),
+                    'value': avg_all
+                })
+
+            # Generate forecasts
+            forecasts = TrendAnalysis.forecast_next_period(historical, periods_ahead)
+
+            return jsonify({'status': 'success', 'data': forecasts}), 200
+
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    @staticmethod
+    def get_kpi_status(dept_id):
+        """Get custom KPI status for a department"""
+        try:
+            from models.Analytics import CustomKPIService
+
+            kpis = CustomKPIService.get_department_kpis(dept_id, enabled_only=True)
+            kpi_data = [kpi.to_dict() for kpi in kpis]
+
+            return jsonify({'status': 'success', 'data': kpi_data}), 200
+
+        except Exception as e:
+            print(e)
+            return jsonify({'status': 'error', 'message': str(e)}), 500
         
         
 

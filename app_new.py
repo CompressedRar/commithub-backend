@@ -71,12 +71,13 @@ def _register_blueprints(app):
         ('routes.Logs', 'logs'),
         ('routes.PCR', 'pcrs'),
         ('routes.Chart', 'charts'),
+        ('routes.Alerts', 'alerts'),
         ('routes.AI', 'ai'),
         ('routes.Positions', 'positions'),
         ('routes.Settings', 'settings'),
         ('routes.Administrator', 'administrator'),
     ]
-    
+
     for module_name, blueprint_name in blueprints:
         try:
             module = __import__(module_name, fromlist=[blueprint_name])

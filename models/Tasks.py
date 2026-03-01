@@ -2181,6 +2181,93 @@ class Tasks_Service():
                 })
 
         return data
-    
+
+    @staticmethod
+    def get_user_performance_history(user_id, start_date=None, end_date=None):
+        """Get individual user's performance history over time"""
+        try:
+            from datetime import datetime as dt, timedelta
+            from flask import jsonify
+
+            # Parse dates
+            if isinstance(start_date, str) and start_date:
+                start = dt.strptime(start_date, '%Y-%m-%d').date()
+            else:
+                start = dt.now().date() - timedelta(days=365)  # Default: last year
+
+            if isinstance(end_date, str) and end_date:
+                end = dt.strptime(end_date, '%Y-%m-%d').date()
+            else:
+                end = dt.now().date()
+
+            # Query user's sub_tasks within date range
+            user_sub_tasks = db.session.query(
+                func.date(Sub_Task.created_at).label('date'),
+                func.avg(Sub_Task.quantity).label('avg_qty'),
+                func.avg(Sub_Task.efficiency).label('avg_eff'),
+                func.avg(Sub_Task.timeliness).label('avg_time'),
+                func.count(Sub_Task.id).label('count')
+            ).join(IPCR).filter(
+                IPCR.user_id == user_id,
+                Sub_Task.created_at >= start,
+                Sub_Task.created_at <= end,
+                Sub_Task.status == 1
+            ).group_by(
+                func.date(Sub_Task.created_at)
+            ).order_by(
+                func.date(Sub_Task.created_at)
+            ).all()
+
+            # Format data
+            data = []
+            for task in user_sub_tasks:
+                avg_qty = float(task.avg_qty) if task.avg_qty else 0
+                avg_eff = float(task.avg_eff) if task.avg_eff else 0
+                avg_time = float(task.avg_time) if task.avg_time else 0
+                avg_all = (avg_qty + avg_eff + avg_time) / 3
+
+                data.append({
+                    'date': task.date.strftime('%Y-%m-%d'),
+                    'period': task.date.strftime('%Y-%m'),
+                    'quantity': round(avg_qty, 2),
+                    'efficiency': round(avg_eff, 2),
+                    'timeliness': round(avg_time, 2),
+                    'average': round(avg_all, 2),
+                    'task_count': int(task.count)
+                })
+
+            # Calculate summary statistics
+            if data:
+                quantities = [d['quantity'] for d in data]
+                efficiencies = [d['efficiency'] for d in data]
+                timeliness = [d['timeliness'] for d in data]
+                averages = [d['average'] for d in data]
+
+                summary = {
+                    'avg_quantity': round(sum(quantities) / len(quantities), 2),
+                    'avg_efficiency': round(sum(efficiencies) / len(efficiencies), 2),
+                    'avg_timeliness': round(sum(timeliness) / len(timeliness), 2),
+                    'overall_average': round(sum(averages) / len(averages), 2),
+                    'total_tasks': sum(d['task_count'] for d in data),
+                    'periods': len(data)
+                }
+            else:
+                summary = {
+                    'avg_quantity': 0,
+                    'avg_efficiency': 0,
+                    'avg_timeliness': 0,
+                    'overall_average': 0,
+                    'total_tasks': 0,
+                    'periods': 0
+                }
+
+            return jsonify({
+                'status': 'success',
+                'data': data,
+                'summary': summary
+            }), 200
+
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
 
     

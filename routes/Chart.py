@@ -85,3 +85,83 @@ def get_user_task_performancve(user_id):
 @charts.route("/top/department-performance/", methods = ["GET"])
 def get_top_department():
     return Department_Service.get_top_performing_department()
+
+
+# ============================================================
+# ADVANCED ANALYTICS ENDPOINTS (Performance & Trends)
+# ============================================================
+
+@charts.route("/performance/history", methods=["GET"])
+def get_performance_history():
+    """
+    Get historical performance data with custom date range
+    Params: department_id, start_date, end_date, metric_type
+    """
+    dept_id = request.args.get("department_id")
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+    metric_type = request.args.get("metric_type", "average")  # quantity, efficiency, timeliness, average
+
+    return PCR_Service.get_performance_history(dept_id, start_date, end_date, metric_type)
+
+
+@charts.route("/performance/trends", methods=["GET"])
+def get_performance_trends():
+    """
+    Get trend analysis with moving averages and forecasting
+    Params: department_id, timeframe (monthly/quarterly), periods
+    """
+    dept_id = request.args.get("department_id")
+    timeframe = request.args.get("timeframe", "monthly")
+    periods = request.args.get("periods", 12, type=int)
+
+    return PCR_Service.get_performance_trends(dept_id, timeframe, periods)
+
+
+@charts.route("/performance/comparison", methods=["GET"])
+def get_comparative_analytics():
+    """
+    Compare performance across multiple departments (peer benchmarking)
+    Params: dept_ids (comma-separated), metric_type, date_range
+    """
+    dept_ids = request.args.get("dept_ids")  # comma-separated
+    metric_type = request.args.get("metric_type", "average")
+    date_range = request.args.get("date_range")
+
+    return PCR_Service.get_comparative_analytics(dept_ids, metric_type, date_range)
+
+
+@charts.route("/performance/forecast", methods=["GET"])
+def get_performance_forecast():
+    """
+    Forecast future performance using trend analysis
+    Params: department_id, periods_ahead
+    """
+    dept_id = request.args.get("department_id")
+    periods_ahead = request.args.get("periods_ahead", 3, type=int)
+
+    return PCR_Service.get_performance_forecast(dept_id, periods_ahead)
+
+
+@charts.route("/kpi/status", methods=["GET"])
+def get_kpi_status():
+    """
+    Get custom KPI status for a department
+    Params: department_id
+    """
+    dept_id = request.args.get("department_id")
+
+    return PCR_Service.get_kpi_status(dept_id)
+
+
+@charts.route("/user/performance-history", methods=["GET"])
+def get_user_performance_history():
+    """
+    Get individual user's performance history over time
+    Params: user_id, start_date, end_date
+    """
+    user_id = request.args.get("user_id")
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+
+    return Tasks_Service.get_user_performance_history(user_id, start_date, end_date)

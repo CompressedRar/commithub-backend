@@ -34,6 +34,26 @@ class System_Settings(db.Model):
     timeliness_formula = db.Column(JSON, default={})
 
     # -----------------------
+    # PERFORMANCE ALERT SETTINGS
+    # -----------------------
+    # Alert thresholds for warning and critical levels
+    # Example:
+    # {
+    #   "quantity_warning": 2.5,
+    #   "quantity_critical": 2.0,
+    #   "efficiency_warning": 2.5,
+    #   "efficiency_critical": 2.0,
+    #   "timeliness_warning": 2.5,
+    #   "timeliness_critical": 2.0,
+    #   "alert_to_roles": ["administrator", "head"],
+    #   "daily_check_time": "08:00"
+    # }
+    alert_thresholds = db.Column(JSON, nullable=True, default={})
+
+    # Custom KPI definitions storage
+    kpi_definitions = db.Column(JSON, nullable=True, default={})
+
+    # -----------------------
     # METADATA
     # -----------------------
     created_at = db.Column(db.DateTime, default=datetime.now)
@@ -102,10 +122,12 @@ class System_Settings(db.Model):
             "quantity_formula": self.quantity_formula,
             "efficiency_formula": self.efficiency_formula,
             "timeliness_formula": self.timeliness_formula,
+            "alert_thresholds": self.alert_thresholds or {},
+            "kpi_definitions": self.kpi_definitions or {},
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "planning_start_date": self.planning_start_date,
-            "planning_end_date": self.planning_end_date,    
+            "planning_end_date": self.planning_end_date,
             "monitoring_start_date": self.monitoring_start_date,
             "monitoring_end_date": self.monitoring_end_date,
             "rating_start_date": self.rating_start_date,
@@ -115,7 +137,7 @@ class System_Settings(db.Model):
             "current_president_fullname": self.current_president_fullname,
             "current_mayor_fullname": self.current_mayor_fullname,
             "current_phase": self.get_current_period(),
-            "enable_formula": self.enable_formula            
+            "enable_formula": self.enable_formula
         }
     
     @staticmethod
