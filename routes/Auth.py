@@ -23,6 +23,13 @@ def authenticate_user():
     print("Data received: ", data.keys())
     return Users.authenticate_user(data)
 
+
+@auth.route("/pass", methods = ["POST"])
+def authenticate_pass():
+    data = request.form or request.json
+    print("Data received: ", data.keys())
+    return Users.authenticate_pass(data)
+
 @auth.route("/verify-otp", methods=["POST"])
 @limiter.limit("10 per minute")
 def verify_otp():

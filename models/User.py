@@ -1016,6 +1016,50 @@ class Users():
             print(str(e), "EXCEPTION")
             return jsonify(error = "Invalid or expired OTP"), 500
 
+    def authenticate_pass(login_data):
+        print("entry pointof authentication")
+        try:
+
+            if "email" not in login_data:
+                return jsonify(error ="Missing Email"), 400
+            
+            if "password" not in login_data:
+                return jsonify(error ="Missing Password"), 400
+            
+            email = login_data["email"]
+            password = login_data["password"]        
+            userCheck = Users.authenticate_if_email_exists(email)
+            
+            if userCheck:
+                print("USER DETECTED")
+                
+                ph = PasswordHasher()
+                
+
+                result = ph.verify(hash=userCheck["password"], password = password)
+                
+                print(result)
+
+                if result:                    
+                    
+                    return jsonify(message="Authenticated",), 200
+                
+                else:
+                    return jsonify(error ="Incorrect Email or Password"), 400
+
+            else:
+                return jsonify(error = "Incorrect Email or Password"), 400
+            
+        except OperationalError as e:
+            db.session.rollback()
+            print(str(e),  "OPERATIONAL")
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:  # fallback for unknown errors
+            db.session.rollback()
+            print(str(e), "EXCEPTION")
+            return jsonify(error = "Incorrect Email or Password"), 500
+
     def authenticate_user(login_data):
         print("entry pointof authentication")
         try:
