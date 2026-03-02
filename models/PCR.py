@@ -1967,6 +1967,10 @@ class PCR_Service():
                         else:
                             actual_days = sub_task.actual_time or 0
 
+                        task["summary"]["target"] += sub_task.target_acc
+                        task["corrections"]["target"] += sub_task.target_mod
+                        task["working_days"]["target"] += sub_task.target_time
+
                         task["summary"]["actual"] += sub_task.actual_acc
                         task["corrections"]["actual"] += sub_task.actual_mod
                         task["working_days"]["actual"] += actual_days
@@ -2710,6 +2714,10 @@ class PCR_Service():
                             ).days
                         else:
                             actual_days = sub_task.actual_time or 0
+
+                        task["summary"]["target"] += sub_task.target_acc
+                        task["corrections"]["target"] += sub_task.target_mod
+                        task["working_days"]["target"] += sub_task.target_time
 
                         task["summary"]["actual"] += sub_task.actual_acc
                         task["corrections"]["actual"] += sub_task.actual_mod
