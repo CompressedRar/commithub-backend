@@ -12,7 +12,6 @@ settings = Blueprint("settings", __name__, url_prefix="/api/v1/settings")
 
 
 @settings.route("/", methods = ["GET"])
-@permissions_required("settings.view")
 def get_settings():
     return System_Settings_Service.get_settings()
 
