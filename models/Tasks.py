@@ -186,6 +186,8 @@ class Assigned_Task(db.Model):
     period = db.Column(db.String(100), nullable=True)
 
     assigned_quantity = db.Column(db.Integer, default = 0)
+    assigned_time = db.Column(db.Integer, default = 0)
+    assigned_mod = db.Column(db.Integer, default = 0)
 
     def user_info(self):
         return self.user.info()
@@ -220,7 +222,7 @@ class Output(db.Model):
 
     assigned_quantity = db.Column(db.Integer, default = 0)
 
-    def __init__(self, user_id, main_task_id, batch_id, ipcr_id, period, assigned_quantity):
+    def __init__(self, user_id, main_task_id, batch_id, ipcr_id, period, assigned_quantity, assigned_time, assigned_mod):
         super().__init__()
         self.user_id = user_id
         self.batch_id = batch_id
@@ -238,6 +240,8 @@ class Output(db.Model):
             ipcr_id = self.ipcr_id,
             assigned_quantity = assigned_quantity,
             target_acc=assigned_quantity,
+            target_time = assigned_time,
+            target_mod = assigned_mod,
             period=period
         )             
        
@@ -374,6 +378,8 @@ class Main_Task(db.Model):
 
             user_info = assigned.user_info() 
             user_info["assigned_quantity"] = assigned.assigned_quantity
+            user_info["assigned_time"] = assigned.assigned_time
+            user_info["assigned_mod"] = assigned.assigned_mod
             
             if assigned.user_info()["department_name"] == "NONE": 
                 continue
@@ -756,8 +762,8 @@ class Sub_Task(db.Model):
             "period_id": self.period,
             "title": self.mfo,
             "target_acc": self.assigned_quantity,
-            "target_time": self.main_task.target_timeframe,
-            "target_mod": self.main_task.target_efficiency,
+            "target_time": self.target_time,
+            "target_mod": self.target_mod,
             "actual_acc": self.actual_acc,
             "actual_time": self.actual_time,
             "actual_mod": self.actual_mod,
@@ -1091,8 +1097,9 @@ class Tasks_Service():
             "count":tasks_count
         })
     
-    def assign_user(task_id, user_id, assigned_quantity):
+    def assign_user(task_id, user_id, assigned_quantity, assigned_time, assigned_mod):
         try:
+
             #search ko muna lahat ng assigned task kung existing na siya
             from models.System_Settings import System_Settings            
             current_settings = System_Settings.get_default_settings()
@@ -1111,9 +1118,26 @@ class Tasks_Service():
                 Assigned_Task.query.filter_by(user_id = user_id, main_task_id = task_id).delete()
                 db.session.flush()
                 
-                new_assigned_task = Assigned_Task(user_id = user_id, main_task_id = task_id, is_assigned = True, period = current_settings.current_period_id if current_settings else None, assigned_quantity = assigned_quantity)
+                new_assigned_task = Assigned_Task(user_id = user_id,
+                                                   main_task_id = task_id, 
+                                                   is_assigned = True, 
+                                                   period = current_settings.current_period_id if current_settings else None, 
+                                                   assigned_quantity = assigned_quantity, 
+                                                   assigned_time = assigned_time, 
+                                                   assigned_mod = assigned_mod)
                 db.session.add(new_assigned_task)
                 db.session.flush()
+                db.session.commit()
+
+                from models.PCR import Supporting_Document
+
+                all_docu = Supporting_Document.query.filter_by(ipcr_id=existing_ipcr.id).all()
+                for docu in all_docu:
+
+                    print("delete supp docu", docu.sub_task.main_task.id)
+                    if docu.sub_task.main_task.id == int(task_id):
+                        print("delete supp docu")
+                        db.session.delete(docu)
                 db.session.commit()
 
                 Sub_Task.query.filter_by(main_task_id = task_id, batch_id = existing_ipcr.batch_id, ipcr_id=existing_ipcr.id, period = current_settings.current_period_id if current_settings else None).delete()
@@ -1121,7 +1145,15 @@ class Tasks_Service():
 
                 Output.query.filter_by(user_id = user_id, main_task_id = task_id, batch_id = existing_ipcr.batch_id, ipcr_id=existing_ipcr.id, period = current_settings.current_period_id if current_settings else None).delete()
                 db.session.commit()
-                new_output = Output(user_id = user_id, main_task_id = task_id, batch_id = existing_ipcr.batch_id if current_settings else "", ipcr_id=existing_ipcr.id, period = current_settings.current_period_id if current_settings else None, assigned_quantity = assigned_quantity)
+                new_output = Output(user_id = user_id, 
+                                    main_task_id = task_id, 
+                                    batch_id = existing_ipcr.batch_id if current_settings else "", 
+                                    ipcr_id=existing_ipcr.id, period = current_settings.current_period_id if current_settings else None, 
+                                    assigned_quantity = assigned_quantity,
+                                    assigned_time=assigned_time,
+                                    assigned_mod=assigned_mod)
+                
+
                 print("new output", new_output.batch_id)                            
                 db.session.add(new_output)
 

@@ -59,11 +59,11 @@ def get_general_assigned_users_tasks(task_id):
     return Tasks_Service.get_general_assigned_users(task_id)
 
 
-@department.route("/assigned/<user_id>&<task_id>&<assigned_quantity>", methods = ["POST"])
+@department.route("/assigned/<user_id>&<task_id>&<assigned_quantity>&<time>&<mod>", methods = ["POST"])
 @token_required()
 @log_action(action = "ASSIGN", target="TASK")
-def assign_user_task(user_id, task_id, assigned_quantity):
-    return Tasks_Service.assign_user(task_id, user_id, assigned_quantity)
+def assign_user_task(user_id, task_id, assigned_quantity, time, mod):
+    return Tasks_Service.assign_user(task_id, user_id, assigned_quantity, time, mod)
 
 
 
