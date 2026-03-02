@@ -275,9 +275,9 @@ class Assigned_Department(db.Model):
     efficiency_formula = db.Column(JSON, default={})
     timeliness_formula = db.Column(JSON, default={})
 
-    quantity = db.Column(db.Integer)
-    efficiency = db.Column(db.Integer)
-    timeliness = db.Column(db.Integer)
+    quantity = db.Column(db.Integer, default=1)
+    efficiency = db.Column(db.Integer, default=1)
+    timeliness = db.Column(db.Integer, default=1)
 
     enable_formulas = db.Column(db.Boolean, default=False)
 
