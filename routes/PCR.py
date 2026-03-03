@@ -172,8 +172,11 @@ def record_supporting_document():
     ipcr_id = request.json["ipcrID"]
     batch_id = request.json["batchID"]
     sub_task_id = request.json.get("subTaskID", None)
+    title = request.json.get("title", None)
+    desc = request.json.get("desc", None)
+    event_date = request.json.get("eventDate", None)
 
-    return PCR_Service.record_supporting_document(file_name=file_name, file_type=file_type, ipcr_id=ipcr_id, batch_id=batch_id, sub_task_id=sub_task_id)
+    return PCR_Service.record_supporting_document(file_name=file_name, file_type=file_type, ipcr_id=ipcr_id, batch_id=batch_id, sub_task_id=sub_task_id, title=title, desc=desc, event_date=event_date)
 
 @pcrs.route("/record-opcr", methods = ["POST"])
 @token_required()

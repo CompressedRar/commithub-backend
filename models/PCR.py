@@ -93,7 +93,11 @@ class Supporting_Document(db.Model):
             "task_id": self.sub_task.id if self.sub_task else "",
             "main_task_id": self.sub_task.main_task.id,
             "user_name": self.ipcr.user.full_name(),
-            "department_name": self.ipcr.user.department.name
+            "department_name": self.ipcr.user.department.name,
+            "created_at": self.created_at,
+            "event_date": self.event_date,
+            "desc": self.description,
+            "title": self.title
         }
     
 class OPCR_Supporting_Document(db.Model):
@@ -1103,13 +1107,26 @@ class PCR_Service():
             #db.session.rollback()
             return jsonify(error=str(e)), 500
 
-    def record_supporting_document(file_type, file_name, ipcr_id, batch_id, sub_task_id = None):
+    def record_supporting_document(file_type, file_name, ipcr_id, batch_id, sub_task_id = None, title = "", desc = "", event_date = None):
         try:
             from models.System_Settings import System_Settings            
             current_settings = System_Settings.get_default_settings()
 
+            parsed_date = None
+            if event_date:
+                parsed_date = datetime.strptime(event_date, '%Y-%m-%d')
+
             ipcr = IPCR.query.get(ipcr_id)
-            new_supporting_document = Supporting_Document(file_type = file_type, file_name = file_name, ipcr_id = ipcr_id, batch_id = batch_id, sub_task_id = sub_task_id, period = current_settings.current_period_id)
+            new_supporting_document = Supporting_Document(file_type = file_type, 
+                                                          file_name = file_name, 
+                                                          ipcr_id = ipcr_id, 
+                                                          batch_id = batch_id, 
+                                                          sub_task_id = sub_task_id, 
+                                                          period = current_settings.current_period_id,
+                                                          title=title,
+                                                            description=desc,
+                                                            event_date=parsed_date)
+            
             db.session.add(new_supporting_document)
             db.session.commit()
             socketio.emit("document", "document")
