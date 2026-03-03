@@ -1530,6 +1530,7 @@ class Tasks_Service():
         try:
             found_task = Main_Task.query.get(id)
             from models.System_Settings import System_Settings
+            
             settings = System_Settings.get_default_settings()
 
 
@@ -1550,6 +1551,8 @@ class Tasks_Service():
                 found_output = Output.query.filter_by(user_id = ass_tasks.user.id, main_task_id = id).all()
                 for output in found_output:
                     db.session.delete(output)
+
+            Tasks_Service.check_if_ipcrs_have_tasks()
 
 
             

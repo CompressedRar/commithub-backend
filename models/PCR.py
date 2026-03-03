@@ -64,11 +64,17 @@ class Supporting_Document(db.Model):
     ipcr_id = db.Column(db.Integer, db.ForeignKey("ipcr.id"), default = None)
     batch_id = db.Column(db.Text, default = "")
     status = db.Column(db.Integer, default = 1)
+    
 
     ipcr = db.relationship("IPCR", back_populates = "supporting_documents")
     sub_task_id = db.Column(db.Integer, db.ForeignKey("sub_tasks.id"), default = None)
 
     sub_task = db.relationship("Sub_Task", back_populates = "supporting_documents")
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    event_date = db.Column(db.DateTime, default=None)
+    description = db.Column(db.Text, default="")
+    title = db.Column(db.Text, default="")
 
     period = db.Column(db.String(100), nullable=True)
     
