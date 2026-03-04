@@ -152,9 +152,9 @@ def _build_data_from_ipcr(ipcr):
 
         # ratings
         a["rating"] = {
-            "quantity": getattr(sub, "quantity", 0),
-            "efficiency": getattr(sub, "efficiency", 0),
-            "timeliness": getattr(sub, "timeliness", 0),
+            "quantity": sub.calculate_with_override("quantity", sub.target_acc, sub.actual_acc),
+            "efficiency": sub.calculate_with_override("efficiency", sub.target_mod, sub.actual_mod),
+            "timeliness": sub.calculate_with_override("timeliness", sub.target_time, sub.actual_time),
             "average": getattr(sub, "average", 0),
             "remarks": f"={formula}"
         }
