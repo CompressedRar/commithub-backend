@@ -1752,21 +1752,28 @@ class Tasks_Service():
             ipcr = Sub_Task.query.get(sub_task_id)
 
             if field == "target_acc":
+                print("target acc")
                 ipcr.target_acc = int(value)
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
 
             if field == "target_time":
+                print("target time")
                 ipcr.target_time = int(value)
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
+                db.session.commit()
 
             if field == "target_mod":
+                print("target mod")
                 ipcr.target_mod = int(value)
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
+                db.session.commit()
 
             if field == "actual_deadline":
+                
 
                 ipcr.actual_deadline = datetime.fromisoformat(value.replace("Z", "+00:00"))
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
+                db.session.commit()
 
             if field == "actual_acc":
                 ipcr.actual_acc = int(value)
