@@ -1352,9 +1352,19 @@ class Tasks_Service():
             user = User.query.get(user_id)
 
             outputs = Output.query.filter_by(user_id = user_id, main_task_id = task_id).all()
-
+            from models.PCR import Supporting_Document
             for output in outputs:
-                Sub_Task.query.filter_by(output_id = output.id).delete()
+                all_task = Sub_Task.query.filter_by(output_id = output.id).all()
+
+                for task in all_task:
+                    for docs in task.supporting_documents:
+                        db.session.delete(docs)
+                        db.session.commit()
+                    db.session.commit()
+
+                    db.session.delete(task)
+
+                print("Abot dito")
                 db.session.commit()
             
 
