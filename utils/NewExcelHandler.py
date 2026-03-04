@@ -451,7 +451,7 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None):
                     total += a["rating"]["average"]
 
                     prepareCells(ws, f"Q{row}", f"Q{row+5}")
-                    ws[f"Q{row}"] = float(f"{float((a["rating"]["quantity"] + a["rating"]["efficiency"] + a["rating"]["timeliness"]) / 3):.2F}")
+                    ws[f"Q{row}"] = float(f"{float((a["rating"]["quantity"] + a["rating"]["efficiency"] + a["rating"]["timeliness"]) / 3):.1F}")
                     ws[f"Q{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     ws[f"Q{row}"].font = Font(bold=True)
 

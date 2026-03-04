@@ -232,7 +232,7 @@ def createNewOPCR(data, assigned, admin_data):
                 ws["P"+str(row)].font = Font(bold=True)
                 
                 prepareCells(ws, str("Q"+str(row)), str("Q"+str(row + 5)))
-                ws["Q"+str(row)] = float(f"{float(a["rating"]["average"]):.2F}") # average
+                ws["Q"+str(row)] = float(f"{float(a["rating"]["average"]):.1F}") # average
                 ws["Q"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["Q"+str(row)].font = Font(bold=True)
                 
@@ -639,7 +639,7 @@ def createNewWeightedOPCR(data, assigned, admin_data):
                 ws["P"+str(row)].font = Font(bold=True)
                 
                 prepareCells(ws, str("Q"+str(row)), str("Q"+str(row + 5)))
-                ws["Q"+str(row)] = float(f"{float(a["rating"]["average"]):.2F}") # average
+                ws["Q"+str(row)] = float(f"{float(a["rating"]["average"]):.1F}") # average
                 ws["Q"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["Q"+str(row)].font = Font(bold=True)
                 
@@ -657,10 +657,10 @@ def createNewWeightedOPCR(data, assigned, admin_data):
                 average = a["rating"]["average"]
                 weighted_avg = a["rating"]["weighted_avg"]
                 
-                total_weighted += float(f"{float(weighted_avg):.2F}")
+                total_weighted += float(f"{float(weighted_avg):.1F}")
 
                 prepareCells(ws, str("R"+str(row)), str("R"+str(row + 5)))
-                ws["R"+str(row)] = float(f"{float(weighted_avg):.2F}") # weighted_avg
+                ws["R"+str(row)] = float(f"{float(weighted_avg):.1F}") # weighted_avg
                 ws[f"R{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws[f"R{row}"].font = Font(bold=True)
                 
@@ -994,7 +994,7 @@ def createNewMasterOPCR(data, assigned, admin_data):
                 ws["P"+str(row)].font = Font(bold=True)
                 
                 prepareCells(ws, str("Q"+str(row)), str("Q"+str(row + 5)))
-                ws["Q"+str(row)] = float(f"{float(a["rating"]["average"]):.2F}") # average
+                ws["Q"+str(row)] = float(f"{float(a["rating"]["average"]):.1F}") # average
                 ws["Q"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["Q"+str(row)].font = Font(bold=True)
                 
