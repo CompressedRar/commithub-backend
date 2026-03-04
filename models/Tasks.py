@@ -1755,6 +1755,7 @@ class Tasks_Service():
                 print("target acc")
                 ipcr.target_acc = int(value)
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
+                db.session.commit()
 
             if field == "target_time":
                 print("target time")
