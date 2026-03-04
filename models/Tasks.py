@@ -645,7 +645,7 @@ class Sub_Task(db.Model):
 
 
     def calculateQuantity(self):
-        target = self.assigned_quantity
+        target = self.target_acc
         actual = self.actual_acc
 
         engine = Formula_Engine()
@@ -662,7 +662,7 @@ class Sub_Task(db.Model):
 
 
     def calculateEfficiency(self):
-        target = self.main_task.target_efficiency
+        target = self.target_mod
         actual = self.actual_mod
 
         engine = Formula_Engine()
@@ -679,7 +679,7 @@ class Sub_Task(db.Model):
 
     
     def calculateTimeliness(self):
-        target = self.main_task.target_timeframe    
+        target = self.target_time 
         actual = self.actual_time
 
         if self.main_task.timeliness_mode == "deadline" and self.actual_deadline and self.main_task.target_deadline:
@@ -761,7 +761,7 @@ class Sub_Task(db.Model):
             "id": self.id,
             "period_id": self.period,
             "title": self.mfo,
-            "target_acc": self.assigned_quantity,
+            "target_acc": self.target_acc,
             "target_time": self.target_time,
             "target_mod": self.target_mod,
             "actual_acc": self.actual_acc,
@@ -1752,20 +1752,30 @@ class Tasks_Service():
             ipcr = Sub_Task.query.get(sub_task_id)
 
             if field == "target_acc":
-                print("target acc")
+                print("target acc", value)
                 ipcr.target_acc = int(value)
+                if settings.enable_formula:
+                    print("trigger formula")
+                    ipcr.calculate_with_override("quantity", int(value), ipcr.actual_acc)
+
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
                 db.session.commit()
 
             if field == "target_time":
                 print("target time")
                 ipcr.target_time = int(value)
+                if settings.enable_formula:
+                    print("trigger formula")
+                    ipcr.calculate_with_override("timeliness", int(value), ipcr.actual_time)
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
                 db.session.commit()
 
             if field == "target_mod":
                 print("target mod")
                 ipcr.target_mod = int(value)
+                if settings.enable_formula:
+                    print("trigger formula")
+                    ipcr.calculate_with_override("efficiency", int(value), ipcr.actual_mod)
                 ipcr.average = Tasks_Service.calculateAverage(ipcr.quantity, ipcr.efficiency,ipcr.timeliness)
                 db.session.commit()
 
