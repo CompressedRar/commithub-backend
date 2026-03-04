@@ -741,7 +741,7 @@ class Sub_Task(db.Model):
             timeliness = 0
 
             if self.main_task.timeliness_mode == "timeframe" and not System_Settings_Service.check_if_rating_period():
-                timeliness = self.calculate_with_override("timeliness", self.main_task.target_timeframe, self.actual_time)
+                timeliness = self.calculate_with_override("timeliness", self.target_time, self.actual_time)
             else:
                 if self.actual_deadline and self.main_task.target_deadline:
                     days_late = (
