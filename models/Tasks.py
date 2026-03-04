@@ -754,8 +754,8 @@ class Sub_Task(db.Model):
                     timeliness = self.timeliness
             
             self.timeliness = timeliness if not System_Settings_Service.check_if_rating_period() else self.timeliness
-            self.efficiency = self.calculate_with_override("efficiency", self.main_task.target_efficiency, self.actual_mod) if not System_Settings_Service.check_if_rating_period() else self.efficiency
-            self.quantity = self.calculate_with_override("quantity", self.main_task.target_quantity, self.actual_acc) if not System_Settings_Service.check_if_rating_period() else self.quantity
+            self.efficiency = self.calculate_with_override("efficiency", self.target_mod, self.actual_mod) if not System_Settings_Service.check_if_rating_period() else self.efficiency
+            self.quantity = self.calculate_with_override("quantity", self.target_acc, self.actual_acc) if not System_Settings_Service.check_if_rating_period() else self.quantity
       
         return {
             "id": self.id,
