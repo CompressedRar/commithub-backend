@@ -314,3 +314,27 @@ def upload_ipcr_excel():
     read_result = read_ipcr(file_path = filepath)
     
     return jsonify({"message": read_result, "filename": filename, "filepath": filepath}), 200
+
+
+@pcrs.route("/supporting_docu/compile/<ipcr_id>", methods = ["GET"])
+def compile_pictures_by_ipcr(ipcr_id):
+    from utils.SupportDocCompiler import into_document, collect_by_ipcr
+    docu = collect_by_ipcr(ipcr_id=ipcr_id)
+    rendered = into_document(docu)
+
+    return rendered
+
+@pcrs.route("/supporting_dept/compile/<dept_id>", methods = ["GET"])
+def compile_pictures_by_dept(dept_id):
+    from utils.SupportDocCompiler import into_document, collect_by_department
+    docu = collect_by_department(dept_id=dept_id)
+
+    if not docu:
+        return jsonify(error = "There is no image document to compile"), 400
+
+    res = into_document(docu)
+    if res:
+        return jsonify(message = res), 200
+    else:
+        return jsonify(error="Error in compiling documents"), 400
+
