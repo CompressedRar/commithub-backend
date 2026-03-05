@@ -1913,11 +1913,11 @@ class PCR_Service():
                     task = {
                         "title": main_task.mfo,
                         "summary": {
-                            "target": main_task.target_quantity or 0,
+                            "target": 0,
                             "actual": 0
                         },
                         "corrections": {
-                            "target": main_task.target_efficiency or 0,
+                            "target": 0,
                             "actual": 0
                         },
                         "working_days": {
@@ -2663,11 +2663,11 @@ class PCR_Service():
                     task = {
                         "title": main_task.mfo,
                         "summary": {
-                            "target": main_task.target_quantity or 0,
+                            "target": 0,
                             "actual": 0
                         },
                         "corrections": {
-                            "target": main_task.target_efficiency or 0,
+                            "target": 0,
                             "actual": 0
                         },
                         "working_days": {
