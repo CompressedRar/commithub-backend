@@ -1430,7 +1430,7 @@ class PCR_Service():
             }
 
     def generate_opcr(opcr_id):
-        from models.System_Settings import System_Settings
+        from models.System_Settings import System_Settings, System_Settings_Service
         from models.Tasks import Assigned_Department
         
         print("getting opcr")
@@ -1565,7 +1565,7 @@ class PCR_Service():
                 efficiency = task["rating"]["efficiency"] or 0
                 timeliness = task["rating"]["timeliness"] or 0
 
-                if settings.enable_formula:
+                if settings.enable_formula and not System_Settings_Service.check_if_rating_period():
                     quantity = PCR_Service.compute_rating_with_override(
                         "quantity",
                         task["summary"]["target"],
@@ -2447,7 +2447,7 @@ class PCR_Service():
         return jsonify(ipcr_data=data, assigned=assigned, admin_data=head_data, form_status=1)
   
     def get_opcr(opcr_id):
-        from models.System_Settings import System_Settings
+        from models.System_Settings import System_Settings, System_Settings_Service
         from models.Tasks import Assigned_Department
         
         print("getting opcr")
@@ -2582,7 +2582,7 @@ class PCR_Service():
                 efficiency = task["rating"]["efficiency"] or 0
                 timeliness = task["rating"]["timeliness"] or 0
 
-                if settings.enable_formula and settings.check_if_rating_period():
+                if settings.enable_formula and not System_Settings_Service.check_if_rating_period():
                     quantity = PCR_Service.compute_rating_with_override(
                         "quantity",
                         task["summary"]["target"],
