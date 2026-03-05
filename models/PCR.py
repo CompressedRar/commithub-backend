@@ -1922,8 +1922,7 @@ class PCR_Service():
                         },
                         "working_days": {
                             "target": (
-                                1 if main_task.timeliness_mode == "deadline"
-                                else main_task.target_timeframe or 0
+                                0
                             ),
                             "actual": 0
                         },
@@ -2672,8 +2671,7 @@ class PCR_Service():
                         },
                         "working_days": {
                             "target": (
-                                1 if main_task.timeliness_mode == "deadline"
-                                else main_task.target_timeframe or 0
+                                0
                             ),
                             "actual": 0
                         },
