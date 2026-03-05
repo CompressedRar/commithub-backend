@@ -2582,7 +2582,7 @@ class PCR_Service():
                 efficiency = task["rating"]["efficiency"] or 0
                 timeliness = task["rating"]["timeliness"] or 0
 
-                if settings.enable_formula:
+                if settings.enable_formula and settings.check_if_rating_period():
                     quantity = PCR_Service.compute_rating_with_override(
                         "quantity",
                         task["summary"]["target"],
