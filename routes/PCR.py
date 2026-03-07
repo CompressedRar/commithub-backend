@@ -133,6 +133,38 @@ def download_ipcr(ipcr_id):
 
     return jsonify(link = file_url), 200
 
+@log_action(action = "DOWNLOAD", target="IPCR")
+@token_required()
+@pcrs.route("/weighted_ipcr/download/<ipcr_id>", methods = ["GET"])
+def download_wipcr(ipcr_id):
+
+    file_url = NewExcelHandler.createWeightedIPCR_from_db(ipcr_id=ipcr_id, individuals={
+        "review": {"name": "Arman Bitancur", "position": "Librarian II", "date": ""},
+        "approve": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" },
+        "discuss": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" },
+        "assess": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" },
+        "final": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" },
+        "confirm": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" }
+    })
+
+    return jsonify(link = file_url), 200
+
+@log_action(action = "DOWNLOAD", target="IPCR")
+@token_required()
+@pcrs.route("/planned_ipcr/download/<ipcr_id>", methods = ["GET"])
+def download_dipcr(ipcr_id):
+
+    file_url = NewExcelHandler.createNewIPCR_from_db(ipcr_id=ipcr_id, individuals={
+        "review": {"name": "Arman Bitancur", "position": "Librarian II", "date": ""},
+        "approve": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" },
+        "discuss": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" },
+        "assess": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" },
+        "final": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" },
+        "confirm": {"name": "Arman Bitancur", "position": "Librarian II", "date": "" }
+    }, is_draft=True)
+
+    return jsonify(link = file_url), 200
+
 @pcrs.route("/ipcr/documents/<ipcr_id>", methods = ["GET"])
 @token_required()
 def get_supporting_documents(ipcr_id):
@@ -202,7 +234,7 @@ def create_opcr(dept_id):
 @log_action(action = "DOWNLOAD", target="OPCR")
 
 def test_opcr(opcr_id):
-    file_link = PCR_Service.generate_opcr(opcr_id=opcr_id)
+    file_link = PCR_Service.new_generate_opcr(opcr_id=opcr_id, is_weighted=False, is_draft=False)
     return jsonify(link = file_link), 200
 
 @pcrs.route("/planned-opcr/download/<dept_id>", methods = ["GET"])
@@ -218,7 +250,7 @@ def download_planned_opcr(dept_id):
 @log_action(action = "DOWNLOAD", target="OPCR")
 
 def download_weighted_opcr(opcr_id):
-    file_link = PCR_Service.generate_weighted_opcr(opcr_id)
+    file_link = PCR_Service.new_generate_opcr(opcr_id=opcr_id, is_weighted=True, is_draft=False)
     return jsonify(link = file_link), 200
 
 @pcrs.route("/master-opcr/download/", methods = ["GET"])

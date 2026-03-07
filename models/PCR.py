@@ -1214,8 +1214,7 @@ class PCR_Service():
             db.session.rollback()
             print(str(e))
             return jsonify(error=str(e)), 500
-        
-
+  
     @staticmethod
     def _create_or_archive_opcrs_for_period(dept_id, current_period_id):
         """Helper: Create new OPCR if missing, archive old period OPCRs."""
@@ -1368,7 +1367,6 @@ class PCR_Service():
             return jsonify(error=str(e)), 500
 
 
-    
     @staticmethod
     def _build_head_data(opcr, head=None):
         """Extract head data building logic (used by generate_opcr and get_opcr)"""
@@ -2825,6 +2823,162 @@ class PCR_Service():
             print("Error in get_master_opcr:", str(e))
             return jsonify(error=str(e)), 500
   
+
+    def new_generate_opcr(opcr_id, is_weighted=False, is_draft=False):
+        """
+        Main orchestrator for generating OPCR documents.
+        :param opcr_id: ID of the OPCR record
+        :param is_weighted: Boolean to toggle Weighted vs Standard template
+        :param is_draft: If True, all 'actual' values and ratings are forced to 0
+        """
+        from models.System_Settings import System_Settings, System_Settings_Service
+        from models.Tasks import Assigned_Department, User
+        
+        # 1. Fetch Core Data
+        opcr = OPCR.query.get(opcr_id)
+        if not opcr:
+            return None
+            
+        settings = System_Settings.get_default_settings()
+
+        # 2. Build Configuration Map
+        assigned_dept_configs = {
+            ad.main_task_id: {
+                "enable": ad.enable_formulas,
+                "quantity": ad.quantity_formula,
+                "efficiency": ad.efficiency_formula,
+                "timeliness": ad.timeliness_formula,
+                "weight": float(ad.task_weight / 100)
+            }
+            for ad in Assigned_Department.query.filter_by(
+                department_id=opcr.department_id,
+                period=settings.current_period_id
+            ).all()
+        }
+
+        # 3. Initialize Data Structures
+        task_index = {}
+        assigned = {} # mfo -> [user_names]
+        categories = {}
+
+        # 4. Process Main Tasks
+        assigned_dept_tasks = (
+            Assigned_Department.query
+            .filter_by(department_id=opcr.department_id, period=settings.current_period_id)
+            .join(Assigned_Department.main_task)
+            .all()
+        )
+
+        for ad in assigned_dept_tasks:
+            main_task = ad.main_task
+            category = main_task.category
+
+            if category.status == 0 or main_task.status == 0:
+                continue
+
+            if category.name not in categories:
+                categories[category.name] = {"priority": category.priority_order, "tasks": []}
+
+            # Force rating values to 0 if drafting
+            q_init = 0 if is_draft else (ad.quantity or 0)
+            e_init = 0 if is_draft else (ad.efficiency or 0)
+            t_init = 0 if is_draft else (ad.timeliness or 0)
+            
+            avg_init = Tasks_Service.calculateAverage(q_init, e_init, t_init)
+
+            task_dict = {
+                "title": main_task.mfo,
+                "summary": {"target": 0, "actual": 0}, 
+                "corrections": {"target":  0, "actual": 0},
+                "working_days": {"target": 0, "actual": 0},
+                "description": {
+                    "target": main_task.target_accomplishment,
+                    "actual": 0 if is_draft else main_task.actual_accomplishment,
+                    "alterations": main_task.modification,
+                    "time": main_task.time_description,
+                    "timeliness_mode": main_task.timeliness_mode,
+                    "task_weight": ad.task_weight / 100
+                },
+                "rating": {
+                    "a_dept_id": ad.id,
+                    "quantity": q_init,
+                    "efficiency": e_init,
+                    "timeliness": t_init,
+                    "average": avg_init,
+                    "weighted_avg": avg_init * (ad.task_weight / 100) if avg_init else 0
+                },
+                "frequency": 0,
+                "_task_id": main_task.id
+            }
+            task_index[main_task.id] = task_dict
+            categories[category.name]["tasks"].append(task_dict)
+
+        # 5. Aggregate Actual Data (SKIPPED IF DRAFT)
+        if not is_draft:
+            for assigned_pcr in opcr.assigned_pcrs:
+                ipcr = assigned_pcr.ipcr
+                if ipcr.status == 0: continue
+
+                user_name = f"{ipcr.user.first_name} {ipcr.user.last_name}"
+                for sub_task in ipcr.sub_tasks:
+                    if sub_task.status == 0: continue
+
+                    mfo = sub_task.main_task.mfo
+                    assigned.setdefault(mfo, []).append(user_name) if user_name not in assigned.get(mfo, []) else None
+
+                    task = task_index.get(sub_task.main_task.id)
+                    if not task: continue
+
+                    # Calculate actual working days
+                    if (sub_task.main_task.timeliness_mode == "deadline" and 
+                        sub_task.actual_deadline and sub_task.main_task.target_deadline):
+                        actual_working_days = (sub_task.actual_deadline - sub_task.main_task.target_deadline).days
+                    else:
+                        actual_working_days = sub_task.actual_time or 0
+
+                    task["summary"]["target"] += sub_task.target_acc
+                    task["summary"]["actual"] += sub_task.actual_acc
+                    task["corrections"]["target"] += sub_task.target_mod
+                    task["corrections"]["actual"] += sub_task.actual_mod
+                    task["working_days"]["target"] += sub_task.target_time
+                    task["working_days"]["actual"] += actual_working_days
+                    task["frequency"] += 1
+
+        # 6. Final Data Formatting & Rating Override
+        data = []
+        sorted_cats = sorted(categories.items(), key=lambda x: x[1]["priority"], reverse=True)
+
+        for cat_name, meta in sorted_cats:
+            tasks = meta["tasks"]
+            for task in tasks:
+                # If draft, we don't need to pop the task_id or compute formulas, 
+                # as everything is already 0. If NOT a draft, perform calculations.
+                if not is_draft and task["frequency"] > 0:
+                    q, e, t = task["rating"]["quantity"], task["rating"]["efficiency"], task["rating"]["timeliness"]
+
+                    if settings.enable_formula and not System_Settings_Service.check_if_rating_period():
+                        q = PCR_Service.compute_rating_with_override("quantity", task["summary"]["target"], task["summary"]["actual"], task["_task_id"], settings, assigned_dept_configs)
+                        e = PCR_Service.compute_rating_with_override("efficiency", task["corrections"]["target"], task["corrections"]["actual"], task["_task_id"], settings, assigned_dept_configs)
+                        t = PCR_Service.compute_rating_with_override("timeliness", task["working_days"]["target"], task["working_days"]["actual"], task["_task_id"], settings, assigned_dept_configs)
+
+                    avg = PCR_Service.calculateAverage(q, e, t)
+                    task["rating"].update({
+                        "quantity": q, "efficiency": e, "timeliness": t, "average": avg,
+                        "weighted_avg": avg * task["description"]["task_weight"] if avg else 0
+                    })
+                
+                task.pop("_task_id", None)
+            data.append({cat_name: tasks})
+
+        # 7. Build Administrative Metadata
+        head = User.query.filter_by(department_id=opcr.department_id, role="head").first()
+        head_data = PCR_Service._build_head_data(opcr, head)
+
+        # 8. Delegation
+        if is_weighted:
+            return ExcelHandler.createNewWeightedOPCR(data=data, assigned=assigned, admin_data=head_data)
+        
+        return ExcelHandler.createNewOPCR(data=data, assigned=assigned, admin_data=head_data)
 
     def collect_all_supporting_documents_by_department(dept_id):
         try:

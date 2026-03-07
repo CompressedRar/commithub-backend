@@ -21,16 +21,16 @@ def create_app():
     
     app = Flask(__name__)
     CORS(app, supports_credentials=True)
-    
+    #'bafx xxnm qryx egpc'
     app.config["SECRET_KEY"] = "hannelore"
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("AWS_DATABASE_URL")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'
     app.config['MAIL_PORT'] = 587
     app.config['MAIL_USE_TLS'] = True
-    app.config['MAIL_USERNAME'] = 'qwertythanzip1103@gmail.com'
-    app.config['MAIL_PASSWORD'] = 'bafx xxnm qryx egpc'
-    app.config['MAIL_DEFAULT_SENDER'] = 'qwertythanzip1103@gmail.com'
+    app.config['MAIL_USERNAME'] = 'commithubnc@gmail.com'
+    app.config['MAIL_PASSWORD'] = "fnjx xbzv dhpj nmlv"
+    app.config['MAIL_DEFAULT_SENDER'] = 'commithubnc@gmail.com'
 
     mail.init_app(app)
     db.init_app(app)

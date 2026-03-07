@@ -116,13 +116,13 @@ def createNewOPCR(data, assigned, admin_data):
 
                 else:
                     prepareCells(ws, f"D{row+2}", f"D{row+3}")
-                    ws[f"D{row+2}"] = a["working_days"]["target"]
+                    ws[f"D{row+2}"] = abs(round(a["working_days"]["target"] / a["frequency"])) if a["working_days"]["actual"] != 0 else 0
                     ws[f"D{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     ws[f"D{row+2}"].font = Font(bold=True)
                 
                 
                 prepareCells(ws, str("D"+str(row+4)), str("D"+str(row + 5)))
-                ws["D"+str(row+4)] = a["corrections"]["target"] # corrections 
+                ws["D"+str(row+4)] = round(a["corrections"]["target"] / a["frequency"]) if a["corrections"]["actual"] != 0 else 0 # corrections 
                 ws["D"+str(row+4)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["D"+str(row+4)].font = Font(bold=True)
                 
@@ -524,13 +524,13 @@ def createNewWeightedOPCR(data, assigned, admin_data):
 
                 else:
                     prepareCells(ws, f"E{row+2}", f"E{row+3}")
-                    ws[f"E{row+2}"] = a["working_days"]["target"]
+                    ws[f"E{row+2}"] =  abs(round(a["working_days"]["target"] / a["frequency"])) if a["working_days"]["target"] != 0 else 0
                     ws[f"E{row+2}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     ws[f"E{row+2}"].font = Font(bold=True)
                 
                 
                 prepareCells(ws, str("E"+str(row+4)), str("E"+str(row + 5)))
-                ws["E"+str(row+4)] = a["corrections"]["target"] # corrections 
+                ws["E"+str(row+4)] =  abs(round(a["corrections"]["target"] / a["frequency"])) if a["corrections"]["target"] != 0 else 0
                 ws["E"+str(row+4)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["E"+str(row+4)].font = Font(bold=True)
                 
@@ -724,6 +724,10 @@ def createNewWeightedOPCR(data, assigned, admin_data):
     prepareCells(ws, str("K"+str(row)), str("M"+str(row+1)))
     ws["K"+str(row)] = "ADJECTIVAL RATING"
     ws["K"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+
+    
+
     
     prepareCells(ws, str("N"+str(row)), str("Q"+str(row+1)))
     ws["N"+str(row)] = f'=IF(AND({averagecell}>=0, {averagecell}<=1.49), "POOR", IF(AND({averagecell}>=1.5, {averagecell}<=2.49), "UNSATISFACTORY", IF(AND({averagecell}>=2.5, {averagecell}<=3.49), "SATISFACTORY", IF(AND({averagecell}>=3.5, {averagecell}<=4.49), "VERY SATISFACTORY", IF(AND({averagecell}>=4.5, {averagecell}<=5), "OUTSTANDING")))))'
@@ -1319,12 +1323,12 @@ def createNewMasterOPCR(data, assigned, admin_data):
                 ws["D"+str(row)].font = Font(bold=True)
                 
                 prepareCells(ws, str("D"+str(row+2)), str("D"+str(row + 3)))
-                ws["D"+str(row+2)] = abs(round(a["working_days"]["target"] / a["frequency"])) if a["working_days"]["actual"] != 0 else 0
+                ws["D"+str(row+2)] = abs(round(a["working_days"]["target"] / a["frequency"])) if a["working_days"]["target"] != 0 else 0
                 ws["D"+str(row+2)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["D"+str(row+2)].font = Font(bold=True)
                 
                 prepareCells(ws, str("D"+str(row+4)), str("D"+str(row + 5)))
-                ws["D"+str(row+4)] = abs(round(a["corrections"]["actual"] / a["frequency"])) if a["working_days"]["actual"] != 0 else 0
+                ws["D"+str(row+4)] = abs(round(a["corrections"]["target"] / a["frequency"])) if a["corrections"]["target"] != 0 else 0
                 ws["D"+str(row+4)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["D"+str(row+4)].font = Font(bold=True)
                 
@@ -1518,7 +1522,6 @@ def createNewMasterOPCR(data, assigned, admin_data):
     file_url = upload_file(link, "commithub-bucket", f"OPCR/{filename}.xlsx")
     
     return file_url
-
 
 def createNewIPCR(data, given, middle, last, individuals, position, dates):
     wb = load_workbook("excels/IPCRTest.xlsx")
