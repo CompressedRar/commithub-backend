@@ -15,6 +15,23 @@ def send_email(recipient, message):
         print(a)
         return "sending email failed"
     
+
+def send_forgot_email(recipient, message):
+    sub = "Commithub Forgot Password Reset"
+    bd = message
+
+    html_body = render_template("forgot_pass.html", YEAR = 2026, LINK = message)
+
+    try :
+        print("sending email", message)
+        msg = Message(subject = sub,recipients = [recipient], html=html_body)
+        mail.send(msg)
+        print("email_sent")
+        return "email sent"
+    except Exception as a:
+        print(a)
+        return "sending email failed"
+    
 def send_reset_email(recipient, message):
     sub = "CommitHub Password Reset Request"
     bd = message

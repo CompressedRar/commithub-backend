@@ -604,6 +604,8 @@ class Users():
         except Exception as e:
             #db.session.rollback()
             return jsonify(error=str(e)), 500
+
+    
         
     def update_user(id, data, rq):
         from models.Tasks import Main_Task, Sub_Task, Output
@@ -616,6 +618,7 @@ class Users():
 
             # Handle profile picture upload
             profile = rq.files.get("profile_picture_link")
+
             if profile:
                 filename = secure_filename(profile.filename)
                 filepath = os.path.join("profile_pics", filename)
@@ -796,18 +799,24 @@ class Users():
         
     def change_password(user_id, password):
         try:
+            print("in the function")
             user = User.query.get(user_id)
-            ph = PasswordHasher()
-            hashed_password = ph.hash(password)
-            user.password = hashed_password
-            db.session.commit()
-            return jsonify(message = "Success"), 200
+            
+            if user:
+                ph = PasswordHasher()
+                hashed_password = ph.hash(password)
+                user.password = hashed_password
+                db.session.commit()
+                return jsonify(message = "Success"), 200
+            else:
+                return jsonify(error = "User not found"), 404
         
         except OperationalError:
             db.session.rollback()
             return jsonify(error="Database connection error"), 500
 
         except Exception as e:
+            print(e)
             db.session.rollback()
             return jsonify(error=str(e)), 500
 

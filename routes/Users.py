@@ -55,6 +55,13 @@ def change_password_user(user_id):
     print("CHANGING PASS",user_id, new_pass)
     return Users.change_password(user_id, new_pass)
 
+
+@users.route("/forgot-change-password/<user_id>", methods = ["PATCH"])
+def forgot_change_password_user(user_id):
+    new_pass = request.json.get("password")
+    print("CHANGING PASS",user_id, new_pass)
+    return Users.change_password(user_id, new_pass)
+
 @users.route("/<id>", methods = ["DELETE"])
 @token_required()
 @log_action(action = "DEACTIVATE", target="USER")

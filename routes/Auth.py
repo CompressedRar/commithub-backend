@@ -1,8 +1,9 @@
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, url_for
 from app import db, limiter
 from app import socketio
 
 from models.AdminConfirmation import AdminConfirmation
+from models.PasswordOTP import PasswordResetToken
 from models.User import Users, User
 from models.AdminConfirmation import AdminConfirmation
 from models.Positions import Position, Positions
@@ -10,6 +11,7 @@ from models.Categories import Category
 from models.Tasks import Sub_Task, Main_Task
 from models.Departments import Department
 from models.PCR import IPCR, OPCR
+from utils.Email import send_forgot_email
 from utils.decorators import log_enter, token_required
 from argon2 import PasswordHasher
 import jwt
@@ -100,3 +102,30 @@ def verify_admin_password():
         return jsonify(message="Verified", confirmation_token=token, expires_in_minutes=10), 200
     except Exception:
         return jsonify(error="Invalid password"), 401
+    
+
+@auth.route("/forgot_password/<email>", methods=["POST"])
+def forgot_password(email):
+
+    user = User.query.filter_by(email=email).first()
+    
+    if user:
+        # Create token and get the plain version
+        token = PasswordResetToken.create_for_user(user.id)
+
+        link = "https://www.commithub.online/forgot-password/"+token
+        send_forgot_email(user.email, f"Change your password here: {link}")
+
+        return jsonify(message="Forgot Password Email has been sent"), 200
+        
+    return jsonify(error="Email does not exists"), 400
+
+
+@auth.route('/reset-password/<token>', methods=['POST'])
+def reset_password(token):
+    user_id = PasswordResetToken.verify_and_get_user(token)
+    
+    if not user_id:
+        return jsonify(error="Invalid or expired token"), 400
+    
+    return jsonify(message = "Token Verified", user_id = user_id), 200
