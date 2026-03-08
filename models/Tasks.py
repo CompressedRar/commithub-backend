@@ -1466,9 +1466,9 @@ class Tasks_Service():
             for task in all_department_tasks:
                 if task.main_task.status:
                     data = task.main_task.info() 
-                    data["quantity_formula"] = task.quantity_formula
-                    data["efficiency_formula"] = task.efficiency_formula
-                    data["timeliness_formula"] = task.timeliness_formula
+                    data["quantity_formula"] = settings.quantity_formula
+                    data["efficiency_formula"] = settings.efficiency_formula
+                    data["timeliness_formula"] = settings.timeliness_formula
                     data["assigned_dept_id"] = task.id  
                     data["enable_formulas"] = task.enable_formulas  
 
