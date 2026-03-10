@@ -232,7 +232,7 @@ def createNewOPCR(data, assigned, admin_data):
                 ws["P"+str(row)].font = Font(bold=True)
                 
                 prepareCells(ws, str("Q"+str(row)), str("Q"+str(row + 5)))
-                ws["Q"+str(row)] = float(f"{float(a["rating"]["average"]):.2F}") # average
+                ws["Q"+str(row)] = f"=AVERAGE(N{row}, O{row},P{row})" # average
                 ws["Q"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["Q"+str(row)].font = Font(bold=True)
                 
@@ -639,7 +639,7 @@ def createNewWeightedOPCR(data, assigned, admin_data):
                 ws["P"+str(row)].font = Font(bold=True)
                 
                 prepareCells(ws, str("Q"+str(row)), str("Q"+str(row + 5)))
-                ws["Q"+str(row)] = float(f"{float(a["rating"]["average"]):.2F}") # average
+                ws["Q"+str(row)] = f"=AVERAGE(N{row}, O{row},P{row})"
                 ws["Q"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["Q"+str(row)].font = Font(bold=True)
                 
@@ -1404,7 +1404,7 @@ def createNewMasterOPCR(data, assigned, admin_data):
                 ws["P"+str(row)].font = Font(bold=True)
                 
                 prepareCells(ws, str("Q"+str(row)), str("Q"+str(row + 5)))
-                ws["Q"+str(row)] = float(f"{float(a["rating"]["average"]):.1F}") # average
+                ws["Q"+str(row)] = f"=AVERAGE(N{row}, O{row},P{row})"# average
                 ws["Q"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["Q"+str(row)].font = Font(bold=True)
                 
