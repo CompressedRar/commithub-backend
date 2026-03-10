@@ -20,9 +20,6 @@ def read_ipcr(file_path):
         print("SUB TASK ID", sub_id)
         
 
-
-        
-
         found_task = Sub_Task.query.get(sub_id)
 
         if found_task:
@@ -32,9 +29,9 @@ def read_ipcr(file_path):
             efficiency = float(ws[f'O{current_row}'].value)
             timeliness = float(ws[f'P{current_row}'].value)
 
-            found_task.quantity = quality
-            found_task.efficiency = efficiency
-            found_task.timeliness = timeliness
+            found_task.quantity = quality if quality <= 5 else 5
+            found_task.efficiency = efficiency if efficiency <= 5 else 5
+            found_task.timeliness = timeliness if timeliness <= 5 else 5
             found_task.average = float((quality + efficiency + timeliness) / 3)
 
             db.session.commit()
