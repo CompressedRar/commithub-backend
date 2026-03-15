@@ -49,6 +49,9 @@ class Department(db.Model):
         return {
             "id" : self.id,
             "name": self.name,
+            "manager": self.manager_id,
+            "icon": self.icon,
+            "is_head_occupied": self.is_head_occupied() 
         }
     
     def collect_all_ipcr(self):
@@ -99,6 +102,20 @@ class Department_Service():
 
             
 
+            return jsonify(all_converted), 200
+        except OperationalError:
+            #db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+
+        except Exception as e:
+            #db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def get_departments_info():
+        try:
+            print("getting lite")
+            all_depts = Department.query.filter_by(status=1).all()
+            all_converted = [dept.info() for dept in all_depts]
             return jsonify(all_converted), 200
         except OperationalError:
             #db.session.rollback()
@@ -185,7 +202,6 @@ class Department_Service():
             if existing_department:
                 return jsonify(error="Department name already exists."), 400
 
-            # Create the new department
             new_department = Department(name=department_name, icon=icon)
             db.session.add(new_department)
             db.session.commit()

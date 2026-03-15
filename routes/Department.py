@@ -13,6 +13,11 @@ department = Blueprint("department", __name__, url_prefix="/api/v1/department")
 def get_departments():
     return Department_Service.get_all_departments()
 
+@department.route("/lite", methods = ["GET"])
+@token_required()
+def get_departments_lite():
+    return Department_Service.get_departments_info()
+
 @department.route("/<id>", methods = ["GET"])
 @token_required()
 def get_department(id):
