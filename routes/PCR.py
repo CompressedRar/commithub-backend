@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, jsonify, request
 from app import db
 from utils.decorators import log_action, token_required
 from services.User.users_service import Users
-from models.PCR import PCR_Service
+from services.pcr_service import PCR_Service
 from services.tasks_service import Tasks_Service
 from utils import NewExcelHandler, FileStorage
 import datetime

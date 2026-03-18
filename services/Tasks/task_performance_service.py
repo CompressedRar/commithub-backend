@@ -76,7 +76,7 @@ class TaskPerformanceService:
                 "target_time": ("timeliness", lambda s: (int(value), s.actual_time)),
                 "target_mod": ("efficiency", lambda s: (int(value), s.actual_mod)),
                 "actual_acc": ("quantity", lambda s: (s.target_acc, int(value))),
-                "actual_time": ("timeliness", lambda s: (s.target_acc, int(value))),
+                "actual_time": ("timeliness", lambda s: (s.target_time, int(value))),
                 "actual_mod": ("efficiency", lambda s: (s.target_mod, int(value))),
             }
 

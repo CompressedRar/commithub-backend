@@ -199,7 +199,7 @@ class Main_Task(db.Model):
         return all_user
 
     def get_performance_by_department(self, dept_id):
-        from models.PCR import PCR_Service
+        from services.pcr_service import PCR_Service
         from models.System_Settings import System_Settings
 
         settings = System_Settings.get_default_settings()

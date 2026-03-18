@@ -21,7 +21,8 @@ class TaskAssignmentService:
     def assign_user(task_id, user_id, assigned_quantity, assigned_time, assigned_mod):
         try:
             from models.System_Settings import System_Settings
-            from models.PCR import IPCR, PCR_Service
+            from models.PCR import IPCR
+            from services.pcr_service import PCR_Service
 
             current_settings = System_Settings.get_default_settings()
             period = current_settings.current_period_id if current_settings else None

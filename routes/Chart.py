@@ -3,7 +3,7 @@ from app import db
 from utils.decorators import log_action
 from utils import Email
 from models.Departments import Department_Service
-from models.PCR import PCR_Service
+from services.pcr_service import PCR_Service
 from models.Logs import Log_Service
 from services.category_service import Category_Service
 from services.tasks_service import Tasks_Service
