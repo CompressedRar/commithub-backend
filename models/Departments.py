@@ -133,7 +133,7 @@ class Department_Service():
                 dept = all_depts.to_dict()
                 return jsonify(dept), 200
             else:
-                return jsonify(message = "There is no office with that id"), 200
+                return jsonify(message = "There is no office with that id"), 400
         except OperationalError:
             #db.session.rollback()
             return jsonify(error="Database connection error"), 500

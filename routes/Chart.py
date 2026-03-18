@@ -33,7 +33,10 @@ def get_department_performance_summary():
 
 @charts.route("/line/activity/", methods = ["GET"])
 def get_activity_trend():
-    return Log_Service.get_log_activity_trend()
+    
+    interval = request.args.get('timeframe', 'daily')
+    print(interval)
+    return Log_Service.get_log_activity_trend(interval)
 
 @charts.route("/bar/logs/", methods = ["GET"])
 def get_system_logs__trend():

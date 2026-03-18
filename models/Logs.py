@@ -80,25 +80,29 @@ class Log_Service:
             #db.session.rollback()
             return jsonify(error=str(e)), 500
         
-    def get_log_activity_trend():
-        results = (
-            db.session.query(
-                func.date(Log.created_at).label("date"),
-                func.count(Log.id).label("value"),
-                
-            )
-            .group_by(func.date(Log.created_at))
-            .order_by(func.date(Log.created_at))
-            .all()
-        )
+    def get_log_activity_trend(interval):
+        query = db.session.query(func.count(Log.id).label("value"))
 
-        data = [
-            {"name": r.date.strftime("%Y-%m-%d"), "value": r.value}
-            for r in results
-        ]
+        if interval == 'yearly':
+            date_label = func.date_format(Log.created_at, '%Y')
+        elif interval == 'monthly':
+            date_label = func.date_format(Log.created_at, '%Y-%m')
+        elif interval == 'weekly':
+            # %v is the ISO week number, %x is the year for the week
+            date_label = func.date_format(Log.created_at, 'Week %v, %x')
+        else:  # daily
+            date_label = func.date(Log.created_at)
 
+        results = query.add_columns(date_label.label("name")) \
+                    .group_by(date_label) \
+                    .order_by(date_label) \
+                    .all()
+        
+        # Standardize output for the frontend
+        data = [{"name": str(r.name), "value": r.value} for r in results]
         return jsonify(data), 200
-    
+        
+
     def get_logs_activity():
         results = (
             db.session.query(
