@@ -25,11 +25,8 @@ from flask import jsonify
 
 from models.AdminConfirmation import AdminConfirmation
 from models.User import User, Users
-from models.Departments import Department, Department_Service
-from models.System_Settings import System_Settings, System_Settings_Service
-from models.Tasks import Main_Task, Tasks_Service
-from models.Categories import Category, Category_Service
-from models.Logs import Log, Log_Service
+from models.Departments import Department
+from models.System_Settings import System_Settings
 from app import db
 
 

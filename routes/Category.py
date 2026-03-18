@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, jsonify, request
 from app import db
 from utils.decorators import log_action, token_required
-from models.Categories import Category_Service
+from services.category_service import Category_Service
 
 category = Blueprint("category", __name__, url_prefix="/api/v1/category")
 
@@ -23,6 +23,7 @@ def get_categories_count():
 @category.route("/<id>", methods = ["GET"])
 @token_required()
 def get_category(id):
+    print("getting category")
     return Category_Service.get_category(id)
 
 @category.route("/order/<id>&<prio_num>", methods = ["PATCH"])
