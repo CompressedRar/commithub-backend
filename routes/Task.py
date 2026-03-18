@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, jsonify, request, json
 from app import db
 
-from models.Tasks import Tasks_Service
+from services.tasks_service import Tasks_Service
 from utils.decorators import log_action, token_required
 task = Blueprint("task", __name__, url_prefix="/api/v1/task")
 

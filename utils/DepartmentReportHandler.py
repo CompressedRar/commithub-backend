@@ -8,7 +8,7 @@ from utils.FileStorage import upload_file
 from models.Departments import Department, Department_Service
 from models.User import User
 from models.System_Settings import System_Settings
-from models.Tasks import Tasks_Service
+from services.tasks_service import Tasks_Service
 
 def prepareCells(workshop, start, end):
     workshop.merge_cells(f"{start}:{end}")

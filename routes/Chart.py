@@ -6,7 +6,7 @@ from models.Departments import Department_Service
 from models.PCR import PCR_Service
 from models.Logs import Log_Service
 from models.Categories import Category_Service
-from models.Tasks import Tasks_Service
+from services.tasks_service import Tasks_Service
 
 charts = Blueprint("charts", __name__, url_prefix="/api/v1/chart")
 

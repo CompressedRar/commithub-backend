@@ -3,7 +3,7 @@ from app import db
 from utils.decorators import log_action, token_required
 from utils.permissions import permissions_required
 from models.Departments import Department_Service
-from models.Tasks import Tasks_Service
+from services.tasks_service import Tasks_Service
 from utils.DepartmentReportHandler import create_department_performance_report, create_all_departments_performance_report, create_all_tasks_summary_report
 
 department = Blueprint("department", __name__, url_prefix="/api/v1/department")
