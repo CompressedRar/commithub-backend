@@ -901,7 +901,7 @@ class Tasks_Service():
                 time_description = data["time_measurement"],
                 modification =  data["modification"],
                 category_id = int(data["id"]),
-                require_documents = data["require_documents"] == 'true' if "require_documents" in data else False,
+                require_documents = data["require_documents"] if "require_documents" in data else False,
                 period = current_settings.current_period_id if current_settings else None,
                 description = data["description"],
 

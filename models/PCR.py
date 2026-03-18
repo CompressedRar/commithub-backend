@@ -639,9 +639,6 @@ class PCR_Service():
                     batch_id=current_batch_id,
                     ipcr_id=new_ipcr.id,
                     period=current_period,
-                    assigned_quantity= 0,
-                    assigned_time = 0,
-                    assigned_mod = 0
                 )
             db.session.add(new_output)
 
@@ -709,8 +706,7 @@ class PCR_Service():
                         main_task_id=mt_id,
                         batch_id=current_period_ipcr.batch_id,
                         ipcr_id=current_period_ipcr.id,
-                        period=current_period,
-                        assigned_quantity=existing_assigned.assigned_quantity if existing_assigned else 0
+                        period=current_period
                     )
 
                     db.session.add(new_output)
@@ -761,8 +757,7 @@ class PCR_Service():
                     main_task_id=mt_id,
                     batch_id=current_batch_id,
                     ipcr_id=new_ipcr.id,
-                    period=current_period,
-                    assigned_quantity=existing_assigned.assigned_quantity if existing_assigned else 0
+                    period=current_period
                 )
                 db.session.add(new_output)
 

@@ -58,10 +58,6 @@ def update_sub_task_field(sub_task_id):
     return Tasks_Service.update_sub_task_fields(sub_task_id, field, value)
 
 
-@task.route("/test-ipcr-get", methods = ["GET"])
-@token_required()
-def get_IPCRs():
-    return Tasks_Service.test_ipcr()
 
 @task.route("/assigned_department/<dept_id>", methods = ["GET"])
 @token_required()

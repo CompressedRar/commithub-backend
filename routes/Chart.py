@@ -10,10 +10,6 @@ from models.Tasks import Tasks_Service
 
 charts = Blueprint("charts", __name__, url_prefix="/api/v1/chart")
 
-@charts.route("/email-account", methods=["GET"])
-def test_email_account():
-    Email.send_email_account_creation("qwertythanzip1103@gmail.com", "test")
-    return "sent"
 
 @charts.route("/pie/population-per-department", methods = ["GET"])
 def population_per_department():

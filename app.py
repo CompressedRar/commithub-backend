@@ -68,9 +68,6 @@ def create_app():
     from routes.Chart import charts
     app.register_blueprint(charts)
 
-    from routes.AI import ai
-    app.register_blueprint(ai)
-
     from routes.Positions import positions
     app.register_blueprint(positions)
 
