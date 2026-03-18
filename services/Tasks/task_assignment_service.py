@@ -2,7 +2,8 @@ from app import db, socketio
 from sqlalchemy.exc import OperationalError, DataError
 from flask import jsonify
 from models.Tasks import Main_Task, Assigned_Task, Assigned_Department, Output, Sub_Task
-from models.User import User, Notification_Service
+from models.User import User
+from models.Notification import Notification, Notification_Service
 
 
 class TaskAssignmentService:

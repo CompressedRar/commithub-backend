@@ -1,9 +1,9 @@
 from flask import Blueprint, render_template, jsonify, request
 from app import db, limiter
 from utils.decorators import log_action,token_required
-from models.User import Users, Notification, Notification_Service
+from models.Notification import Notification, Notification_Service
 from models.PCR import PCR_Service
-
+from services.User.users_service import Users
 users = Blueprint("users", __name__, url_prefix="/api/v1/users")
 
 

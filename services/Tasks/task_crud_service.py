@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 from flask import jsonify
 from models.Tasks import Main_Task, Assigned_Department, Assigned_Task, Output
-from models.User import Notification_Service
+from models.Notification import Notification, Notification_Service
 
 
 class TaskCRUDService:

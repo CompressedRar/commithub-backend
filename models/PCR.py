@@ -6,7 +6,8 @@ from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
 from models.Tasks import Assigned_Task, Output, Sub_Task, Formula_Engine
 from services.tasks_service import Tasks_Service
-from models.User import  User, Notification_Service
+from models.User import  User
+from models.Notification import Notification_Service
 from models.Departments import  Department
 from utils import FileStorage, ExcelHandler
 from sqlalchemy import func, outerjoin

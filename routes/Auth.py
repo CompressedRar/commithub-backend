@@ -4,7 +4,8 @@ from app import socketio
 
 from models.AdminConfirmation import AdminConfirmation
 from models.PasswordOTP import PasswordResetToken
-from models.User import Users, User
+from models.User import User
+from services.User.users_service import Users
 from models.AdminConfirmation import AdminConfirmation
 from models.Positions import Position, Positions
 from models.Categories import Category

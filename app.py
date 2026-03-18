@@ -44,8 +44,6 @@ def create_app():
     from routes.Auth import auth
     app.register_blueprint(auth)
 
-    from routes.Tests import test
-    app.register_blueprint(test)
 
     from routes.Department import department
     app.register_blueprint(department)

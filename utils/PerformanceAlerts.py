@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from models.Analytics import PerformanceAlert, PerformanceAlertService, CustomKPI, CustomKPIService
 from models.System_Settings import System_Settings
-from models.User import Notification
+from models.Notification import Notification, Notification_Service
 from flask import jsonify
 
 
@@ -301,16 +301,16 @@ def get_alert_recipients(department_id: int, alert_thresholds: Dict) -> List[int
     Returns:
         List of user IDs to send alerts to
     """
-    from models.User import Users
+    from models.User import User
 
     # Get roles that should receive alerts
     alert_roles = alert_thresholds.get('alert_to_roles', ['administrator', 'head'])
 
     # Find users with these roles in this department
-    recipients = Users.query.filter(
-        Users.role.in_(alert_roles),
-        Users.department_id == department_id
-    ).with_entities(Users.id).all()
+    recipients = User.query.filter(
+        User.role.in_(alert_roles),
+        User.department_id == department_id
+    ).with_entities(User.id).all()
 
     return [r[0] for r in recipients]
 
@@ -335,10 +335,10 @@ class CustomKPIMonitor:
 
         for kpi in critical_kpis:
             # Get department admins
-            from models.User import Users
-            admins = Users.query.filter(
-                Users.role.in_(['administrator', 'head']),
-                Users.department_id == kpi.department_id
+            from models.User import User
+            admins = User.query.filter(
+                User.role.in_(['administrator', 'head']),
+                User.department_id == kpi.department_id
             ).all()
 
             for admin in admins:
@@ -383,10 +383,10 @@ class CustomKPIMonitor:
         # Check if alert should be triggered
         if new_value < kpi.alert_threshold:
             # Generate alerts for admins
-            from models.User import Users
-            admins = Users.query.filter(
-                Users.role.in_(['administrator', 'head']),
-                Users.department_id == kpi.department_id
+            from models.User import User
+            admins = User.query.filter(
+                User.role.in_(['administrator', 'head']),
+                User.department_id == kpi.department_id
             ).all()
 
             alert_count = 0

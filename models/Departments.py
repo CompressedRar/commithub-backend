@@ -3,7 +3,8 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError, ProgrammingError
 from flask import jsonify
 from sqlalchemy.dialects.mysql import JSON, TEXT
-from models.User import User, Notification_Service
+from models.User import User
+from models.Notification import Notification, Notification_Service
 from models.Tasks import Sub_Task, Output
 from app import socketio
 from sqlalchemy import func, outerjoin

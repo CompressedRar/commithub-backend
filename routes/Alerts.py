@@ -7,7 +7,7 @@ from app import db, socketio
 from utils.decorators import token_required, log_action
 from models.Analytics import PerformanceAlert, PerformanceAlertService, CustomKPI, CustomKPIService
 from models.System_Settings import System_Settings, System_Settings_Service
-from models.User import Notification
+from models.Notification import Notification, Notification_Service
 from utils.PerformanceAlerts import PerformanceAlertEngine, CustomKPIMonitor
 
 alerts = Blueprint("alerts", __name__, url_prefix="/api/v1/alerts")
