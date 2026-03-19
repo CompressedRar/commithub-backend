@@ -63,6 +63,29 @@ class TaskPerformanceService:
     # Sub-task field updates
     # ------------------------------------------------------------------
 
+    def calculate_sub_tasks_rating(sub_tasks_array):
+        try:
+            for sub_id in sub_tasks_array:
+                sub_t = Sub_Task.query.get(sub_id)
+                sub_t.auto_calculate_ratings()
+        
+            db.session.commit()
+
+            return jsonify(message="Task updated"), 200
+
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify(error="Data does not exists"), 400
+        except DataError:
+            db.session.rollback()
+            return jsonify(error="Invalid data format"), 400
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
+
     def update_sub_task_fields(sub_task_id, field, value):
         from models.System_Settings import System_Settings
 
@@ -83,7 +106,7 @@ class TaskPerformanceService:
             if field in FORMULA_FIELDS:
                 setattr(ipcr, field, int(value))
                 db.session.commit()
-                if settings.enable_formula:
+                if settings.enable_formula or False:
                     metric, get_args = FORMULA_FIELDS[field]
                     target, actual = get_args(ipcr)
                     ipcr.calculate_with_override(metric, target, actual)
@@ -101,9 +124,9 @@ class TaskPerformanceService:
             ipcr.average = TaskPerformanceService.calculateAverage(
                 ipcr.quantity, ipcr.efficiency, ipcr.timeliness
             )
+
             db.session.commit()
 
-            socketio.emit("ipcr", "change")
             return jsonify(message="Task updated"), 200
 
         except IntegrityError:

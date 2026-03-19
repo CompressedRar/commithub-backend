@@ -466,8 +466,8 @@ class Sub_Task(db.Model):
             "status": self.status,
             "batch_id": self.batch_id,
         }
-
-    def to_dict(self):
+    
+    def auto_calculate_ratings(self):
         from models.System_Settings import System_Settings_Service, System_Settings
 
         settings = System_Settings.get_default_settings()
@@ -485,6 +485,8 @@ class Sub_Task(db.Model):
             self.efficiency = self.calculate_with_override("efficiency", self.target_mod, self.actual_mod)
             self.quantity = self.calculate_with_override("quantity", self.target_acc, self.actual_acc)
 
+    def to_dict(self):
+        
         return {
             "id": self.id,
             "period_id": self.period,

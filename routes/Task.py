@@ -57,6 +57,13 @@ def update_sub_task_field(sub_task_id):
     print(sub_task_id, field, value)
     return Tasks_Service.update_sub_task_fields(sub_task_id, field, value)
 
+@task.route("/sub_task/calculate/", methods = ["POST"])
+@token_required()
+def calc_ratings():
+    data = request.json
+    array = data.get("sub_tasks", [])
+    print(array)
+    return Tasks_Service.calculate_sub_tasks_rating(array)
 
 
 @task.route("/assigned_department/<dept_id>", methods = ["GET"])

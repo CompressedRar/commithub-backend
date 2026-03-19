@@ -46,6 +46,7 @@ class Tasks_Service:
     calculateTimeliness                 = staticmethod(TaskPerformanceService.calculateTimeliness)
     calculateAverage                    = staticmethod(TaskPerformanceService.calculateAverage)
     update_sub_task_fields              = staticmethod(TaskPerformanceService.update_sub_task_fields)
+    calculate_sub_tasks_rating          = staticmethod(TaskPerformanceService.calculate_sub_tasks_rating)
     get_task_user_averages              = staticmethod(TaskPerformanceService.get_task_user_averages)
     get_department_subtask_percentage   = staticmethod(TaskPerformanceService.get_department_subtask_percentage)
     calculate_main_task_performance     = staticmethod(TaskPerformanceService.calculate_main_task_performance)
