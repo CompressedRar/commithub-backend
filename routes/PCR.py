@@ -370,3 +370,7 @@ def compile_pictures_by_dept(dept_id):
     else:
         return jsonify(error="Error in compiling documents"), 400
 
+@pcrs.route("/opcr/calculate/<opcr_id>", methods = ["POST"])
+def calculate_opcr_rating(opcr_id):
+    
+    return PCR_Service.compute_and_save_opcr_ratings(opcr_id=opcr_id)

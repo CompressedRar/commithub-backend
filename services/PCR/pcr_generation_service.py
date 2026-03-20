@@ -1,4 +1,4 @@
-from app import db
+from app import db, socketio
 from flask import jsonify
 
 from models.PCR import IPCR, OPCR, Assigned_PCR
@@ -170,7 +170,9 @@ class PCRGenerationService:
         e = task["rating"]["efficiency"] or 0
         t = task["rating"]["timeliness"] or 0
 
-        if settings.enable_formula and not check_rating_period:
+        print(task["_task_id"])
+        """settings.enable_formula and not check_rating_period"""
+        if False:
             tid = task["_task_id"]
             q = PCRRatingService.compute_rating_with_override("quantity", task["summary"]["target"], task["summary"]["actual"], tid, settings, dept_configs)
             e = PCRRatingService.compute_rating_with_override("efficiency", task["corrections"]["target"], task["corrections"]["actual"], tid, settings, dept_configs)
@@ -202,6 +204,51 @@ class PCRGenerationService:
     # ------------------------------------------------------------------
     # OPCR views (JSON response)
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def compute_and_save_opcr_ratings(opcr_id):
+        """
+        Manually trigger the calculation of ratings based on current 
+        subtask accomplishments and save them to the database.
+        """
+        from models.System_Settings import System_Settings
+        from models.Tasks import Assigned_Department
+
+        opcr = OPCR.query.get_or_404(opcr_id)
+        settings = System_Settings.get_default_settings()
+        dept_configs = PCRGenerationService._get_dept_configs(opcr.department_id, settings.current_period_id)
+
+        # 1. Build structures and aggregate actuals from IPCR subtasks
+        task_index, assigned, categories = PCRGenerationService._build_opcr_structures(opcr, settings)
+        PCRGenerationService._aggregate_subtasks(opcr, task_index, assigned)
+
+        # 2. Iterate through aggregated tasks and update the DB
+        for task_id, task_data in task_index.items():
+            # Only compute if there is activity (frequency > 0)
+            if task_data["frequency"] > 0:
+                q, e, t, avg = PCRGenerationService._compute_task_ratings(
+                    task_data, settings, dept_configs
+                )
+
+                # 3. Update the Assigned_Department record
+                ad_id = task_data["rating"]["a_dept_id"]
+                assigned_dept_record = Assigned_Department.query.get(ad_id)
+                
+                if assigned_dept_record:
+                    assigned_dept_record.quantity = q
+                    assigned_dept_record.efficiency = e
+                    assigned_dept_record.timeliness = t
+
+                    # Weighted average calculation is usually handled during export/view, 
+                    # but we store the raw Q, E, T here.
+
+        try:
+            db.session.commit()
+            socketio.emit("rating", "test")
+            return jsonify({"message": "Ratings computed and saved successfully", "status": "success"}), 200
+        except Exception as err:
+            db.session.rollback()
+            return jsonify({"message": str(err), "status": "error"}), 400
 
     def get_opcr(opcr_id):
         from models.System_Settings import System_Settings, System_Settings_Service

@@ -20,6 +20,7 @@ class PCR_Service:
     calculateEfficiency                 = staticmethod(PCRRatingService.calculateEfficiency)
     calculateTimeliness                 = staticmethod(PCRRatingService.calculateTimeliness)
     calculateAverage                    = staticmethod(PCRRatingService.calculateAverage)
+    compute_and_save_opcr_ratings       = staticmethod(PCRGenerationService.compute_and_save_opcr_ratings)
 
     # CRUD
     generate_IPCR_from_tasks            = staticmethod(PCRCRUDService.generate_IPCR_from_tasks)
