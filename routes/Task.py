@@ -5,6 +5,27 @@ from services.tasks_service import Tasks_Service
 from utils.decorators import log_action, token_required
 task = Blueprint("task", __name__, url_prefix="/api/v1/task")
 
+SUB_TASK_ALLOWED_FIELDS = {
+    "target_acc",
+    "target_time",
+    "target_mod",
+    "actual_acc",
+    "actual_time",
+    "actual_mod",
+    "actual_deadline",
+    "target_deadline",
+    "quantity",
+    "efficiency",
+    "timeliness",
+    "average",
+}
+
+ASSIGNED_DEPT_ALLOWED_FIELDS = {
+    "quantity",
+    "efficiency",
+    "timeliness",
+}
+
 @task.route("/count", methods = ["GET"])
 @token_required()
 def get_tasks_count():
@@ -49,12 +70,18 @@ def update_main_task():
     data = request.form
     return Tasks_Service.update_task_info(data)
 
-@task.route("/sub_task/<sub_task_id>", methods = ["PATCH"])
+@task.route("/sub_task/<sub_task_id>", methods=["PATCH"])
 @token_required()
 def update_sub_task_field(sub_task_id):
     field = request.args.get("field")
     value = request.args.get("value")
-    print(sub_task_id, field, value)
+ 
+    if field not in SUB_TASK_ALLOWED_FIELDS:
+        return jsonify(error=f"Invalid field: '{field}'"), 400
+ 
+    if value is None:
+        return jsonify(error="value is required"), 400
+ 
     return Tasks_Service.update_sub_task_fields(sub_task_id, field, value)
 
 @task.route("/sub_task/calculate/", methods = ["POST"])
@@ -86,9 +113,16 @@ def get_tasks_assigned_by_dept(dept_id):
     return Tasks_Service.get_department_task(dept_id)
 
 
-@task.route("/assigned_department/<adept_id>", methods = ["PATCH"])
+@task.route("/assigned_department/<adept_id>", methods=["PATCH"])
 @token_required()
 def update_dept_task_field(adept_id):
     field = request.args.get("field")
     value = request.args.get("value")
+ 
+    if field not in ASSIGNED_DEPT_ALLOWED_FIELDS:
+        return jsonify(error=f"Invalid field: '{field}'"), 400
+ 
+    if value is None:
+        return jsonify(error="value is required"), 400
+ 
     return Tasks_Service.update_assigned_dept(adept_id, field, value)

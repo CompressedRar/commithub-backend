@@ -1,7 +1,7 @@
 import jwt
 from flask import request, jsonify
 from models.AdminConfirmation import AdminConfirmation
-
+import os
 # central role -> permissions mapping
 ROLES_PERMISSIONS = {
     "administrator": [
@@ -51,7 +51,8 @@ def permissions_required(permission, require_admin_confirm=False):
 
             token = auth_header.split(" ", 1)[1].strip()
             try:
-                payload = jwt.decode(token, "priscilla", algorithms=["HS256"])
+                secret_key=os.getenv("JWT_SECRET")
+                payload = jwt.decode(token, secret_key, algorithms=["HS256"])
             except jwt.ExpiredSignatureError:
                 return jsonify({"error": "Token has expired"}), 401
             except Exception:
