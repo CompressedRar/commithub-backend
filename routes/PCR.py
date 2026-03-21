@@ -348,29 +348,46 @@ def upload_ipcr_excel():
     return jsonify({"message": read_result, "filename": filename, "filepath": filepath}), 200
 
 
-@pcrs.route("/supporting_docu/compile/<ipcr_id>", methods = ["GET"])
+
+@pcrs.route("/supporting_docu/compile/<ipcr_id>", methods=["GET"])
+@token_required()
 def compile_pictures_by_ipcr(ipcr_id):
     from utils.SupportDocCompiler import into_document, collect_by_ipcr
-    docu = collect_by_ipcr(ipcr_id=ipcr_id)
-    rendered = into_document(docu)
-
+    from models.PCR import IPCR
+ 
+    docs = collect_by_ipcr(ipcr_id=ipcr_id)
+    if not docs:
+        return jsonify(error="No supporting documents to compile."), 400
+ 
+    # Build a meaningful title using the user's name
+    ipcr = IPCR.query.get(ipcr_id)
+    title = f"Supporting Documents — {ipcr.user.full_name()}" if ipcr else "Supporting Documents Report"
+ 
+    rendered = into_document(docs, report_title=title)
+    if not rendered:
+        return jsonify(error="No supporting documents could be compiled."), 400
     return rendered
-
-@pcrs.route("/supporting_dept/compile/<dept_id>", methods = ["GET"])
+ 
+ 
+@pcrs.route("/supporting_dept/compile/<dept_id>", methods=["GET"])
+@token_required()
 def compile_pictures_by_dept(dept_id):
     from utils.SupportDocCompiler import into_document, collect_by_department
-    docu = collect_by_department(dept_id=dept_id)
-
-    if not docu:
-        return jsonify(error = "There is no image document to compile"), 400
-
-    res = into_document(docu)
-    if res:
-        return jsonify(message = res), 200
-    else:
-        return jsonify(error="Error in compiling documents"), 400
+    from models.Departments import Department
+ 
+    docs = collect_by_department(dept_id=dept_id)
+    if not docs:
+        return jsonify(error="No supporting documents to compile."), 400
+ 
+    dept = Department.query.get(dept_id)
+    title = f"Supporting Documents — {dept.name}" if dept else "Supporting Documents Report"
+ 
+    rendered = into_document(docs, report_title=title)
+    if not rendered:
+        return jsonify(error="No supporting documents could be compiled."), 400
+    return rendered
+ 
 
 @pcrs.route("/opcr/calculate/<opcr_id>", methods = ["POST"])
 def calculate_opcr_rating(opcr_id):
-    
     return PCR_Service.compute_and_save_opcr_ratings(opcr_id=opcr_id)
