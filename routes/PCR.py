@@ -25,7 +25,7 @@ def get_opcr(id):
     return PCR_Service.get_opcr(id)
 
 @pcrs.route("/master-opcr/", methods = ["GET"])
-@token_required(allowed_roles=["administrator"])
+@token_required(allowed_roles=["administrator", "president"])
 def get_master_opcr():
     return PCR_Service.get_master_opcr()
 

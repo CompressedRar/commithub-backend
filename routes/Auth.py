@@ -72,7 +72,7 @@ def check_email(email):
     return Users.check_email_if_exists(email)
 
 @auth.route("/verify-admin-password", methods=["POST"])
-@token_required(allowed_roles=["administrator"])
+@token_required(allowed_roles=["administrator", "president"])
 @limiter.limit("5 per minute")
 def verify_admin_password():
     data = request.get_json() or request.form
