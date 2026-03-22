@@ -7,6 +7,7 @@ import jwt
 import secrets
 import os
 import uuid
+from datetime import timezone, timedelta, datetime
 
 from models.User import User
 from models.Notification import Notification_Service
@@ -15,6 +16,9 @@ from utils.Generate import generate_default_password
 from utils.Email import send_email, send_email_account_creation, send_templated_reset_email
 from models.Logs import Log_Service
 
+
+JWT_EXPIRY_HOURS = os.getenv("JWT_EXPIRY_HOURS", 8)
+JWT_SECRET = os.getenv("JWT_SECRET")
 
 class Users:
     def check_email_if_exists(email):
@@ -308,8 +312,19 @@ class Users:
             db.session.rollback()
             return jsonify(error=str(e)), 500
 
-    def generate_token(data):
-        return jwt.encode(data, "priscilla", algorithm="HS256")
+    def generate_token(user_data: dict) -> str:
+        payload = {
+        "id":                   user_data.get("id"),
+        "role":                 user_data.get("role"),
+        "first_name":           user_data.get("first_name"),
+        "last_name":            user_data.get("last_name"),
+        "email":                user_data.get("email"),
+        "department":           user_data.get("department"),
+        "profile_picture_link": user_data.get("profile_picture_link"),
+        "two_factor_enabled":   user_data.get("two_factor_enabled"),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=int(JWT_EXPIRY_HOURS)),
+    }
+        return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
     def authenticate_pass(login_data):
         try:
@@ -400,10 +415,12 @@ class Users:
 
             return jsonify(message="Authenticated.", token=token), 200
 
-        except OperationalError:
+        except OperationalError as e:
+            print(e)
             db.session.rollback()
             return jsonify(error="Database connection error"), 500
         except Exception as e:
+            print(e)
             db.session.rollback()
             return jsonify(error="Invalid or expired OTP"), 500
 

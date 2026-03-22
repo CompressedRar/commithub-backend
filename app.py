@@ -20,9 +20,8 @@ def create_app():
     load_dotenv()
     
     app = Flask(__name__)
-    allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "https://www.commithub.online").split(",")
-    CORS(app, origins=allowed_origins, supports_credentials=True)
-    
+    CORS(app, supports_credentials=True)
+
     app.config["SECRET_KEY"] = "hannelore"
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("AWS_DATABASE_URL")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
