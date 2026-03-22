@@ -120,7 +120,7 @@ def create_department_performance_report(department_id, filename_prefix=None):
         for rating_name, thresholds in rating_thresholds.items():
             min_val = thresholds.get("min", 0)
             max_val = thresholds.get("max", 5)
-            if min_val <= rating <= max_val:
+            if float(min_val) <= float(rating) <= float(max_val):
                 adjective = str(rating_name).replace("_", " ").upper()
                 break
         
@@ -188,7 +188,7 @@ def create_department_performance_report(department_id, filename_prefix=None):
     for rating_name, thresholds in rating_thresholds.items():
         min_val = thresholds.get("min", 0)
         max_val = thresholds.get("max", 5)
-        if min_val <= avg_rating <= max_val:
+        if float(min_val) <= float(avg_rating) <= float(max_val):
             avg_adjective = str(rating_name).replace("_", " ").upper()
             break
     
@@ -303,7 +303,7 @@ def create_all_departments_performance_report(filename_prefix=None):
         for rating_name, thresholds in rating_thresholds.items():
             min_val = thresholds.get("min", 0)
             max_val = thresholds.get("max", 5)
-            if min_val <= rating <= max_val:
+            if float(min_val) <= float(rating) <= float(max_val):
                 adjective = str(rating_name).replace("_", " ").upper()
                 break
         
@@ -371,7 +371,7 @@ def create_all_departments_performance_report(filename_prefix=None):
     for rating_name, thresholds in rating_thresholds.items():
         min_val = thresholds.get("min", 0)
         max_val = thresholds.get("max", 5)
-        if min_val <= avg_rating <= max_val:
+        if float(min_val) <=float( avg_rating) <= float(max_val):
             avg_adjective = str(rating_name).replace("_", " ").upper()
             break
     
@@ -486,7 +486,7 @@ def create_all_tasks_summary_report(filename_prefix=None):
         for rating_name, thresholds in rating_thresholds.items():
             min_val = thresholds.get("min", 0)
             max_val = thresholds.get("max", 5)
-            if min_val <= rating <= max_val:
+            if float(min_val) <= float(rating) <= float(max_val):
                 adjective = str(rating_name).replace("_", " ").upper()
                 break
         
@@ -554,7 +554,7 @@ def create_all_tasks_summary_report(filename_prefix=None):
     for rating_name, thresholds in rating_thresholds.items():
         min_val = thresholds.get("min", 0)
         max_val = thresholds.get("max", 5)
-        if min_val <= avg_rating <= max_val:
+        if float(min_val) <= float(avg_rating) <= float(max_val):
             avg_adjective = str(rating_name).replace("_", " ").upper()
             break
     

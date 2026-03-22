@@ -151,8 +151,10 @@ def generate_performance_report(dept_id):
             "download_url": file_url
         }), 200
     except ValueError as e:
+        print(e)
         return jsonify({"status": "error", "message": str(e)}), 404
     except Exception as e:
+        print(e)
         return jsonify({"status": "error", "message": f"Failed to generate report: {str(e)}"}), 500
 
 
@@ -172,8 +174,10 @@ def generate_nc_performance_report():
             "download_url": file_url
         }), 200
     except ValueError as e:
+        print(e)
         return jsonify({"status": "error", "message": str(e)}), 404
     except Exception as e:
+        print(e)
         return jsonify({"status": "error", "message": f"Failed to generate report: {str(e)}"}), 500
     
 

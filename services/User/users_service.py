@@ -345,10 +345,12 @@ class Users:
             user_dict = Users.authenticate_if_email_exists(email)
 
             if not user_dict:
+                print("no email")
                 return jsonify(error="Incorrect Email or Password"), 400
 
             ph = PasswordHasher()
             if not ph.verify(hash=user_dict["password"], password=login_data["password"]):
+                print("wrong pass")
                 return jsonify(error="Incorrect Email or Password"), 400
 
             user = User.query.get(user_dict["id"])
@@ -375,6 +377,7 @@ class Users:
             db.session.rollback()
             return jsonify(error="Database connection error"), 500
         except Exception as e:
+            print(e)
             db.session.rollback()
             return jsonify(error="Incorrect Email or Password"), 500
 
