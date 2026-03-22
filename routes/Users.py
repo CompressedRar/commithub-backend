@@ -90,7 +90,7 @@ def generate_user_tasks(user_id):
     return PCR_Service.generate_IPCR(user_id, id_array)
 
 @users.route("/head/<user_id>", methods = ["POST"])
-@token_required(allowed_roles=["administrator"])
+@token_required(allowed_roles=["administrator", "president"])
 def assign_department_head(user_id):
     
     data = request.args
