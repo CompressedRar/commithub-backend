@@ -125,16 +125,19 @@ def remove_task_department(id, dept_id):
     return Tasks_Service.remove_task_from_dept(id, dept_id)
 
 @department.route("/assigned_department/<dept_id>", methods = ["GET"])
+@token_required()
 def get_assigned_department(dept_id):
     return Tasks_Service.get_assigned_departments_for_opcr(dept_id)
 
 
 @department.route("/assigned_department/<assigned_dept_id>", methods = ["PATCH"])
+@token_required()
 def update_assigned_department_formulas(assigned_dept_id):
     new_data = request.get_json() 
     return Tasks_Service.update_department_task_formula(assigned_dept_id=assigned_dept_id, data=new_data)
 
 @department.route("/<dept_id>/performance-report", methods = ["GET"])
+@token_required()
 def generate_performance_report(dept_id):
     """
     Generate and download a performance assessment report for a department.
@@ -154,6 +157,7 @@ def generate_performance_report(dept_id):
 
 
 @department.route("/all/performance-report", methods = ["GET"])
+@token_required()
 def generate_nc_performance_report():
     """
     Generate and download a performance assessment report for a department.
@@ -174,6 +178,7 @@ def generate_nc_performance_report():
     
 
 @department.route("/all/task-report", methods = ["GET"])
+@token_required()
 def generate_task_performance_report():
     """
     Generate and download a performance assessment report for a department.

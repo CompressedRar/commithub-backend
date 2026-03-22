@@ -23,7 +23,7 @@ def update_settings():
     return System_Settings_Service.update_settings(new_settings)
 
 @settings.route("/validate-formula", methods = ["POST", "PATCH"])
-@token_required(allowed_roles=["administrator", "head"])
+@token_required(allowed_roles=["administrator", "president", "head"])
 def validate_formula():
     new_settings = request.get_json()
     formula = loads(new_settings.get("formula"))
@@ -64,5 +64,6 @@ def test_check_time():
     return str(is_between)
 
 @settings.route("/reset", methods = ["PATCH"])
+@token_required(allowed_roles=["administrator", "president"])
 def reset_period():
     return System_Settings_Service.change_period()

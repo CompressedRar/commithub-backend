@@ -20,7 +20,6 @@ ai = Blueprint("ai", __name__, url_prefix="/api/v1/ai")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.1-8b-instant"
 
-
 def _call_groq(messages: list) -> str:
     """Make a single request to Groq and return the text content."""
     groq_key = os.environ["GROQ_API_KEY"]   # never sent to the browser

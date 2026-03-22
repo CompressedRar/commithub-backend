@@ -33,20 +33,20 @@ def update_priority_number(id, prio_num):
 
 
 @category.route("/", methods = ["POST"])
-@token_required(allowed_roles=["administrator"])
+@token_required(allowed_roles=["administrator", "president"])
 @log_action(action = "CREATE", target="CATEGORY")
 def create_category():
     data = request.form
     return Category_Service.create_category(data)
 
 @category.route("/<id>", methods = ["DELETE"])
-@token_required(allowed_roles=["administrator"])
+@token_required(allowed_roles=["administrator", "president"])
 @log_action(action = "ARCHIVE", target="CATEGORY")
 def archive_category(id):
     return Category_Service.archive_category(id)
 
 @category.route("/", methods = ["PATCH"])
-@token_required(allowed_roles=["administrator"])
+@token_required(allowed_roles=["administrator", "president"])
 @log_action(action = "UPDATE", target="CATEGORY")
 def update_category():
     data = request.form

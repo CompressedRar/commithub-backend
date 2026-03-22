@@ -7,27 +7,32 @@ from services.pcr_service import PCR_Service
 from models.Logs import Log_Service
 from services.category_service import Category_Service
 from services.tasks_service import Tasks_Service
-
+from utils.decorators import log_action, token_required
 charts = Blueprint("charts", __name__, url_prefix="/api/v1/chart")
 
 
 @charts.route("/pie/population-per-department", methods = ["GET"])
+@token_required()
 def population_per_department():
     return Department_Service.get_user_count_per_department()
 
 @charts.route("/bar/performance-per-department", methods = ["GET"])
+@token_required()
 def performance_per_department():
     return Department_Service.get_average_performance_by_department()
 
 @charts.route("/bar/performance/<dept_id>", methods = ["GET"])
+@token_required()
 def get_user_performance_by_department_id(dept_id):
     return Department_Service.get_user_performance_by_department_id(department_id=dept_id)
 
 @charts.route("/bar/summary/", methods = ["GET"])
+@token_required()
 def get_department_performance_summary():
     return PCR_Service.get_department_performance_summary()
 
 @charts.route("/line/activity/", methods = ["GET"])
+@token_required()
 def get_activity_trend():
     
     interval = request.args.get('timeframe', 'daily')
@@ -35,53 +40,65 @@ def get_activity_trend():
     return Log_Service.get_log_activity_trend(interval)
 
 @charts.route("/bar/logs/", methods = ["GET"])
+@token_required()
 def get_system_logs__trend():
     return Log_Service.get_logs_activity()
 
 @charts.route("/line/logs-by-hour/", methods = ["GET"])
+@token_required()
 def get_logs_by_hour():
     return Log_Service.get_logs_by_hour()
 
 @charts.route("/scatter/logs/", methods = ["GET"])
+@token_required()
 def get_scatter_activity():
     return Log_Service.get_activity_scatter()
 
 @charts.route("/bar/category/<cat_id>", methods = ["GET"])
+@token_required()
 def get_tasks_average(cat_id):
     return Category_Service.get_task_average_summary(category_id=cat_id)
 
 @charts.route("/bar/task/all", methods = ["GET"])
+@token_required()
 def get_all_tasks_average():
     return Tasks_Service.get_all_tasks_average_summary()
 
 @charts.route("/bar/task-user-average/<main_task_id>", methods = ["GET"])
+@token_required()
 def get_tasks_user_average(main_task_id):
     return Tasks_Service.get_task_user_averages(main_task_id)
 
 @charts.route("/pie/task-ratio/<main_task_id>", methods = ["GET"])
+@token_required()
 def get_tasks_user_ratio(main_task_id):
     return Tasks_Service.get_department_subtask_percentage(main_task_id)
 
 
 @charts.route("/pie/category-performance/<cat_id>", methods = ["GET"])
+@token_required()
 def get_category_performancve(cat_id):
     return Category_Service.calculate_category_performance(category_id=cat_id)
 
 @charts.route("/bar/category-performance-dept/<cat_id>", methods = ["GET"])
+@token_required()
 def get_category_performance_by_dept(cat_id):
     return Category_Service.calculate_category_performance_per_department(category_id=cat_id)
 
 
 @charts.route("/pie/main-task-performance/<main_task_id>", methods = ["GET"])
+@token_required()
 def get_main_task_performancve(main_task_id):
     return Tasks_Service.calculate_main_task_performance(main_task_id)
 
 
 @charts.route("/pie/user-task-performance/<user_id>", methods = ["GET"])
+@token_required()
 def get_user_task_performancve(user_id):
     return Tasks_Service.calculate_user_performance(user_id=user_id)
 
 @charts.route("/top/department-performance/", methods = ["GET"])
+@token_required()
 def get_top_department():
     return Department_Service.get_top_performing_department()
 
@@ -91,6 +108,7 @@ def get_top_department():
 # ============================================================
 
 @charts.route("/performance/history", methods=["GET"])
+@token_required()
 def get_performance_history():
     """
     Get historical performance data with custom date range
@@ -105,6 +123,7 @@ def get_performance_history():
 
 
 @charts.route("/performance/trends", methods=["GET"])
+@token_required()
 def get_performance_trends():
     """
     Get trend analysis with moving averages and forecasting
@@ -118,6 +137,7 @@ def get_performance_trends():
 
 
 @charts.route("/performance/comparison", methods=["GET"])
+@token_required()
 def get_comparative_analytics():
     """
     Compare performance across multiple departments (peer benchmarking)
@@ -131,6 +151,7 @@ def get_comparative_analytics():
 
 
 @charts.route("/performance/forecast", methods=["GET"])
+@token_required()
 def get_performance_forecast():
     """
     Forecast future performance using trend analysis
@@ -143,6 +164,7 @@ def get_performance_forecast():
 
 
 @charts.route("/kpi/status", methods=["GET"])
+@token_required()
 def get_kpi_status():
     """
     Get custom KPI status for a department
@@ -154,6 +176,7 @@ def get_kpi_status():
 
 
 @charts.route("/user/performance-history", methods=["GET"])
+@token_required()
 def get_user_performance_history():
     """
     Get individual user's performance history over time

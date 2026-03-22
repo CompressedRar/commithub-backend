@@ -230,7 +230,7 @@ def create_opcr(dept_id):
 
 
 @pcrs.route("/opcr/download/<opcr_id>", methods = ["GET"])
-@token_required(allowed_roles=["administrator", "head"])
+@token_required(allowed_roles=["administrator", "head", "president"])
 @log_action(action = "DOWNLOAD", target="OPCR")
 
 def test_opcr(opcr_id):
@@ -238,7 +238,7 @@ def test_opcr(opcr_id):
     return jsonify(link = file_link), 200
 
 @pcrs.route("/planned-opcr/download/<dept_id>", methods = ["GET"])
-@token_required(allowed_roles=["administrator", "head"])
+@token_required(allowed_roles=["administrator", "head", "president"])
 @log_action(action = "DOWNLOAD", target="OPCR")
 
 def download_planned_opcr(dept_id):
@@ -254,7 +254,7 @@ def download_weighted_opcr(opcr_id):
     return jsonify(link = file_link), 200
 
 @pcrs.route("/master-opcr/download/", methods = ["GET"])
-@token_required(allowed_roles=["administrator"])
+@token_required(allowed_roles=["administrator", "president"])
 @log_action(action = "DOWNLOAD", target="MASTER OPCR")
 
 def test_master_opcr():
@@ -389,5 +389,6 @@ def compile_pictures_by_dept(dept_id):
  
 
 @pcrs.route("/opcr/calculate/<opcr_id>", methods = ["POST"])
+@token_required()
 def calculate_opcr_rating(opcr_id):
     return PCR_Service.compute_and_save_opcr_ratings(opcr_id=opcr_id)

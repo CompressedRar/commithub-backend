@@ -106,8 +106,8 @@ def verify_admin_password():
     
 
 @auth.route("/forgot_password/<email>", methods=["POST"])
+@limiter.limit("5 per minute")
 def forgot_password(email):
-
     user = User.query.filter_by(email=email).first()
     
     if user:
@@ -123,6 +123,7 @@ def forgot_password(email):
 
 
 @auth.route('/reset-password/<token>', methods=['POST'])
+@limiter.limit("5 per minute")
 def reset_password(token):
     user_id = PasswordResetToken.verify_and_get_user(token)
     

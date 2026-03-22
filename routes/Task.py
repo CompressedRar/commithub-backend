@@ -48,14 +48,14 @@ def get_task(id):
     return Tasks_Service.get_main_task(id)
 
 @task.route("/<id>", methods = ["DELETE"])
-@token_required(allowed_roles=["administrator"])
+@token_required(allowed_roles=["administrator", "president"])
 @log_action(action = "ARCHIVE", target="TASK")
 
 def archive_task(id):
     return Tasks_Service.archive_task(id)
 
 @task.route("/", methods = ["POST"])
-@token_required(allowed_roles=["administrator"])
+@token_required(allowed_roles=["administrator", "president"])
 @log_action(action = "CREATE", target="TASK")
 
 def create_main_task():
@@ -72,6 +72,7 @@ def update_main_task():
 
 @task.route("/sub_task/<sub_task_id>", methods=["PATCH"])
 @token_required()
+@log_action(action = "UPDATE", target="TASK")
 def update_sub_task_field(sub_task_id):
     field = request.args.get("field")
     value = request.args.get("value")
@@ -86,6 +87,7 @@ def update_sub_task_field(sub_task_id):
 
 @task.route("/sub_task/calculate/", methods = ["POST"])
 @token_required()
+@log_action(action = "GET", target="TASK")
 def calc_ratings():
     data = request.json
     array = data.get("sub_tasks", [])
@@ -95,11 +97,13 @@ def calc_ratings():
 
 @task.route("/assigned_department/<dept_id>", methods = ["GET"])
 @token_required()
+@log_action(action = "GET", target="TASK")
 def get_assigned_department(dept_id):
     return Tasks_Service.get_assigned_department(dept_id)
 
 @task.route("/assigned_department/", methods = ["PATCH"])
 @token_required()
+@log_action(action = "UPDATE", target="TASK")
 def update_assigned_department():
     data = request.json
 
@@ -115,6 +119,7 @@ def get_tasks_assigned_by_dept(dept_id):
 
 @task.route("/assigned_department/<adept_id>", methods=["PATCH"])
 @token_required()
+@log_action(action = "UPDATE", target="TASK")
 def update_dept_task_field(adept_id):
     field = request.args.get("field")
     value = request.args.get("value")
