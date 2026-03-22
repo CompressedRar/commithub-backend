@@ -84,11 +84,11 @@ def verify_admin_password():
     # get user id from payload attached by token_required
     payload = getattr(request, "user_payload", None)
     if not payload:
-        return jsonify(error="Invalid token payload"), 401
+        return jsonify(error="Invalid token payload"), 400
 
     user_id = payload.get("id")
     if not user_id:
-        return jsonify(error="Invalid token payload"), 401
+        return jsonify(error="Invalid token payload"), 400
 
     user = User.query.get(user_id)
     if not user:
@@ -102,7 +102,7 @@ def verify_admin_password():
         token = AdminConfirmation.create_for_user(user_id, minutes=10)
         return jsonify(message="Verified", confirmation_token=token, expires_in_minutes=10), 200
     except Exception:
-        return jsonify(error="Invalid password"), 401
+        return jsonify(error="Invalid password"), 500
     
 
 @auth.route("/forgot_password/<email>", methods=["POST"])
