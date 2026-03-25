@@ -183,10 +183,15 @@ class Users:
             if "position" in data:
                 user.position_id = int(data["position"])
 
+            from services.tasks_service import TaskAssignmentService
             if "department" in data:
                 new_dept_id = int(data["department"])
+                if new_dept_id != user.department_id:
+                    for output in list(user.outputs):
+                        if output.main_task:
+                            TaskAssignmentService.unassign_user(output.main_task.id , user.id)                            
 
-                if new_dept_id != user.department_id:                    
+
                     user.department_id = new_dept_id
 
             db.session.commit()

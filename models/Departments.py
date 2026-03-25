@@ -316,7 +316,7 @@ class Department_Service():
 
                 if user.role == "head":
                     user.role = "faculty"
-                    
+
                 user.department_id = None  # unassign
 
                 # Delete outputs and related subtasks
@@ -352,6 +352,7 @@ class Department_Service():
 
                 for ipcr in members.ipcrs:
                     if ipcr.isMain and ipcr.status == 1 and ipcr.period == settings.current_period_id:
+                        print("nadagdag", members.first_name)
                         ipcr_container = ipcr.department_info()
 
                 user_ipcr.append({

@@ -86,10 +86,8 @@ class User(db.Model):
 
         for ipcr in self.ipcrs:
             
-            pc = Assigned_PCR.query.filter_by(ipcr_id = ipcr.id).first()
-            if pc:
-                if ipcr.status == 1 and (settings and ipcr.period == settings.current_period_id) and pc.department.id == self.department_id:
-                    active_ipcrs.append(ipcr.to_dict())
+            if ipcr.status == 1 and (settings and ipcr.period == settings.current_period_id):
+                active_ipcrs.append(ipcr.to_dict())
             
             
         return {
