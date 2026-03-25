@@ -31,6 +31,7 @@ class TaskAssignmentService:
             existing_ipcr = IPCR.query.filter_by(user_id=user_id, period=period).first()
 
             if existing_ipcr:
+                
                 Assigned_Task.query.filter_by(user_id=user_id, main_task_id=task_id).delete()
                 db.session.flush()
 
@@ -80,6 +81,7 @@ class TaskAssignmentService:
                     assigned_time=assigned_time,
                     assigned_mod=assigned_mod,
                 ))
+                db.session.commit()
             else:
                 PCR_Service.generate_IPCR_from_tasks(
                     user_id=user_id,

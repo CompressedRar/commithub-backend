@@ -30,19 +30,30 @@ class PCRCRUDService:
             db.session.add(new_ipcr)
             db.session.flush()
 
+            print("assigning task")
+
             if not Assigned_Task.query.filter_by(
                 user_id=user_id, main_task_id=main_task_id,
                 batch_id=batch_id, period=period,
             ).first():
+                
+                print(user_id, main_task_id, "added new task")
                 db.session.add(Assigned_Task(
                     user_id=user_id, main_task_id=main_task_id,
                     is_assigned=False, batch_id=batch_id, period=period,
                     assigned_quantity=0, assigned_time=0, assigned_mod=0,
                 ))
+                db.session.commit()
 
             db.session.add(Output(
-                user_id=user_id, main_task_id=main_task_id,
-                batch_id=batch_id, ipcr_id=new_ipcr.id, period=period,
+                user_id=user_id, 
+                main_task_id=main_task_id,
+                batch_id=batch_id, 
+                ipcr_id=new_ipcr.id, 
+                period=period,
+                assigned_quantity=0,
+                assigned_time=0,
+                assigned_mod=0,
             ))
             db.session.commit()
 
