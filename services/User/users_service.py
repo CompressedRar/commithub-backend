@@ -185,21 +185,8 @@ class Users:
 
             if "department" in data:
                 new_dept_id = int(data["department"])
-                if new_dept_id != user.department_id:
-                    for output in list(user.outputs):
-                        if output.main_task and output.main_task.department_id == user.department_id:
-                            db.session.delete(output)
 
-                    active_ipcr = next((ipcr for ipcr in user.ipcrs if ipcr.status == 1), None)
-                    if active_ipcr:
-                        for task in Main_Task.query.filter_by(department_id=new_dept_id, status=1).all():
-                            db.session.add(Output(
-                                user_id=user.id,
-                                main_task_id=task.id,
-                                ipcr_id=active_ipcr.id,
-                                batch_id=str(uuid.uuid4()),
-                            ))
-
+                if new_dept_id != user.department_id:                    
                     user.department_id = new_dept_id
 
             db.session.commit()

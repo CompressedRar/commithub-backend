@@ -78,14 +78,20 @@ class User(db.Model):
 
     def to_dict(self):
         from models.System_Settings import System_Settings
-
+        from models.PCR import Assigned_PCR
         settings = System_Settings.get_default_settings()
-        active_ipcrs = [
-            ipcr.to_dict()
-            for ipcr in self.ipcrs
-            if ipcr.status == 1 and (settings and ipcr.period == settings.current_period_id)
-        ]
 
+        
+        active_ipcrs = []
+
+        for ipcr in self.ipcrs:
+            
+            pc = Assigned_PCR.query.filter_by(ipcr_id = ipcr.id).first()
+            if pc:
+                if ipcr.status == 1 and (settings and ipcr.period == settings.current_period_id) and pc.department.id == self.department_id:
+                    active_ipcrs.append(ipcr.to_dict())
+            
+            
         return {
             "id": self.id,
             "first_name": self.first_name,

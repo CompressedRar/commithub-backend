@@ -14,6 +14,7 @@ class Position(db.Model):
     support_weight = db.Column(db.Float, default = 0.0)
 
     status = db.Column(db.Integer, default = 1)
+
     
     
     def info(self):
@@ -23,7 +24,8 @@ class Position(db.Model):
             "core_weight": self.core_weight,
             "strategic_weight": self.strategic_weight,
             "support_weight": self.support_weight,
-            "status": self.status
+            "status": self.status,
+            "active_users": len(self.users)
         }
 
     def to_dict(self):
