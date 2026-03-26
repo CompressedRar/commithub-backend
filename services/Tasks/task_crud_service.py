@@ -43,6 +43,10 @@ class TaskCRUDService:
             from models.System_Settings import System_Settings
             current_settings = System_Settings.get_default_settings()
 
+            req_docs = data.get("require_documents") == "true"
+
+            print("new main task data",data)
+
             new_main_task = Main_Task(
                 mfo=data["task_name"],
                 target_accomplishment=data["task_desc"],
@@ -53,7 +57,7 @@ class TaskCRUDService:
                 time_description=data["time_measurement"],
                 modification=data["modification"],
                 category_id=int(data["id"]),
-                require_documents=True,
+                require_documents=req_docs,
                 period=current_settings.current_period_id if current_settings else None,
                 description=data["description"],
                 target_quantity=data.get("target_quantity", 0),
