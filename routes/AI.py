@@ -22,8 +22,8 @@ GROQ_MODEL = "llama-3.1-8b-instant"
 
 def _call_groq(messages: list) -> str:
     """Make a single request to Groq and return the text content."""
-    groq_key = os.environ["GROQ_API_KEY"]   # never sent to the browser
-
+    groq_key = os.getenv("GROQ_API_KEY")   # never sent to the browser
+    print(groq_key)
     resp = requests.post(
         GROQ_API_URL,
         headers={

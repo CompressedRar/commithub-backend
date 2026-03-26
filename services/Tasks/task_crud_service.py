@@ -53,7 +53,7 @@ class TaskCRUDService:
                 time_description=data["time_measurement"],
                 modification=data["modification"],
                 category_id=int(data["id"]),
-                require_documents=data.get("require_documents", False),
+                require_documents=data.get("require_documents", "false") == "true",
                 period=current_settings.current_period_id if current_settings else None,
                 description=data["description"],
                 target_quantity=data.get("target_quantity", 0),
