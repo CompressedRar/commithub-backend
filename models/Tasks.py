@@ -473,7 +473,8 @@ class Sub_Task(db.Model):
         settings = System_Settings.get_default_settings()
         is_rating_period = System_Settings_Service.check_if_rating_period()
 
-        if settings.enable_formula and not is_rating_period:
+        if settings.enable_formula and is_rating_period:
+            print("auto calculating")
             if self.main_task.timeliness_mode == "timeframe":
                 self.timeliness = self.calculate_with_override(
                     "timeliness", self.target_time, self.actual_time
@@ -484,6 +485,7 @@ class Sub_Task(db.Model):
 
             self.efficiency = self.calculate_with_override("efficiency", self.target_mod, self.actual_mod)
             self.quantity = self.calculate_with_override("quantity", self.target_acc, self.actual_acc)
+            db.session.commit()
 
     def to_dict(self):
         

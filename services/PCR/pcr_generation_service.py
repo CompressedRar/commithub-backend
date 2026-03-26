@@ -172,7 +172,7 @@ class PCRGenerationService:
 
         print(task["_task_id"])
         """settings.enable_formula and not check_rating_period"""
-        if False:
+        if settings.enable_formula and check_rating_period:
             tid = task["_task_id"]
             q = PCRRatingService.compute_rating_with_override("quantity", task["summary"]["target"], task["summary"]["actual"], tid, settings, dept_configs)
             e = PCRRatingService.compute_rating_with_override("efficiency", task["corrections"]["target"], task["corrections"]["actual"], tid, settings, dept_configs)
@@ -187,15 +187,6 @@ class PCRGenerationService:
             categories.items(), key=lambda x: x[1]["priority"], reverse=True
         ):
             for task in meta["tasks"]:
-                if not is_draft and task["frequency"] > 0:
-                    q, e, t, avg = PCRGenerationService._compute_task_ratings(
-                        task, settings, dept_configs, check_rating_period
-                    )
-                    task["rating"].update({
-                        "quantity": q, "efficiency": e, "timeliness": t,
-                        "average": avg,
-                        "weighted_avg": avg * task["description"]["task_weight"] if avg else 0,
-                    })
                 task.pop("_task_id", None)
 
             data.append({cat_name: meta["tasks"]})
@@ -226,8 +217,9 @@ class PCRGenerationService:
         for task_id, task_data in task_index.items():
             # Only compute if there is activity (frequency > 0)
             if task_data["frequency"] > 0:
+                print("computing opcr task")
                 q, e, t, avg = PCRGenerationService._compute_task_ratings(
-                    task_data, settings, dept_configs
+                    task_data, settings, dept_configs, True
                 )
 
                 # 3. Update the Assigned_Department record
@@ -235,9 +227,12 @@ class PCRGenerationService:
                 assigned_dept_record = Assigned_Department.query.get(ad_id)
                 
                 if assigned_dept_record:
+                    print(q, e, t)
                     assigned_dept_record.quantity = q
                     assigned_dept_record.efficiency = e
                     assigned_dept_record.timeliness = t
+
+                    db.session.commit()
 
                     # Weighted average calculation is usually handled during export/view, 
                     # but we store the raw Q, E, T here.
