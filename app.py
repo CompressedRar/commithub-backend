@@ -83,7 +83,7 @@ def create_app():
 
     @app.route("/")
     def home():
-        return "working now 3.0"
+        return "working now 3.1 - document upload patch"
     
     @app.route("/nice")
     def homes():

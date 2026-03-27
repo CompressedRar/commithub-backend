@@ -369,6 +369,25 @@ def compile_pictures_by_ipcr(ipcr_id):
     return rendered
  
  
+@pcrs.route("/supporting_docu/presentation/<ipcr_id>", methods=["GET"])
+@token_required()
+def compile_presentation_by_ipcr(ipcr_id):
+    from utils.PresentationCompiler import into_presentation, collect_by_ipcr
+    from models.PCR import IPCR
+ 
+    docs = collect_by_ipcr(ipcr_id=ipcr_id)
+    if not docs:
+        return jsonify(error="No supporting documents to compile."), 400
+ 
+    # Build a meaningful title using the user's name
+    ipcr = IPCR.query.get(ipcr_id)
+    title = f"Supporting Documents — {ipcr.user.full_name()}" if ipcr else "Supporting Documents Report"
+ 
+    rendered = into_presentation(docs, report_title=title)
+    if not rendered:
+        return jsonify(error="No supporting documents could be compiled."), 400
+    return rendered
+
 @pcrs.route("/supporting_dept/compile/<dept_id>", methods=["GET"])
 @token_required()
 def compile_pictures_by_dept(dept_id):
