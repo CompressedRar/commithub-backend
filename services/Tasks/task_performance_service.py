@@ -222,9 +222,9 @@ class TaskPerformanceService:
                 totals["efficiency"] += sub_task.calculateEfficiency()
                 totals["timeliness"] += sub_task.calculateTimeliness()
             else:
-                totals["quantity"] += sub_task.quantity
-                totals["efficiency"] += sub_task.efficiency
-                totals["timeliness"] += sub_task.timeliness
+                totals["quantity"] += sub_task.quantity if sub_task.quantity else 0
+                totals["efficiency"] += sub_task.efficiency if sub_task.efficiency else 0
+                totals["timeliness"] += sub_task.timeliness if sub_task.timeliness else 0
             totals["average"] += sub_task.calculateAverage()
             count += 1
 
@@ -301,9 +301,9 @@ class TaskPerformanceService:
                     "timeliness", target_working_days, actual_working_days
                 )
 
-            totals["quantity"] += quantity
-            totals["efficiency"] += efficiency
-            totals["timeliness"] += timeliness
+            totals["quantity"] += quantity if quantity else 0
+            totals["efficiency"] += efficiency if efficiency else 0
+            totals["timeliness"] += timeliness if timeliness else 0
             totals["average"] += sub_task.calculateAverage()
             count += 1
 
