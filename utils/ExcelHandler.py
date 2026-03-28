@@ -235,6 +235,7 @@ def createNewOPCR(data, assigned, admin_data):
                 ws["Q"+str(row)] = f"=AVERAGE(N{row}, O{row},P{row})" # average
                 ws["Q"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["Q"+str(row)].font = Font(bold=True)
+                ws["Q"+str(row)].number_format = numberformat
                 
                 #remarks na wala talagang laman
                 from models.System_Settings import System_Settings
@@ -663,6 +664,7 @@ def createNewWeightedOPCR(data, assigned, admin_data):
                 ws["R"+str(row)] = float(f"{float(weighted_avg):.2F}") # weighted_avg
                 ws[f"R{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws[f"R{row}"].font = Font(bold=True)
+                ws[f"R{row}"].number_format = numberformat
                 
                 prepareCells(ws, str("S"+str(row)), str("S"+str(row + 5)))
                 ws["S"+str(row)] = ""
@@ -1407,6 +1409,7 @@ def createNewMasterOPCR(data, assigned, admin_data):
                 ws["Q"+str(row)] = f"=AVERAGE(N{row}, O{row},P{row})"# average
                 ws["Q"+str(row)].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 ws["Q"+str(row)].font = Font(bold=True)
+                ws["Q"+str(row)].number_format = numberformat
                 
                 #remarks na wala talagang laman
                 prepareCells(ws, str("R"+str(row)), str("S"+str(row + 5)))
