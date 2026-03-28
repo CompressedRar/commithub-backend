@@ -377,22 +377,28 @@ class Sub_Task(db.Model):
         from models.System_Settings import System_Settings
 
         settings = System_Settings.get_default_settings()
+        assigned_dept_configs = None
+        dept_cfg = None
 
-        assigned_dept_configs = {
-            ad.main_task_id: {
-                "enable": ad.enable_formulas,
-                "quantity": ad.quantity_formula,
-                "efficiency": ad.efficiency_formula,
-                "timeliness": ad.timeliness_formula,
+        if self.ipcr.user.department:
+
+            assigned_dept_configs = {
+                ad.main_task_id: {
+                    "enable": ad.enable_formulas,
+                    "quantity": ad.quantity_formula,
+                    "efficiency": ad.efficiency_formula,
+                    "timeliness": ad.timeliness_formula,
+                }
+                for ad in Assigned_Department.query.filter_by(
+                    department_id=self.ipcr.user.department.id,
+                    period=settings.current_period_id,
+                ).all()
             }
-            for ad in Assigned_Department.query.filter_by(
-                department_id=self.ipcr.user.department.id,
-                period=settings.current_period_id,
-            ).all()
-        }
+
+            
+            dept_cfg = assigned_dept_configs.get(self.main_task_id)
 
         engine = Formula_Engine()
-        dept_cfg = assigned_dept_configs.get(self.main_task_id)
         formula = dept_cfg[metric] if (dept_cfg and dept_cfg["enable"]) else getattr(settings, f"{metric}_formula")
 
         return engine.compute_rating(formula=formula, target=target, actual=actual)
