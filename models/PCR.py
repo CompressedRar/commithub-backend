@@ -209,18 +209,54 @@ class IPCR(db.Model):
             discuss = self._slot(full, user.position.name)
             assess = self._slot(head_full, head_pos)
             final = self._slot(president, "College President")
+
+            self.reviewed_by = head_full
+            self.rev_position = head_pos
+            self.approved_by = president
+            self.app_position = "College President"
+            self.discussed_with = full
+            self.dis_position = user.position.name
+            self.assessed_by = head_full
+            self.final_rating_by = president
+            self.fin_position = "College President"
+
+            db.session.commit()
         elif user.role in ("head", "administrator"):
             review = self._slot(president, "College President")
             approve = self._slot(president, "College President")
             discuss = self._slot(full, user.position.name)
             assess = self._slot(president, "College President")
             final = self._slot(president, "College President")
+
+            self.reviewed_by = president
+            self.rev_position = "College President"
+            self.approved_by = president
+            self.app_position = "College President"
+            self.discussed_with = full
+            self.dis_position = user.position.name
+            self.assessed_by = president
+            self.final_rating_by = president
+            self.fin_position = "College President"
+            db.session.commit()
         else:  # president
             review = self._slot(president, "College President")
             approve = self._slot(president, "College President")
             discuss = self._slot(president, "College President")
             assess = self._slot(president, "College President")
             final = self._slot(president, "College President")
+
+            self.reviewed_by = president
+            self.rev_position = "College President"
+            self.approved_by = president
+            self.app_position = "College President"
+            self.discussed_with = president
+            self.dis_position = "College President"
+            self.assessed_by = president
+            self.ass_position = "College President"
+            self.final_rating_by = president
+            self.fin_position = "College President"
+
+            db.session.commit()
 
         db.session.commit()
 
