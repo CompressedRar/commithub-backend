@@ -35,7 +35,7 @@ def read_ipcr(file_path):
             found_task.average = float((quality + efficiency + timeliness) / 3)
 
             db.session.commit()
-        current_row += 6
+        current_row += 7
 
     if count:
         return "Successfully updated rating data."
