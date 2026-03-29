@@ -7,7 +7,8 @@ class PCRRatingService:
         engine = Formula_Engine()
         dept_cfg = dept_configs.get(task_id)
         formula = dept_cfg[metric] if (dept_cfg and dept_cfg["enable"]) else getattr(settings, f"{metric}_formula")
-        return engine.compute_rating(formula=formula, target=target, actual=actual)
+        res = engine.compute_rating(formula=formula, target=target, actual=actual)
+        return res if res is not None else 0
 
     def compute_quantity_rating(target, actual, settings):
         return Formula_Engine().compute_rating(

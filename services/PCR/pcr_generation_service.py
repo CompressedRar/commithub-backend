@@ -177,7 +177,7 @@ class PCRGenerationService:
             q = PCRRatingService.compute_rating_with_override("quantity", task["summary"]["target"], task["summary"]["actual"], tid, settings, dept_configs)
             e = PCRRatingService.compute_rating_with_override("efficiency", task["corrections"]["target"], task["corrections"]["actual"], tid, settings, dept_configs)
             t = PCRRatingService.compute_rating_with_override("timeliness", task["working_days"]["target"], task["working_days"]["actual"], tid, settings, dept_configs)
-
+        
         return q, e, t, PCRRatingService.calculateAverage(q, e, t)
 
     def _finalize_data(categories, settings, dept_configs, check_rating_period=False, is_draft=False):
