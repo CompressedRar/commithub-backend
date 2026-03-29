@@ -25,8 +25,9 @@ def update_settings():
 @settings.route("/validate-formula", methods = ["POST", "PATCH"])
 @token_required(allowed_roles=["administrator", "president", "head"])
 def validate_formula():
-    new_settings = request.get_json()
-    formula = loads(new_settings.get("formula"))
+    print("VALIDATE FORMULA", request.get_json())
+    formula = request.get_json()
+    
 
     print(formula)
 
@@ -41,7 +42,7 @@ def validate_formula():
 
     except Exception as e:
 
-        return jsonify(message = str(e)), 200 
+        return jsonify(message = str(e)), 500 
 
 
 @settings.route("/get-date")

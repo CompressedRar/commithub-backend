@@ -1,4 +1,4 @@
-from simpleeval import SimpleEval
+from simpleeval import SimpleEval, NameNotDefined
 
 
 class Formula_Engine:
@@ -49,13 +49,27 @@ class Formula_Engine:
             except Exception as e:
                 raise ValueError(f"Dry run failed: {str(e)}")
 
+    
     def _validate_expression(self, expression):
         s = SimpleEval()
         s.names = {"actual": 1, "target": 1}
         s.functions = {}
+        
+        # Override the name resolution to block anything not in s.names
+        def _safe_name(node):
+            name = node.id
+
+            if name not in s.names:
+                raise NameNotDefined(name, expression)
+            return s.names[name]
+        
+        s._get_name = _safe_name
 
         try:
             s.eval(expression)
+            print("VALIDATION PASSED")
+        except NameNotDefined as e:
+            raise ValueError(f"Invalid expression: only 'actual' and 'target' variables are allowed. {str(e)}")
         except Exception as e:
             raise ValueError(f"Invalid expression: {str(e)}")
 
