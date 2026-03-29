@@ -165,6 +165,7 @@ class CategoryPerformanceService:
 
                 if not sub.output.user.department:
                     continue
+
                 dept_name = sub.output.user.department.name
 
                 
@@ -172,9 +173,9 @@ class CategoryPerformanceService:
                     task_dept[dept_name] = {"q": 0.0, "e": 0.0, "t": 0.0, "count": 0}
 
                 q, e, t = CategoryPerformanceService._subtask_ratings(sub, settings.enable_formula)
-                task_dept[dept_name]["q"] += q
-                task_dept[dept_name]["e"] += e
-                task_dept[dept_name]["t"] += t
+                task_dept[dept_name]["q"] += q if q else 0
+                task_dept[dept_name]["e"] += e if e else 0
+                task_dept[dept_name]["t"] += t if t else 0
                 task_dept[dept_name]["count"] += 1
 
             # Fold per-task averages into global dept accumulators
