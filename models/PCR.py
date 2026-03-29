@@ -217,6 +217,7 @@ class IPCR(db.Model):
             self.discussed_with = full
             self.dis_position = user.position.name
             self.assessed_by = head_full
+            self.ass_position = head_pos
             self.final_rating_by = president
             self.fin_position = "College President"
 
@@ -235,6 +236,7 @@ class IPCR(db.Model):
             self.discussed_with = full
             self.dis_position = user.position.name
             self.assessed_by = president
+            self.ass_position = "College President"
             self.final_rating_by = president
             self.fin_position = "College President"
             db.session.commit()
