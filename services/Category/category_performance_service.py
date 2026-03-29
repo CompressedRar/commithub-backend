@@ -163,7 +163,11 @@ class CategoryPerformanceService:
                 if not sub.output or not sub.output.user or not sub.ipcr or sub.ipcr.status != 1:
                     continue
 
+                if not sub.output.user.department:
+                    continue
                 dept_name = sub.output.user.department.name
+
+                
                 if dept_name not in task_dept:
                     task_dept[dept_name] = {"q": 0.0, "e": 0.0, "t": 0.0, "count": 0}
 
