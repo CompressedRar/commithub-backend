@@ -27,9 +27,9 @@ class CategoryPerformanceService:
         q_sum = e_sum = t_sum = count = 0
         for sub in CategoryPerformanceService._get_valid_subtasks(main_task, period):
             q, e, t = CategoryPerformanceService._subtask_ratings(sub, enable_formula)
-            q_sum += q
-            e_sum += e
-            t_sum += t
+            q_sum += q if q else 0
+            e_sum += e if e else 0
+            t_sum += t if t else 0
             count += 1
         return q_sum, e_sum, t_sum, count
 
