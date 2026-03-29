@@ -442,6 +442,7 @@ def createNewIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None, is_dr
                     ws[f"Q{row}"] = 0 if is_draft else f"=AVERAGE(N{row}, O{row},P{row})"
                     ws[f"Q{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     ws[f"Q{row}"].font = Font(bold=True)
+                    ws[f"Q{row}"].number_format = numberformat
 
                     # remarks (blank)
                     prepareCells(ws, f"R{row}", f"S{row+5}")
@@ -1397,6 +1398,7 @@ def createWeightedIPCR_from_db(ipcr_id, individuals=None, filename_prefix=None, 
                     ws[f"Q{row}"] = 0 if is_draft else f"=AVERAGE(N{row}, O{row},P{row})"
                     ws[f"Q{row}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     ws[f"Q{row}"].font = Font(bold=True)
+                    ws[f"Q{row}"].number_format = numberformat
 
                     # remarks (blank)
                     prepareCells(ws, f"R{row}", f"R{row+5}")
