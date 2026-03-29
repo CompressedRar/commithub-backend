@@ -405,6 +405,7 @@ class Department_Service():
             )
             .outerjoin(User, User.department_id == Department.id)  # LEFT JOIN
             .group_by(Department.id)
+            .filter(Department.status ==1)
             .all()
         )
 
