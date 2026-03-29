@@ -84,9 +84,9 @@ def _build_data_from_ipcr(ipcr, is_draft=False):
         actual_time = 0 if is_draft else getattr(sub, "actual_time", 0)
 
         # 4. Rating Calculations
-        q = 0 if is_draft else sub.calculate_with_override("quantity", sub.target_acc, actual_acc)
-        e = 0 if is_draft else sub.calculate_with_override("efficiency", sub.target_mod, actual_mod)
-        t = 0 if is_draft else sub.calculate_with_override("timeliness", sub.target_time, actual_time)
+        q = 0 if is_draft else sub.quantity
+        e = 0 if is_draft else sub.efficiency
+        t = 0 if is_draft else sub.timeliness
         
         avg = (q + e + t) / 3 if (q + e + t) > 0 else 0
         weighted_avg = avg * weight
