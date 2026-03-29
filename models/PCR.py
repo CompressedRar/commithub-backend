@@ -200,6 +200,8 @@ class IPCR(db.Model):
         head_full = f"{dept_head.first_name} {dmi}{dept_head.last_name}" if dept_head else ""
         head_pos = dept_head.position.name if dept_head else ""
 
+        print("generating users", full, head_full, president, mayor)
+
         if user.role == "faculty":
             review = self._slot(head_full, head_pos)
             approve = self._slot(president, "College President")
