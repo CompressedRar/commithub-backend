@@ -25,7 +25,7 @@ class PCRCRUDService:
 
             new_ipcr = IPCR(
                 user_id=user_id, batch_id=batch_id,
-                form_status="submitted", period=period, isMain=True,
+                form_status="draft", period=period, isMain=True,
             )
             db.session.add(new_ipcr)
             db.session.flush()
@@ -63,7 +63,7 @@ class PCRCRUDService:
                 "user_id": user_id,
             })
             Notification_Service.notify_presidents(
-                f"A new IPCR has been submitted from {new_ipcr.user.department.name}."
+                f"A new IPCR has been created from {new_ipcr.user.department.name}."
             )
             return jsonify(message="IPCR successfully created"), 200
 
@@ -109,7 +109,7 @@ class PCRCRUDService:
 
             new_ipcr = IPCR(
                 user_id=user_id, batch_id=batch_id,
-                form_status="submitted", period=period, isMain=True,
+                form_status="draft", period=period, isMain=True,
             )
             db.session.add(new_ipcr)
             db.session.flush()
@@ -143,7 +143,7 @@ class PCRCRUDService:
                 "task_count": len(main_task_id_array),
             })
             Notification_Service.notify_presidents(
-                f"A new IPCR has been submitted from {new_ipcr.user.department.name}."
+                f"A new IPCR has been created from {new_ipcr.user.department.name}."
             )
             return jsonify(message="IPCR successfully created"), 200
 
@@ -258,7 +258,7 @@ class PCRCRUDService:
 
     def assign_main_ipcr(ipcr_id, user_id):
         try:
-            from models.user import User
+            from models.User import User
 
             user = User.query.get(user_id)
             if user is None:
@@ -273,7 +273,8 @@ class PCRCRUDService:
             ipcr.form_status = "submitted"
 
             db.session.commit()
-            socketio.emit("assign")
+            socketio.emit(f"ipcr-{ipcr_id}")
+            
 
             full = f"{user.first_name} {user.last_name}"
             Notification_Service.notify_department_heads(
