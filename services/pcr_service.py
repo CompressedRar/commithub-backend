@@ -56,6 +56,8 @@ class PCR_Service:
     get_opcr_pendings                   = staticmethod(PCRWorkflowService.get_opcr_pendings)
     get_opcr_reviewed                   = staticmethod(PCRWorkflowService.get_opcr_reviewed)
     get_opcr_approved                   = staticmethod(PCRWorkflowService.get_opcr_approved)
+    reject_supporting_document          = staticmethod(PCRWorkflowService.reject_supporting_document)
+    approve_supporting_document         = staticmethod(PCRWorkflowService.approve_supporting_document)
 
     # Generation
     get_opcr                            = staticmethod(PCRGenerationService.get_opcr)

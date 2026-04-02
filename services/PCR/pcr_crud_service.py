@@ -291,7 +291,7 @@ class PCRCRUDService:
 
     def assign_pres_ipcr(ipcr_id, user_id):
         try:
-            from models.user import User
+            from models.User import User
 
             user = User.query.get(user_id)
             if user is None:

@@ -62,6 +62,7 @@ class Supporting_Document(db.Model):
     description = db.Column(db.Text, default="")
     title = db.Column(db.Text, default="")
     period = db.Column(db.String(100), nullable=True)
+    isApproved = db.Column(db.String(10), default="pending")
 
     ipcr = db.relationship("IPCR", back_populates="supporting_documents")
     sub_task = db.relationship("Sub_Task", back_populates="supporting_documents")
@@ -86,7 +87,20 @@ class Supporting_Document(db.Model):
             "event_date":      self.event_date,
             "desc":            self.description,
             "title":           self.title,
+            "isApproved":      self.isApproved,
         }
+
+    def reject(self):
+        self.status = 0
+        self.isApproved = "rejected"
+        db.session.commit()
+
+    def approve(self):
+        self.isApproved = "approved"
+        self.status = 1
+        db.session.commit()
+
+
 
 
 class OPCR_Supporting_Document(db.Model):

@@ -2,7 +2,7 @@ from app import db, socketio
 from sqlalchemy.exc import OperationalError
 from flask import jsonify
 
-from models.PCR import IPCR, OPCR
+from models.PCR import IPCR, OPCR, Supporting_Document
 from models.Notification import Notification_Service
 
 
@@ -196,3 +196,38 @@ class PCRWorkflowService:
 
     def get_opcr_approved():
         return PCRWorkflowService._get_opcrs_by_status("approved")
+    
+    # ------------------------------------------------------------------
+    # Supporting Documents approval and rejection
+    # ------------------------------------------------------------------
+
+
+    def reject_supporting_document(document_id):
+        try:
+
+            document = Supporting_Document.query.get(document_id)
+            if not document:
+                return jsonify(error="There is no supporting document with that id"), 400
+
+            document.reject()
+            socketio.emit("supporting_document_rejected", {"document_id": document_id}) 
+            Notification_Service.notify_user(document.ipcr.user.id, f"Your supporting document: #{document_id} has been rejected by department head.")
+            return jsonify(message=f"Supporting document #{document_id} has been rejected."), 200
+
+        except Exception as e:
+            return jsonify(error=str(e)), 500
+        
+    def approve_supporting_document(document_id):
+        try:
+
+            document = Supporting_Document.query.get(document_id)
+            if not document:
+                return jsonify(error="There is no supporting document with that id"), 400
+
+            document.approve()
+            socketio.emit("supporting_document_approved", {"document_id": document_id})
+            Notification_Service.notify_user(document.ipcr.user.id, f"Your supporting document: #{document_id} has been approved by department head.")
+            return jsonify(message=f"Supporting document #{document_id} has been approved."), 200
+
+        except Exception as e:
+            return jsonify(error=str(e)), 500
