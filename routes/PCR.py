@@ -421,3 +421,4 @@ def approve_supporting_document(document_id):
 @token_required()
 def reject_supporting_document(document_id):
     return PCR_Service.reject_supporting_document(document_id=document_id)
+

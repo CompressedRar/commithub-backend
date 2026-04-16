@@ -187,3 +187,11 @@ def get_user_performance_history():
     end_date = request.args.get("end_date")
 
     return Tasks_Service.get_user_performance_history(user_id, start_date, end_date)
+
+@charts.route("/offices/opcr-progress", methods=["GET"])
+@token_required()
+def get_offices_opcr_progress():
+    """
+    Get OPCR progress for all offices/departments
+    """
+    return PCR_Service.get_offices_opcr_progress()

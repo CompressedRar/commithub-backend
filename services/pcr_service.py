@@ -76,3 +76,4 @@ class PCR_Service:
     get_comparative_analytics           = staticmethod(PCRAnalyticsService.get_comparative_analytics)
     get_performance_forecast            = staticmethod(PCRAnalyticsService.get_performance_forecast)
     get_kpi_status                      = staticmethod(PCRAnalyticsService.get_kpi_status)
+    get_offices_opcr_progress           = staticmethod(PCRAnalyticsService.get_offices_opcr_progress)

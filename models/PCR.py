@@ -91,8 +91,9 @@ class Supporting_Document(db.Model):
         }
 
     def reject(self):
-        self.status = 0
+        from utils.FileStorage import delete_s3_file
         self.isApproved = "rejected"
+        delete_s3_file(self.file_name)
         db.session.commit()
 
     def approve(self):

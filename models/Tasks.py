@@ -518,4 +518,8 @@ class Sub_Task(db.Model):
             "name": self.mfo,
             "assigned_quantity": self.assigned_quantity,
             "required_documents": self.main_task.require_documents,
+            "valid_document_count": sum(1 for document in self.supporting_documents if document.isApproved == "approved"),
+            "rejected_document_count": sum(1 for document in self.supporting_documents if document.isApproved == "rejected"),
+            "pending_document_count": sum(1 for document in self.supporting_documents if document.isApproved == "pending"),
+            "total_document_count": len(self.supporting_documents)
         }

@@ -210,7 +210,8 @@ class PCRWorkflowService:
                 return jsonify(error="There is no supporting document with that id"), 400
 
             document.reject()
-            socketio.emit("supporting_document_rejected", {"document_id": document_id}) 
+            socketio.emit(f"ipcr-{document.ipcr_id}", {"document_id": document_id, "status": "rejected"})
+            socketio.emit(f"document", {"document_id": document_id, "status": "rejected"})
             Notification_Service.notify_user(document.ipcr.user.id, f"Your supporting document: #{document_id} has been rejected by department head.")
             return jsonify(message=f"Supporting document #{document_id} has been rejected."), 200
 
@@ -225,7 +226,8 @@ class PCRWorkflowService:
                 return jsonify(error="There is no supporting document with that id"), 400
 
             document.approve()
-            socketio.emit("supporting_document_approved", {"document_id": document_id})
+            socketio.emit(f"ipcr-{document.ipcr_id}", {"document_id": document_id, "status": "approved"})
+            socketio.emit(f"document", {"document_id": document_id, "status": "approved"})
             Notification_Service.notify_user(document.ipcr.user.id, f"Your supporting document: #{document_id} has been approved by department head.")
             return jsonify(message=f"Supporting document #{document_id} has been approved."), 200
 

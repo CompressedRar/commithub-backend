@@ -285,3 +285,5 @@ class System_Settings_Service:
                 "status": "error",
                 "message": f"An error occurred: {str(e)}"
             }), 500
+
+    
