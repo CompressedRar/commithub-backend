@@ -32,6 +32,8 @@ class User(db.Model):
     notifications = db.relationship("Notification", back_populates="user", cascade="all, delete")
     assigned_tasks = db.relationship("Assigned_Task", back_populates="user")
 
+    task_responses = db.relationship("TaskResponse", back_populates="submitted_user")
+
     def _middle_initial(self):
         return self.middle_name[0].upper() + ". " if self.middle_name else " "
 

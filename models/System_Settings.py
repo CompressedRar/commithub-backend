@@ -87,6 +87,10 @@ class System_Settings(db.Model):
     rating_start_date = db.Column(db.Date, nullable=True)
     rating_end_date = db.Column(db.Date, nullable=True)
 
+    # -----------------------
+    # FORM-BASED TASKS SETTINGS
+    # -----------------------
+
     def get_current_period(self):
         """
         Determines the current period based on today's date and the configured date ranges.
@@ -137,7 +141,7 @@ class System_Settings(db.Model):
             "current_president_fullname": self.current_president_fullname,
             "current_mayor_fullname": self.current_mayor_fullname,
             "current_phase": self.get_current_period(),
-            "enable_formula": self.enable_formula
+            "enable_formula": self.enable_formula,
         }
     
     @staticmethod
@@ -215,6 +219,7 @@ class System_Settings_Service:
         settings.current_mayor_fullname = new_settings.get("current_mayor_fullname", settings.current_mayor_fullname)
 
         settings.enable_formula = new_settings.get("enable_formula", settings.enable_formula)
+
 
         try:
             print("SETTINGS PATCHED")

@@ -178,6 +178,8 @@ class Main_Task(db.Model):
     outputs = db.relationship("Output", back_populates="main_task", cascade="all, delete")
     assigned_tasks = db.relationship("Assigned_Task", back_populates="main_task", cascade="all, delete")
 
+    document_format = db.Column(db.Text, nullable=True)
+
     def get_task_avg_rating(self):
         rated = [sub.average for sub in self.sub_tasks if sub.average > 0]
         return sum(rated) / len(rated) if rated else 0
@@ -305,6 +307,7 @@ class Main_Task(db.Model):
             "timeliness_mode": self.timeliness_mode,
             "description": self.description,
             "target_deadline": str(self.target_deadline) if self.target_deadline else None,
+            
         }
 
     def to_dict(self):
@@ -518,8 +521,9 @@ class Sub_Task(db.Model):
             "name": self.mfo,
             "assigned_quantity": self.assigned_quantity,
             "required_documents": self.main_task.require_documents,
-            "valid_document_count": sum(1 for document in self.supporting_documents if document.isApproved == "approved"),
-            "rejected_document_count": sum(1 for document in self.supporting_documents if document.isApproved == "rejected"),
-            "pending_document_count": sum(1 for document in self.supporting_documents if document.isApproved == "pending"),
-            "total_document_count": len(self.supporting_documents)
+            "document_format": self.main_task.document_format,
+            "valid_document_count": sum(1 for document in self.supporting_documents if document.isApproved == "approved" and document.status == 1),
+            "rejected_document_count": sum(1 for document in self.supporting_documents if document.isApproved == "rejected" and document.status == 1),
+            "pending_document_count": sum(1 for document in self.supporting_documents if document.isApproved == "pending" and document.status == 1),
+            "total_document_count": sum(1 for document in self.supporting_documents if document.status == 1)
         }

@@ -8,7 +8,7 @@ from models.PCR import IPCR, OPCR, OPCR_Rating, Assigned_PCR, Supporting_Documen
 from models.Tasks import Assigned_Task, Output, Sub_Task
 from models.Departments import Department
 from models.Notification import Notification_Service
-
+from utils.AI import get_relevance_score
 
 class PCRCRUDService:
 
@@ -403,12 +403,26 @@ class PCRCRUDService:
                                    sub_task_id=None, title="", desc="", event_date=None):
         try:
             from models.System_Settings import System_Settings
+            
 
             settings = System_Settings.get_default_settings()
             parsed_date = datetime.strptime(event_date, "%Y-%m-%d") if event_date else None
             ipcr = IPCR.query.get(ipcr_id)
 
-            db.session.add(Supporting_Document(
+            sub_task = Sub_Task.query.get(sub_task_id) if sub_task_id else None
+            
+            if sub_task and sub_task.ipcr_id != ipcr_id:
+                return jsonify(error="Sub-task does not belong to the specified IPCR"), 400
+            
+            relevance = get_relevance_score(file_name, file_type, sub_task.main_task.target_accomplishment + ". Image Description: " + desc) if sub_task else None
+            print("Relevance score:", relevance)
+
+            approval_status = "pending"
+            if relevance:
+                if int(relevance["score"]) <= 30:
+                    approval_status = "rejected"
+
+            new_document = Supporting_Document(
                 file_type=file_type,
                 file_name=file_name,
                 ipcr_id=ipcr_id,
@@ -418,7 +432,12 @@ class PCRCRUDService:
                 title=title,
                 description=desc,
                 event_date=parsed_date,
-            ))
+                relevance_score=relevance["score"] if relevance else 0,
+                relevance_justification=relevance["reason"] if relevance else "",
+                isApproved=approval_status,
+            )
+
+            db.session.add(new_document)
             db.session.commit()
             socketio.emit("document", "document")
 

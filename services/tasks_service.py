@@ -15,6 +15,8 @@ class Tasks_Service:
     get_main_task                   = staticmethod(TaskCRUDService.get_main_task)
     get_all_tasks_count             = staticmethod(TaskCRUDService.get_all_tasks_count)
     create_main_task                = staticmethod(TaskCRUDService.create_main_task)
+    create_main_task_with_form      = staticmethod(TaskCRUDService.create_main_task_with_form)
+    create_form_task_response       = staticmethod(TaskCRUDService.create_form_task_response)
     update_task_info                = staticmethod(TaskCRUDService.update_task_info)
     archive_task                    = staticmethod(TaskCRUDService.archive_task)
     update_tasks_weights            = staticmethod(TaskCRUDService.update_tasks_weights)
