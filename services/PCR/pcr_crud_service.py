@@ -8,7 +8,7 @@ from models.PCR import IPCR, OPCR, OPCR_Rating, Assigned_PCR, Supporting_Documen
 from models.Tasks import Assigned_Task, Output, Sub_Task
 from models.Departments import Department
 from models.Notification import Notification_Service
-
+from utils.AI import get_relevance_score
 
 class PCRCRUDService:
 
@@ -25,7 +25,7 @@ class PCRCRUDService:
 
             new_ipcr = IPCR(
                 user_id=user_id, batch_id=batch_id,
-                form_status="submitted", period=period, isMain=True,
+                form_status="draft", period=period, isMain=True,
             )
             db.session.add(new_ipcr)
             db.session.flush()
@@ -63,7 +63,7 @@ class PCRCRUDService:
                 "user_id": user_id,
             })
             Notification_Service.notify_presidents(
-                f"A new IPCR has been submitted from {new_ipcr.user.department.name}."
+                f"A new IPCR has been created from {new_ipcr.user.department.name}."
             )
             return jsonify(message="IPCR successfully created"), 200
 
@@ -109,7 +109,7 @@ class PCRCRUDService:
 
             new_ipcr = IPCR(
                 user_id=user_id, batch_id=batch_id,
-                form_status="submitted", period=period, isMain=True,
+                form_status="draft", period=period, isMain=True,
             )
             db.session.add(new_ipcr)
             db.session.flush()
@@ -143,7 +143,7 @@ class PCRCRUDService:
                 "task_count": len(main_task_id_array),
             })
             Notification_Service.notify_presidents(
-                f"A new IPCR has been submitted from {new_ipcr.user.department.name}."
+                f"A new IPCR has been created from {new_ipcr.user.department.name}."
             )
             return jsonify(message="IPCR successfully created"), 200
 
@@ -258,7 +258,7 @@ class PCRCRUDService:
 
     def assign_main_ipcr(ipcr_id, user_id):
         try:
-            from models.user import User
+            from models.User import User
 
             user = User.query.get(user_id)
             if user is None:
@@ -273,7 +273,8 @@ class PCRCRUDService:
             ipcr.form_status = "submitted"
 
             db.session.commit()
-            socketio.emit("assign")
+            socketio.emit(f"ipcr-{ipcr_id}")
+            
 
             full = f"{user.first_name} {user.last_name}"
             Notification_Service.notify_department_heads(
@@ -290,7 +291,7 @@ class PCRCRUDService:
 
     def assign_pres_ipcr(ipcr_id, user_id):
         try:
-            from models.user import User
+            from models.User import User
 
             user = User.query.get(user_id)
             if user is None:
@@ -402,12 +403,26 @@ class PCRCRUDService:
                                    sub_task_id=None, title="", desc="", event_date=None):
         try:
             from models.System_Settings import System_Settings
+            
 
             settings = System_Settings.get_default_settings()
             parsed_date = datetime.strptime(event_date, "%Y-%m-%d") if event_date else None
             ipcr = IPCR.query.get(ipcr_id)
 
-            db.session.add(Supporting_Document(
+            sub_task = Sub_Task.query.get(sub_task_id) if sub_task_id else None
+            
+            if sub_task and sub_task.ipcr_id != ipcr_id:
+                return jsonify(error="Sub-task does not belong to the specified IPCR"), 400
+            
+            relevance = get_relevance_score(file_name, file_type, sub_task.main_task.target_accomplishment + ". Image Description: " + desc) if sub_task else None
+            print("Relevance score:", relevance)
+
+            approval_status = "pending"
+            if relevance:
+                if int(relevance["score"]) <= 30:
+                    approval_status = "rejected"
+
+            new_document = Supporting_Document(
                 file_type=file_type,
                 file_name=file_name,
                 ipcr_id=ipcr_id,
@@ -417,7 +432,12 @@ class PCRCRUDService:
                 title=title,
                 description=desc,
                 event_date=parsed_date,
-            ))
+                relevance_score=relevance["score"] if relevance else 0,
+                relevance_justification=relevance["reason"] if relevance else "",
+                isApproved=approval_status,
+            )
+
+            db.session.add(new_document)
             db.session.commit()
             socketio.emit("document", "document")
 

@@ -56,6 +56,8 @@ class PCR_Service:
     get_opcr_pendings                   = staticmethod(PCRWorkflowService.get_opcr_pendings)
     get_opcr_reviewed                   = staticmethod(PCRWorkflowService.get_opcr_reviewed)
     get_opcr_approved                   = staticmethod(PCRWorkflowService.get_opcr_approved)
+    reject_supporting_document          = staticmethod(PCRWorkflowService.reject_supporting_document)
+    approve_supporting_document         = staticmethod(PCRWorkflowService.approve_supporting_document)
 
     # Generation
     get_opcr                            = staticmethod(PCRGenerationService.get_opcr)
@@ -74,3 +76,4 @@ class PCR_Service:
     get_comparative_analytics           = staticmethod(PCRAnalyticsService.get_comparative_analytics)
     get_performance_forecast            = staticmethod(PCRAnalyticsService.get_performance_forecast)
     get_kpi_status                      = staticmethod(PCRAnalyticsService.get_kpi_status)
+    get_offices_opcr_progress           = staticmethod(PCRAnalyticsService.get_offices_opcr_progress)

@@ -656,7 +656,7 @@ def collect_by_ipcr(ipcr_id):
         ipcr = IPCR.query.get(ipcr_id)
         if not ipcr:
             return []
-        return [d.to_dict() for d in ipcr.supporting_documents if d.status]
+        return [d.to_dict() for d in ipcr.supporting_documents if d.status and d.isApproved == "approved"]
     except Exception as e:
         print("collect_by_ipcr error:", e)
         return []
@@ -672,7 +672,7 @@ def collect_by_department(dept_id):
         ).all()
         return [
             d.to_dict() for d in all_docs
-            if str(d.ipcr.user.department.id) == str(dept_id) and d.status
+            if str(d.ipcr.user.department.id) == str(dept_id) and d.status and d.isApproved == "approved"
         ]
     except Exception as e:
         print("collect_by_department error:", e)
