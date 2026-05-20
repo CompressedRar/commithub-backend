@@ -33,8 +33,8 @@ class FormTemplate(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     
     # Status
-    is_active = db.Column(db.Boolean, default=True)
-    is_published = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=1)
+    is_published = db.Column(db.Boolean, default=0)
     
     # Relationships
     creator = db.relationship("User", backref="form_templates")

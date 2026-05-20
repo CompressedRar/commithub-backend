@@ -9,7 +9,7 @@ import os
 import uuid
 from datetime import timezone, timedelta, datetime
 
-from models.User import User
+from models.User import User, Profile
 from models.Notification import Notification_Service
 from utils.FileStorage import upload_profile_pic
 from utils.Generate import generate_default_password
@@ -23,7 +23,7 @@ JWT_SECRET = os.getenv("JWT_SECRET")
 class Users:
     def check_email_if_exists(email):
         try:
-            exists = User.query.filter_by(email=email).first() is not None
+            exists = Profile.query.filter_by(email=email).first() is not None
             msg = "Email was already taken." if exists else "Available"
             return jsonify(message=msg), 200
 
@@ -33,12 +33,21 @@ class Users:
             return jsonify(error=str(e)), 500
 
     def authenticate_if_email_exists(email):
-        print("checking email")
+        print("checking email", email)
         try:
-            user = User.query.filter_by(email=email, account_status=1).first()
-            another_user = User.query.filter_by(email=email).first()
-            print(another_user.to_dict())
-            return user.to_dict() if user else False
+            user = Profile.query.filter_by(email=email).first()
+
+
+            if not user:
+                print("email not found")
+                return False
+
+            active_user = next(
+                (u for u in user.users if u.account_status == 1),
+                None
+            )
+
+            return active_user.to_dict() if active_user else False
         except Exception as e:
             print("error checking email")
             print(e)
@@ -114,52 +123,99 @@ class Users:
     def add_new_user(data, profile_picture):
         try:
             ph = PasswordHasher()
+
             new_default_password = generate_default_password()
+
             hashed_password = ph.hash(new_default_password)
 
             profile_link = None
+
             if profile_picture:
                 profile_link = Users._upload_profile_picture(
-                    profile_picture, data["first_name"], data["last_name"]
+                    profile_picture,
+                    data["first_name"],
+                    data["last_name"]
                 )
 
-            new_user = User(
-                first_name=data["first_name"],
-                last_name=data["last_name"],
-                middle_name=data.get("middle_name", ""),
-                position_id=data["position"],
-                department_id=data["department"],
-                role=data["role"],
+            # =========================
+            # CREATE PROFILE
+            # =========================
+
+            profile = Profile(
                 email=data["email"],
                 password=hashed_password,
                 profile_picture_link=profile_link,
             )
-            db.session.add(new_user)
+
+            db.session.add(profile)
             db.session.flush()
 
-            send_email_account_creation(data["email"], f"Hello! Your default password is: {new_default_password}", new_default_password)
+            # =========================
+            # CREATE USER ACCOUNT
+            # =========================
+
+            new_user = User(
+                profile_id=profile.id,
+
+                first_name=data["first_name"],
+                last_name=data["last_name"],
+                middle_name=data.get("middle_name", ""),
+
+                position_id=data["position"],
+                department_id=data["department"],
+                role=data["role"],
+            )
+
+            db.session.add(new_user)
+
+            send_email_account_creation(
+                data["email"],
+                f"Hello! Your default password is: {new_default_password}",
+                new_default_password
+            )
+
             db.session.commit()
 
             full = f"{data['first_name']} {data['last_name']}"
+
             dept_name = new_user.department.name
 
             socketio.emit("user_created", "user added")
-            Notification_Service.notify_user(new_user.id, "Welcome to Commithub! Start by creating your own IPCR.")
-            Notification_Service.notify_department_heads(data["department"], f"{full} joined {dept_name}.")
-            Notification_Service.notify_administrators(f"{full} joined {dept_name}.")
-            Notification_Service.notify_presidents(f"{full} joined {dept_name}.")
 
-            return jsonify(message="Account creation is successful."), 200
+            Notification_Service.notify_user(
+                new_user.id,
+                "Welcome to Commithub! Start by creating your own IPCR."
+            )
+
+            Notification_Service.notify_department_heads(
+                data["department"],
+                f"{full} joined {dept_name}."
+            )
+
+            Notification_Service.notify_administrators(
+                f"{full} joined {dept_name}."
+            )
+
+            Notification_Service.notify_presidents(
+                f"{full} joined {dept_name}."
+            )
+
+            return jsonify(
+                message="Account creation is successful."
+            ), 200
 
         except IntegrityError:
             db.session.rollback()
             return jsonify(error="Email already exists"), 400
+
         except DataError:
             db.session.rollback()
             return jsonify(error="Invalid data format"), 400
+
         except OperationalError:
             db.session.rollback()
             return jsonify(error="Database connection error"), 500
+
         except Exception as e:
             db.session.rollback()
             return jsonify(error=str(e)), 500
@@ -174,16 +230,32 @@ class Users:
 
             profile = rq.files.get("profile_picture_link")
             if profile:
-                user.profile_picture_link = Users._upload_profile_picture(
+                user.profile.profile_picture_link = Users._upload_profile_picture(
                     profile, data.get("first_name", ""), data.get("last_name", "")
                 )
 
-            for field in ("first_name", "last_name", "middle_name", "email", "password", "role", "recovery_email"):
+            for field in (
+                "first_name",
+                "last_name",
+                "middle_name",
+                "role",
+            ):
                 if field in data:
                     setattr(user, field, data[field])
 
+            # PROFILE FIELDS
+            for field in (
+                "email",
+                "password",
+                "recovery_email",
+            ):
+                if field in data:
+                    setattr(user.profile, field, data[field])
+
             if "two_factor_enabled" in data:
-                user.two_factor_enabled = bool(int(data["two_factor_enabled"]))
+                user.profile.two_factor_enabled = bool(
+                    int(data["two_factor_enabled"])
+                )
 
             if "position" in data:
                 user.position_id = int(data["position"])
@@ -275,11 +347,11 @@ class Users:
 
             new_default_password = "commithubnc"
             ph = PasswordHasher()
-            user.password = ph.hash(new_default_password)
+            user.profile.password = ph.hash(new_default_password)
             db.session.commit()
 
             send_templated_reset_email(
-                user.email,
+                user.profile.email,
                 f"Hello! The password reset was done to this account. The default password is: {new_default_password}",
             )
             Notification_Service.notify_user(user.id, "The account password has been reset.")
@@ -299,7 +371,7 @@ class Users:
             if not user:
                 return jsonify(error="User not found"), 404
             ph = PasswordHasher()
-            user.password = ph.hash(password)
+            user.profile.password = ph.hash(password)
             db.session.commit()
             return jsonify(message="Success"), 200
         except OperationalError:
@@ -309,19 +381,166 @@ class Users:
             db.session.rollback()
             return jsonify(error=str(e)), 500
 
+
+    def get_all_accountsby_profile(profile_id):
+        try:
+            profile = Profile.query.get(profile_id)
+            if not profile:
+                return jsonify(error="There is no profile with that id"), 400
+            accounts = [user.info() for user in profile.users]
+            return jsonify(accounts), 200
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
+        
+    def switch_account(profile_id, user_id):
+        try:
+            # =========================
+            # VERIFY PROFILE
+            # =========================
+
+            profile = Profile.query.get(profile_id)
+
+            if not profile:
+                return jsonify(
+                    error="Profile does not exist."
+                ), 400
+
+            # =========================
+            # VERIFY ACCOUNT
+            # =========================
+
+            user = User.query.get(user_id)
+
+            if not user:
+                return jsonify(
+                    error="Account does not exist."
+                ), 400
+
+            # =========================
+            # VERIFY OWNERSHIP
+            # IMPORTANT SECURITY CHECK
+            # =========================
+
+            if user.profile_id != profile.id:
+                return jsonify(
+                    error="This account does not belong to this profile."
+                ), 403
+
+            # =========================
+            # VERIFY ACCOUNT STATUS
+            # =========================
+
+            if user.account_status != 1:
+                return jsonify(
+                    error="This account is inactive."
+                ), 403
+
+            # =========================
+            # GENERATE NEW TOKEN
+            # =========================
+
+            token = Users.generate_token(
+                user.to_dict()
+            )
+
+            # =========================
+            # LOG SWITCH
+            # =========================
+
+            ip_address = request.remote_addr
+
+            user_agent = request.headers.get(
+                "User-Agent"
+            )
+
+            Log_Service.add_logs(
+                user.id,
+                user.full_name(),
+                (
+                    user.department.name
+                    if user.department
+                    else "NONE"
+                ),
+                "SWITCH_ACCOUNT",
+                "User Account",
+                (
+                    f"Switched into "
+                    f"{user.full_name()} "
+                    f"({user.role})"
+                ),
+                ip_address,
+                user_agent,
+            )
+
+            socketio.emit(
+                "account_switched",
+                "account switched"
+            )
+
+            return jsonify(
+                message="Account switched successfully.",
+                token=token,
+                active_account=user.to_dict(),
+            ), 200
+
+        except OperationalError:
+            db.session.rollback()
+
+            return jsonify(
+                error="Database connection error"
+            ), 500
+
+        except Exception as e:
+            db.session.rollback()
+
+            return jsonify(
+                error=str(e)
+            ), 500
+
     def generate_token(user_data: dict) -> str:
+
         payload = {
-        "id":                   user_data.get("id"),
-        "role":                 user_data.get("role"),
-        "first_name":           user_data.get("first_name"),
-        "last_name":            user_data.get("last_name"),
-        "email":                user_data.get("email"),
-        "department":           user_data.get("department"),
-        "profile_picture_link": user_data.get("profile_picture_link"),
-        "two_factor_enabled":   user_data.get("two_factor_enabled"),
-        "exp": datetime.now(timezone.utc) + timedelta(hours=int(JWT_EXPIRY_HOURS)),
-    }
-        return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+            # ACTIVE ACCOUNT
+            "id": user_data.get("id"),
+
+            # PROFILE
+            "profile_id": user_data.get("profile_id"),
+
+            # ACCOUNT
+            "role": user_data.get("role"),
+
+            # DISPLAY
+            "first_name": user_data.get("first_name"),
+            "last_name": user_data.get("last_name"),
+
+            # PROFILE AUTH
+            "email": user_data.get("email"),
+
+            # ORG
+            "department": user_data.get("department"),
+
+            # UI
+            "profile_picture_link":
+                user_data.get("profile_picture_link"),
+
+            "two_factor_enabled":
+                user_data.get("two_factor_enabled"),
+
+            # EXPIRATION
+            "exp":
+                datetime.now(timezone.utc)
+                + timedelta(hours=int(JWT_EXPIRY_HOURS)),
+        }
+
+        return jwt.encode(
+            payload,
+            JWT_SECRET,
+            algorithm="HS256"
+        )
 
     def authenticate_pass(login_data):
         try:
@@ -366,10 +585,11 @@ class Users:
                 return jsonify(error="Incorrect Email or Password"), 400
 
             user = User.query.get(user_dict["id"])
+            profile = user.profile
             ip_address = request.remote_addr
             user_agent = request.headers.get("User-Agent")
 
-            if user.two_factor_enabled:
+            if profile.two_factor_enabled:
                 from models.LoginOTP import LoginOTP
                 otp = f"{secrets.randbelow(10**6):06d}"
                 LoginOTP.create_for_user(user.id, otp, expires_minutes=5)
@@ -397,9 +617,22 @@ class Users:
         from models.LoginOTP import LoginOTP
 
         try:
-            user = User.query.filter_by(email=email).first()
-            if not user:
+            profile = Profile.query.filter_by(email=email).first()
+
+            if not profile:
                 return jsonify(error="There is no user with that id."), 400
+
+            user = next(
+                (
+                    u for u in profile.users
+                    if u.account_status == 1
+                ),
+                None
+            )
+
+            if not user:
+                return jsonify(error="No active account found."), 400
+            
 
             if not LoginOTP.verify_user_otp(user.id, otp):
                 return jsonify(error="Invalid or expired OTP"), 400

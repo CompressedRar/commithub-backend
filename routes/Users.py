@@ -56,6 +56,17 @@ def change_password_user(user_id):
     return Users.change_password(user_id, new_pass)
 
 
+@users.route("/profile/<profile_id>", methods = ["GET"])
+@token_required()
+def get_all_accounts_by_profile(profile_id):
+    return Users.get_all_accountsby_profile(profile_id)
+
+@users.route("/switch/<profile_id>&<user_id>", methods = ["GET"])
+@token_required()
+def switch_user(profile_id, user_id ):
+    return Users.switch_account(profile_id, user_id)
+
+
 @users.route("/forgot-change-password/<user_id>", methods = ["PATCH"])
 def forgot_change_password_user(user_id):
     new_pass = request.json.get("password")
