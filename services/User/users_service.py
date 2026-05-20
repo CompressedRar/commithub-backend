@@ -33,10 +33,15 @@ class Users:
             return jsonify(error=str(e)), 500
 
     def authenticate_if_email_exists(email):
+        print("checking email")
         try:
             user = User.query.filter_by(email=email, account_status=1).first()
+            another_user = User.query.filter_by(email=email).first()
+            print(another_user.to_dict())
             return user.to_dict() if user else False
-        except Exception:
+        except Exception as e:
+            print("error checking email")
+            print(e)
             return False
 
     def does_president_exists():

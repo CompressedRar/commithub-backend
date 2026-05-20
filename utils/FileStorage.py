@@ -1,6 +1,6 @@
 import boto3
 import os
-from botocore.exceptions import NoCredentialsError
+from botocore.exceptions import NoCredentialsError, ClientError
 from dotenv import load_dotenv
 from flask import jsonify
 # Initialize S3 client
@@ -131,6 +131,28 @@ def generate_presigned_url(file_name: str, file_type: str):
         return jsonify(error="Storage credentials unavailable"), 500
     except Exception as e:
         return jsonify(error="Failed to generate upload URL"), 400
+
+
+def delete_s3_file(file_key):
+    """
+    Deletes a file from S3 bucket
+    :param file_key: The 'file_name' or 'object_name' stored in your DB
+    """
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=id,
+        aws_secret_access_key=key,
+        region_name=region
+    )
+    
+    
+
+    try:
+        s3_client.delete_object(Bucket=BUCKET, Key=file_key)
+        return True
+    except ClientError as e:
+        print(f"Error deleting file: {e}")
+        return False
 
 # Example usage
 #upload_file("background.png", "commithub-bucket", "test/example.png")

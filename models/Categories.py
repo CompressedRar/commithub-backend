@@ -13,6 +13,8 @@ class Category(db.Model):
 
     main_tasks = db.relationship("Main_Task", back_populates="category")
 
+    tasks = db.relationship("Task", back_populates="category")
+
     def get_category_avg_rating(self):
         rated = [t.get_task_avg_rating() for t in self.main_tasks if t.status == 1]
         return sum(rated) / len(rated) if rated else 0

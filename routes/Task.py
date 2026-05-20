@@ -63,6 +63,23 @@ def create_main_task():
     print(data)
     return Tasks_Service.create_main_task(data)
 
+@task.route("/with-form", methods = ["POST"])
+@token_required(allowed_roles=["administrator", "president"])
+@log_action(action = "CREATE", target="TASK")
+def create_main_task_with_form():
+    """Create a main task with a linked form template"""
+    data = request.get_json()
+    return Tasks_Service.create_main_task_with_form(data)
+
+@task.route("/<task_id>/submit-form-response", methods = ["POST"])
+@token_required()
+@log_action(action = "CREATE", target="TASK")
+def submit_form_task_response(task_id):
+    """Submit user response to a form-based task"""
+    data = request.get_json()
+    user_id = request.user_payload.get("id")
+    return Tasks_Service.create_form_task_response(task_id, user_id, data)
+
 @task.route("/", methods = ["PATCH"])
 @token_required()
 @log_action(action = "UPDATE", target="TASK")

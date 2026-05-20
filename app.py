@@ -74,6 +74,15 @@ def create_app():
     from routes.Alerts import alerts
     app.register_blueprint(alerts)
 
+    from routes.FormTemplates import form_templates_bp
+    app.register_blueprint(form_templates_bp)
+
+    from routes.FormSubmissions import form_submissions_bp
+    app.register_blueprint(form_submissions_bp)
+
+    from routes.New_Tasks import tasks_bp
+    app.register_blueprint(tasks_bp)
+
 
     @app.route("/test-email")
     def test_email():
@@ -83,7 +92,7 @@ def create_app():
 
     @app.route("/")
     def home():
-        return "working now 3.1 - document upload patch"
+        return "working now 4.0 - Approval Feature"
     
     @app.route("/nice")
     def homes():

@@ -411,3 +411,14 @@ def compile_pictures_by_dept(dept_id):
 @token_required()
 def calculate_opcr_rating(opcr_id):
     return PCR_Service.compute_and_save_opcr_ratings(opcr_id=opcr_id)
+
+@pcrs.route("/supporting_docu/approve/<document_id>", methods=["PATCH"])
+@token_required()
+def approve_supporting_document(document_id):
+    return PCR_Service.approve_supporting_document(document_id=document_id)
+
+@pcrs.route("/supporting_docu/reject/<document_id>", methods=["PATCH"])
+@token_required()
+def reject_supporting_document(document_id):
+    return PCR_Service.reject_supporting_document(document_id=document_id)
+

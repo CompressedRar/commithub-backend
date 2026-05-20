@@ -3,13 +3,70 @@ from sqlalchemy import func
 from flask import jsonify
 
 from models.Tasks import Sub_Task
-from models.PCR import IPCR
+from models.PCR import IPCR, OPCR
 from models.User import User
 from models.Departments import Department
 from services.PCR.pcr_rating_service import PCRRatingService
 
 
 class PCRAnalyticsService:
+
+    def get_offices_opcr_progress():
+        """
+        Return a list of all offices (departments) with their OPCR (if any)
+        and the number of days from the planning start date up to the OPCR
+        creation date. If planning start date or OPCR is missing, values
+        will be None.
+        """
+        from models.PCR import OPCR
+        from models.Departments import Department
+        from models.System_Settings import System_Settings
+
+        settings = System_Settings.get_default_settings()
+        if not settings:
+            return jsonify({"status": "error", "message": "Settings not found."}), 404
+
+        planning_start = settings.planning_start_date
+        period_id = settings.current_period_id or settings.current_period
+
+        results = []
+        departments = Department.query.filter_by(status=1).all()
+        for dept in departments:
+            # Try to find OPCR for this department within the current period first
+            opcr = None
+            if period_id:
+                opcr = OPCR.query.filter_by(department_id=dept.id, period=period_id).first()
+            # fallback: any OPCR for the department
+            if not opcr:
+                opcr = OPCR.query.filter_by(department_id=dept.id).order_by(OPCR.created_at.asc()).first()
+
+            if opcr:
+                days_spent = None
+                if planning_start and opcr.created_at:
+                    try:
+                        days_spent = (opcr.created_at.date() - planning_start).days
+                        if days_spent < 0:
+                            days_spent = 0
+                    except Exception:
+                        days_spent = None
+
+                results.append({
+                    "department_id": dept.id,
+                    "department_name": dept.name,
+                    "opcr_id": opcr.id,
+                    "opcr_created_at": str(opcr.created_at) if opcr.created_at else None,
+                    "days_spent": days_spent,
+                })
+            else:
+                results.append({
+                    "department_id": dept.id,
+                    "department_name": dept.name,
+                    "opcr_id": None,
+                    "opcr_created_at": None,
+                    "days_spent": None,
+                })
+
+        return jsonify({"status": "success", "data": results}), 200
 
     def get_department_performance_summary():
         from models.System_Settings import System_Settings

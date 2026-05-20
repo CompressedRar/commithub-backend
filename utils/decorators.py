@@ -2,6 +2,7 @@ from functools import wraps
 from flask import request, jsonify
 import jwt
 from models.Logs import Log_Service
+from models.User import User
 
 
 def token_required(allowed_roles=None):
@@ -47,6 +48,10 @@ def token_required(allowed_roles=None):
             if allowed_roles and role not in allowed_roles:
                 return jsonify({"error": "Forbidden"}), 403
 
+            # Get current user from database
+            current_user = User.query.get(user_id)
+            if not current_user:
+                return jsonify({"error": "User not found"}), 401
 
             return f(*args, **kwargs)
 
