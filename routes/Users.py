@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, jsonify, request
 from app import db, limiter
 from utils.decorators import log_action,token_required
 from models.Notification import Notification, Notification_Service
+from models.User import Profile
 from services.pcr_service import PCR_Service
 from services.User.users_service import Users
 users = Blueprint("users", __name__, url_prefix="/api/v1/users")
@@ -42,6 +43,14 @@ def update_user():
     print("UPDATE USRE DATA",data)
     return Users.update_user(data["id"], data, req)
 
+@users.route("/settings/<user_id>", methods = ["PATCH"])
+@token_required()
+@log_action(action = "UPDATE", target="USER")
+def update_user_settings(user_id):
+    """Update user account settings (first_name, last_name, middle_name, position, department)"""
+    data = request.get_json()
+    return Users.update_user_settings(user_id, data)
+
 @users.route("/reset-password/<user_id>", methods = ["PATCH"])
 @limiter.limit("3 per hour")
 def reset_password_user(user_id):
@@ -51,14 +60,16 @@ def reset_password_user(user_id):
 @users.route("/change-password/<user_id>", methods = ["PATCH"])
 @token_required()
 def change_password_user(user_id):
-    new_pass = request.json.get("password")
-    print("CHANGING PASS",user_id, new_pass)
-    return Users.change_password(user_id, new_pass)
+    data = request.get_json()
+    current_password = data.get("current_password")
+    new_password = data.get("password")
+    print("CHANGING PASS",user_id, new_password)
+    return Users.change_password(user_id, new_password, current_password)
 
 
 @users.route("/profile/<profile_id>", methods = ["GET"])
-@token_required()
 def get_all_accounts_by_profile(profile_id):
+
     return Users.get_all_accountsby_profile(profile_id)
 
 @users.route("/switch/<profile_id>&<user_id>", methods = ["GET"])
@@ -130,6 +141,31 @@ def unarchive_user(id):
     
     return Users.unarchive_user(id)
 
+
+# Profile Routes
+@users.route("/profiles/<profile_id>", methods = ["GET"])
+@token_required()
+def get_profile(profile_id):
+    """Get profile information"""
+    return Users.get_profile(profile_id)
+
+@users.route("/profiles/<profile_id>", methods = ["PATCH"])
+@token_required()
+@log_action(action = "UPDATE", target="PROFILE")
+def update_profile(profile_id):
+    """Update profile settings (recovery_email, two_factor_enabled)"""
+    data = request.get_json()
+    return Users.update_profile(profile_id, data)
+
+@users.route("/profiles/<profile_id>/picture", methods = ["PATCH"])
+@token_required()
+@log_action(action = "UPDATE", target="PROFILE")
+def update_profile_picture(profile_id):
+    """Update profile picture"""
+    profile_pic = request.files.get("profile_picture")
+    if not profile_pic:
+        return jsonify(error="No profile picture provided"), 400
+    return Users.update_profile_picture(profile_id, profile_pic)
 
 
 """

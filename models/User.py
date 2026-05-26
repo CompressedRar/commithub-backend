@@ -35,6 +35,7 @@ class Profile(db.Model):
             "recovery_email": self.recovery_email,
             "two_factor_enabled": self.two_factor_enabled,
             "accounts": self.available_accounts(),
+            "accounts_count": len(self.users)
         }
 
 
@@ -198,7 +199,7 @@ class User(db.Model):
             "two_factor_enabled": self.profile.two_factor_enabled,
 
             # dates
-            "created_at": str(self.created_at),
+                "created_at": str(self.created_at),
 
             # performance
             "avg_performance": self.calculatePerformance(),

@@ -23,7 +23,7 @@ def create_app():
     CORS(app, supports_credentials=True)
 
     app.config["SECRET_KEY"] = "hannelore"
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("AWS_DATABASE_URL")
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("LOCAL_DATABASE_URL")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'
     app.config['MAIL_PORT'] = 587
@@ -55,6 +55,9 @@ def create_app():
 
     from routes.Users import users
     app.register_blueprint(users)
+
+    from routes.Profiles import profiles
+    app.register_blueprint(profiles)
 
     from routes.Logs import logs
     app.register_blueprint(logs)

@@ -48,6 +48,7 @@ class Users:
             )
 
             return active_user.to_dict() if active_user else False
+
         except Exception as e:
             print("error checking email")
             print(e)
@@ -365,12 +366,21 @@ class Users:
             db.session.rollback()
             return jsonify(error=str(e)), 500
 
-    def change_password(user_id, password):
+    def change_password(user_id, password, current_password=None):
         try:
             user = User.query.get(user_id)
             if not user:
                 return jsonify(error="User not found"), 404
+            
             ph = PasswordHasher()
+            
+            # If current_password is provided, verify it first
+            if current_password:
+                try:
+                    ph.verify(hash=user.profile.password, password=current_password)
+                except Exception:
+                    return jsonify(error="Current password is incorrect"), 401
+            
             user.profile.password = ph.hash(password)
             db.session.commit()
             return jsonify(message="Success"), 200
@@ -387,12 +397,16 @@ class Users:
             profile = Profile.query.get(profile_id)
             if not profile:
                 return jsonify(error="There is no profile with that id"), 400
+            
+            print("PROFILE detected")
             accounts = [user.info() for user in profile.users]
             return jsonify(accounts), 200
-        except OperationalError:
+        except OperationalError as e:
+            print(f"OperationalError: {e}")
             db.session.rollback()
             return jsonify(error="Database connection error"), 500
         except Exception as e:
+            print(f"Exception: {e}")
             db.session.rollback()
             return jsonify(error=str(e)), 500
         
@@ -577,12 +591,15 @@ class Users:
 
             if not user_dict:
                 print("no email")
-                return jsonify(error="Incorrect Email or Password"), 400
+                return jsonify(error="Invalid Credentials"), 400
 
+            print("email found, verifying password")
             ph = PasswordHasher()
             if not ph.verify(hash=user_dict["password"], password=login_data["password"]):
                 print("wrong pass")
                 return jsonify(error="Incorrect Email or Password"), 400
+
+            print("password verified, checking 2FA")
 
             user = User.query.get(user_dict["id"])
             profile = user.profile
@@ -596,6 +613,7 @@ class Users:
                 send_email(email, f"Your CommitHub login OTP is {otp}. It expires in 5 minutes.")
                 return jsonify(message="OTP sent", two_factor_enabled=True, email=email), 200
 
+            print("user info", user.to_dict())
             token = Users.generate_token(user.to_dict())
             Log_Service.add_logs(
                 user.id, user.full_name(),
@@ -603,6 +621,8 @@ class Users:
                 "LOGIN", "User Account",
                 f"{email} logged in", ip_address, user_agent,
             )
+
+
             return jsonify(message="Login successful", token=token, two_factor_enabled=False), 200
 
         except OperationalError:
@@ -728,3 +748,327 @@ class Users:
             counts[key] += 1
 
         return jsonify(message={**counts, "all": len(all_users)}), 200
+
+    # Profile Management Methods
+    def get_profile(profile_id):
+        """Get profile information"""
+        try:
+            profile = Profile.query.get(profile_id)
+            if not profile:
+                return jsonify(error="Profile not found"), 404
+            return jsonify(profile.to_dict()), 200
+        except OperationalError:
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            return jsonify(error=str(e)), 500
+
+    def update_profile(profile_id, data):
+        """Update profile settings (recovery_email, two_factor_enabled)"""
+        try:
+            profile = Profile.query.get(profile_id)
+            if not profile:
+                return jsonify(error="Profile not found"), 404
+            
+            # Update allowed fields
+            if "recovery_email" in data:
+                profile.recovery_email = data["recovery_email"]
+            
+            if "two_factor_enabled" in data:
+                profile.two_factor_enabled = data["two_factor_enabled"]
+            
+            db.session.commit()
+            socketio.emit("profile_updated", "profile modified")
+            return jsonify(message="Profile updated successfully", profile=profile.to_dict()), 200
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify(error="Email already in use"), 400
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+    def update_profile_picture(profile_id, profile_file):
+        """Update profile picture"""
+        try:
+            profile = Profile.query.get(profile_id)
+            if not profile:
+                return jsonify(error="Profile not found"), 404
+            
+            from werkzeug.utils import secure_filename
+            import uuid
+            
+            filename = secure_filename(profile_file.filename)
+            filepath = os.path.join("profile_pics", filename)
+            profile_file.save(filepath)
+            
+            # Upload to storage
+            object_name = f"profile_pictures/{uuid.uuid4()}.png"
+            profile_link = upload_profile_pic(filepath, "commithub-bucket", object_name)
+            
+            profile.profile_picture_link = profile_link
+            db.session.commit()
+            
+            socketio.emit("profile_updated", "profile picture updated")
+            return jsonify(message="Profile picture updated successfully", profile_picture_link=profile_link), 200
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+    # User Settings Management Methods
+    def update_user_settings(user_id, data):
+        """Update user account settings (first_name, last_name, middle_name, position_id, department_id)"""
+        try:
+            user = User.query.get(user_id)
+
+            print("SDATA TO UPDATE",data)
+            if not user:
+                return jsonify(error="User not found"), 404
+            
+            # Update allowed fields
+            if "first_name" in data:
+                print("updating first name to", data["first_name"])
+                user.first_name = data["first_name"]
+            
+            if "last_name" in data:
+                print("updating last name to", data["last_name"])
+                user.last_name = data["last_name"]
+            
+            if "middle_name" in data:
+                user.middle_name = data["middle_name"]
+            
+            if "position_id" in data:
+                user.position_id = data["position_id"]
+            
+            if "department_id" in data:
+                user.department_id = data["department_id"]
+            
+            db.session.commit()
+            socketio.emit("user_modified", "user settings updated")
+            return jsonify(message="User settings updated successfully", user=user.to_dict()), 200
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+    # ===========================
+    # PROFILE MANAGEMENT
+    # ===========================
+    def list_all_profiles():
+        """List all profiles with their users"""
+        try:
+            profiles = Profile.query.all()
+            return jsonify([profile.to_dict() for profile in profiles]), 200
+        except OperationalError:
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            return jsonify(error=str(e)), 500
+
+    def get_profile_with_users(profile_id):
+        """Get profile details with all linked users"""
+        try:
+            profile = Profile.query.get(profile_id)
+            if not profile:
+                return jsonify(error="Profile not found"), 404
+            
+            profile_data = profile.to_dict()
+            profile_data["users"] = [user.to_dict() for user in profile.users]
+            return jsonify(profile_data), 200
+        except OperationalError:
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            return jsonify(error=str(e)), 500
+
+    def create_profile(data):
+        """Create a new profile"""
+        try:
+            email = data.get("email")
+            if not email:
+                return jsonify(error="Email is required"), 400
+            
+            # Check if email already exists
+            if Profile.query.filter_by(email=email).first():
+                return jsonify(error="Email already exists"), 400
+            
+            ph = PasswordHasher()
+            password = data.get("password", generate_default_password())
+            hashed_password = ph.hash(password)
+            
+            profile = Profile(
+                email=email,
+                password=hashed_password,
+                recovery_email=data.get("recovery_email"),
+                two_factor_enabled=data.get("two_factor_enabled", False)
+            )
+            
+            db.session.add(profile)
+            db.session.commit()
+            
+            socketio.emit("profile_created", "new profile created")
+            return jsonify(message="Profile created successfully", profile=profile.to_dict()), 201
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify(error="Email already exists"), 400
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+    def update_profile(profile_id, data):
+        """Update profile information"""
+        try:
+            profile = Profile.query.get(profile_id)
+            if not profile:
+                return jsonify(error="Profile not found"), 404
+            
+            if "recovery_email" in data:
+                profile.recovery_email = data["recovery_email"]
+            
+            if "two_factor_enabled" in data:
+                profile.two_factor_enabled = data["two_factor_enabled"]
+            
+            if "active_status" in data:
+                profile.active_status = data["active_status"]
+            
+            db.session.commit()
+            socketio.emit("profile_updated", "profile modified")
+            return jsonify(message="Profile updated successfully", profile=profile.to_dict()), 200
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+    def delete_profile(profile_id):
+        """Delete a profile and all associated users"""
+        try:
+            profile = Profile.query.get(profile_id)
+            if not profile:
+                return jsonify(error="Profile not found"), 404
+            
+            # Delete all users associated with this profile
+            User.query.filter_by(profile_id=profile_id).delete()
+            
+            db.session.delete(profile)
+            db.session.commit()
+            
+            socketio.emit("profile_deleted", "profile deleted")
+            return jsonify(message="Profile and associated users deleted successfully"), 200
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+    # ===========================
+    # USER MANAGEMENT IN PROFILE
+    # ===========================
+    def get_profile_users(profile_id):
+        """Get all users in a profile"""
+        try:
+            profile = Profile.query.get(profile_id)
+            if not profile:
+                return jsonify(error="Profile not found"), 404
+            
+            users = [user.to_dict() for user in profile.users]
+            return jsonify(users), 200
+        except OperationalError:
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            return jsonify(error=str(e)), 500
+
+    def create_user_in_profile(profile_id, data):
+        """Create a new user in a profile"""
+        try:
+            profile = Profile.query.get(profile_id)
+            if not profile:
+                return jsonify(error="Profile not found"), 404
+            
+            # Validate required fields
+            required_fields = ["first_name", "last_name", "position_id", "department_id", "role"]
+            for field in required_fields:
+                if field not in data:
+                    return jsonify(error=f"{field} is required"), 400
+            
+            new_user = User(
+                profile_id=profile_id,
+                first_name=data["first_name"],
+                last_name=data["last_name"],
+                middle_name=data.get("middle_name", ""),
+                position_id=data["position_id"],
+                department_id=data["department_id"],
+                role=data["role"],
+                account_status=data.get("account_status", 1)
+            )
+            
+            db.session.add(new_user)
+            db.session.commit()
+            
+            socketio.emit("user_created", "user added")
+            return jsonify(message="User created successfully", user=new_user.to_dict()), 201
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+    def update_user_in_profile(profile_id, user_id, data):
+        """Update a user in a profile"""
+        try:
+            profile = Profile.query.get(profile_id)
+            if not profile:
+                return jsonify(error="Profile not found"), 404
+            
+            user = User.query.filter_by(id=user_id, profile_id=profile_id).first()
+            if not user:
+                return jsonify(error="User not found in this profile"), 404
+            
+            # Update allowed fields
+            allowed_fields = ["first_name", "last_name", "middle_name", "position_id", "department_id", "role", "account_status"]
+            for field in allowed_fields:
+                if field in data:
+                    setattr(user, field, data[field])
+            
+            db.session.commit()
+            socketio.emit("user_modified", "user updated")
+            return jsonify(message="User updated successfully", user=user.to_dict()), 200
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500
+
+    def delete_user_from_profile(profile_id, user_id):
+        """Delete a user from a profile"""
+        try:
+            profile = Profile.query.get(profile_id)
+            if not profile:
+                return jsonify(error="Profile not found"), 404
+            
+            user = User.query.filter_by(id=user_id, profile_id=profile_id).first()
+            if not user:
+                return jsonify(error="User not found in this profile"), 404
+            
+            db.session.delete(user)
+            db.session.commit()
+            
+            socketio.emit("user_deleted", "user deleted")
+            return jsonify(message="User deleted successfully"), 200
+        except OperationalError:
+            db.session.rollback()
+            return jsonify(error="Database connection error"), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify(error=str(e)), 500

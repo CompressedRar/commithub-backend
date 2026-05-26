@@ -96,7 +96,7 @@ def verify_admin_password():
 
     ph = PasswordHasher()
     try:
-        ph.verify(hash=user.password, password=password)
+        ph.verify(hash=user.profile.password, password=password)
         print("VERIFIED")
         # create short-lived confirmation token
         token = AdminConfirmation.create_for_user(user_id, minutes=10)
@@ -108,16 +108,21 @@ def verify_admin_password():
 @auth.route("/forgot_password/<email>", methods=["POST"])
 @limiter.limit("5 per minute")
 def forgot_password(email):
-    user = User.query.filter_by(email=email).first()
+    from models.User import Profile
     
-    if user:
-        # Create token and get the plain version
-        token = PasswordResetToken.create_for_user(user.id)
+    profile = Profile.query.filter_by(email=email).first()
+    
+    if profile and profile.users:
+        # Get the first active user for this profile
+        user = next((u for u in profile.users if u.account_status == 1), None)
+        if user:
+            # Create token and get the plain version
+            token = PasswordResetToken.create_for_user(user.id)
 
-        link = "https://www.commithub.online/forgot-password/"+token
-        send_forgot_email(user.email, f"Change your password here: {link}")
+            link = "https://www.commithub.online/forgot-password/"+token
+            send_forgot_email(email, f"Change your password here: {link}")
 
-        return jsonify(message="Forgot Password Email has been sent"), 200
+            return jsonify(message="Forgot Password Email has been sent"), 200
         
     return jsonify(error="Email does not exists"), 400
 
