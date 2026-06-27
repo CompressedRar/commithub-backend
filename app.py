@@ -101,6 +101,10 @@ def create_app():
     def homes():
         return "working now 2.1"
 
+    # Register CLI commands for database management
+    from cli import init_cli
+    init_cli(app)
+
     return app
 
 
